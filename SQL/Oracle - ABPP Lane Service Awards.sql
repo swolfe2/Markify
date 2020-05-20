@@ -1,0 +1,1 @@
+select * from ABPP_LANESERVICEAWARDS where TARIFF_SERVICE = 'WALM'

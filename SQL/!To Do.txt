@@ -1,0 +1,59 @@
+// RFT seriously what am I doing here? what is this crap?
+Load Completion
+- Manually updating the Status
+-- Maybe load audit table or "Track And Trace"
+-- <>*DFT or starts with a 9, then the status has been manually updated
+-- They want to get all of the times something goes through these steps, but is manually touched
+SELECT DISTINCT CRTD_USR_CD, EXCEPTION_DESC FROM TMDW.IA_EXCEPTION_CODE
+WHERE EXCEPTION_DESC = 'In Transit' OR EXCEPTION_DESC = 'Delivered' OR EXCEPTION_DESC = 'Completed'
+ORDER BY EXCEPTION_DESC ASC
+
+//CAPS RFT
+SELECT DISTINCT LOAD_ID, SCORED_BY 
+FROM najdatrn.abpp_otc_caps_master
+AND STOP_NUM > 1
+
+// Appointments
+Include Curtis on most emails
+Appointment Status Screen in TMS
+Needs to be refreshable
+-- Excel File
+**Copy of 7 Days Out - By Technician.xlsx
+New Appointment Report
+-- Total-All Techs table
+
+Need to know an aggregate of which have been done by which people.
+
+-- Excel File
+Loads 2 Days Out
+Tim built file, allows him to refresh query to Oracle
+
+Want to see if the appointment was scheduled for the original RDD, 
+
+Create Date to Time Notified > How fast is the information getting to the customer
+Notified to Confirmed > How fasat is the customer getitng back to them
+Create to Confirmed > How long is that taking
+Count of number of times an appointment changes before tendering
+Count number of times an appointment changes before PGI
+Count number of times an appointment changes after it shipped
+
+//Carrier routing guide
+sent monthly
+https://kimberlyclark.shaZUSBint.com/:x:/r/Teams/A286/_layouts/15/Doc.aspx?sourcedoc=%7BA940176C-34DC-43B0-A7FB-EF78B7FE52B3%7D&file=Central%20Transportation%20-%20Top%205%20Rates%20by%20Lane.xlsx&action=default&mobileredirect=true
+
+//If there are actuals, then use the actuals value
+//If there are pre-rate, then use pre-rate
+//If there are no actuals or pre-rate, use whichever value is greater
+
+ISNULL(CONVERT(NUMERIC(18,2),Act_Linehaul),0)
++ISNULL(CONVERT(NUMERIC(18,2),Act_ZUSB),0)
++ISNULL(CONVERT(NUMERIC(18,2),Act_ZUSB),0)
++ISNULL(CONVERT(NUMERIC(18,2),Act_ZUSB),0)
++ISNULL(CONVERT(NUMERIC(18,2),Act_ZUSB),0)
+
+SUM(
+IF [ActualRateCharge] = 'Yes' THEN [Act_ZUSB]
+ELSEIF [PreRateCharge] = 'Yes' THEN [PreRate_ZUSB]
+ELSEIF [Act_ZUSB] > [PreRate_ZUSB] THEN [Act_ZUSB]
+ELSE [PreRate_ZUSB]
+END)

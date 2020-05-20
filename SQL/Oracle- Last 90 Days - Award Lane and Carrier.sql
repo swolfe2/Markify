@@ -1,0 +1,1 @@
+select * from charge_detail_r where ld_leg_id = 516932190

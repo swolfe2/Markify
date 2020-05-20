@@ -1,0 +1,1 @@
+taskkill /f /fi "USERNAME eq %USERNAME%" /im MSACCESS.EXE 

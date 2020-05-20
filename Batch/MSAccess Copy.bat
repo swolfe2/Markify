@@ -1,0 +1,1 @@
+xcopy /Y \\USTCA097\Stage\Database Files\RFT Detail Data\RFT Detail Data.accdb \\USKVFN01\share\Transportation\Corporate Transportation\Carpenter, Scottie\CTT Reports\RFT Reports\RFT Detail Data.accdb

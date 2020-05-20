@@ -1,0 +1,7 @@
+// Fields for SQl
+
+SHIPMENT_R / RFRC_NUM11
+
+If cube less than 20, then wadding
+
+If left(shipment,2) = '67', then Spacemaker = 'Y'
