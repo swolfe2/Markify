@@ -24,6 +24,6 @@ for filename in os.listdir(fileDir):
         filepath = fileDir +'\\'+ filename
         modDate = datetime.fromtimestamp(os.path.getmtime(filepath))
         hoursOld = (now - modDate).total_seconds() / 3600
-        if hoursOld != 24:
+        if hoursOld < 24:
             destfilepath = startDir +'\\'+ filename
             copyfile(filepath, destfilepath)
