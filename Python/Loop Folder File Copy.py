@@ -27,5 +27,3 @@ for filename in os.listdir(fileDir):
         if hoursOld != 24:
             destfilepath = startDir +'\\'+ filename
             copyfile(filepath, destfilepath)
-
-#Testing a github change
