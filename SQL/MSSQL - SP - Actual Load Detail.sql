@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 5/29/2020 11:54:13 AM ******/
+/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 6/9/2020 8:55:52 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -3546,20 +3546,51 @@ Update Dedicated Fleet Flag
 UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET Dedicated =
                CASE
-                 WHEN ald.SRVC_CD IN ('WEND', 'WEDV', 'NFIL') THEN 'Y'
+                 WHEN ca.Dedicated = 'Y' THEN 'Y'
                  ELSE NULL
                END
 FROM USCTTDEV.dbo.tblActualLoadDetail ald
+LEFT JOIN USCTTDEV.dbo.tblCarriers ca ON ca.CARR_CD = ald.CARR_CD
+	AND ca.SRVC_CD = ald.SRVC_CD
 WHERE CONVERT(date, ald.LastUpdated) = CONVERT(date, GETDATE())
 AND (ald.Dedicated <>
                      CASE
-                       WHEN ald.SRVC_CD IN ('WEND', 'WEDV', 'NFIL') THEN 'Y'
+                       WHEN ca.Dedicated = 'Y' THEN 'Y'
                        ELSE NULL
                      END
 OR ald.Dedicated IS NULL)
 
 /*
+Update LiveLoad flag where the last appointment made was for a Live Load
+*/
+UPDATE USCTTDEV.dbo.tblActualLoadDetail
+SET LiveLoad =
+              CASE
+                WHEN data.LOAD_NUMBER IS NOT NULL THEN 'Y'
+                ELSE NULL
+              END
+FROM USCTTDEV.dbo.tblActualLoadDetail ald
+LEFT JOIN (SELECT
+  *
+FROM OPENQUERY(NAJDAPRD, '
+SELECT DISTINCT aph.LOAD_NUMBER, aph.APPOINTMENT_CHANGE_TIME, aph.LIVE_LOAD
+FROM NAI2PADM.ABPP_OTC_APPOINTMENTHISTORY aph
+INNER JOIN(
+SELECT DISTINCT aph.LOAD_NUMBER, MAX(aph.APPOINTMENT_CHANGE_TIME) AS MaxChangeTime
+FROM NAI2PADM.ABPP_OTC_APPOINTMENTHISTORY aph
+WHERE EXTRACT(YEAR FROM aph.APPOINTMENT_CHANGE_TIME
+) >= EXTRACT(YEAR FROM SYSDATE) - 3
+GROUP BY aph.LOAD_NUMBER) data 
+    ON data.LOAD_NUMBER = aph.LOAD_NUMBER
+    AND data.MaxChangeTime = aph.APPOINTMENT_CHANGE_TIME
+WHERE aph.LIVE_LOAD = ''Y''
+GROUP BY aph.LOAD_NUMBER, aph.APPOINTMENT_CHANGE_TIME, aph.LIVE_LOAD
+')) data
+  ON data.LOAD_NUMBER = ald.LD_LEG_ID
+
+/*
 Update Rate Type
+Logic in email from Jeff Perrot on 5/29/2020
 */
 UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET RateType =
