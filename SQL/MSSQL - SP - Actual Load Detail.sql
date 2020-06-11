@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 6/9/2020 8:55:52 AM ******/
+/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 6/17/2020 9:55:05 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -9,8 +9,9 @@ GO
 -- =============================================
 -- Author:		<Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team>
 -- Create date: <9/30/2019>
--- Last modified: <4/16/2020>
+-- Last modified: <6/17/2020>
 -- Description:	<Executes query against Oracle, loads to temp table, then appends/updates dbo.tblActualLoadDetail>
+-- 6/17/2020 - SW - Added secondary FRAN update query, in case the audit table was to get purged
 -- 5/29/2020 - SW - Added dedicated fleet and rate type marker logic to update new fields on USCTTDEV.dbo.tblActualLoadDetail
 -- 4/16/2020 - SW - Added BUSegment queries, which will add new business segments to dbo.tblShipmentItems, but also update BUSegment with the appropriate BUSegment
 Also, updated 600 INTERMODAL logic to exclude FECD per Grace Ferraro
@@ -3588,6 +3589,26 @@ GROUP BY aph.LOAD_NUMBER, aph.APPOINTMENT_CHANGE_TIME, aph.LIVE_LOAD
 ')) data
   ON data.LOAD_NUMBER = ald.LD_LEG_ID
 
+ /*
+FRAN Update with Thomas's table, should it be null
+Logic in email from Thomas on 6/17/2020
+*/
+UPDATE USCTTDEV.dbo.tblActualLoadDetail
+SET FRAN = 'FRAN'
+FROM USCTTDEV.dbo.tblActualLoadDetail ald
+INNER JOIN(
+SELECT audt.LD_LEG_ID FROM 
+USCTTDEV.dbo.tblAuditLoadLeg audt
+INNER JOIN (
+	SELECT DISTINCT audt.LD_LEG_ID, MAX(audt.AUDT_LD_LEG_ID) AS MaxID
+	FROM USCTTDEV.dbo.tblAuditLoadLeg audt
+	WHERE LD_CARR_CD = 'FRAN'
+	GROUP BY audt.LD_LEG_ID) maxed ON maxed.LD_LEG_ID = audt.LD_LEG_ID
+AND maxed.MaxID = audt.AUDT_LD_LEG_ID
+/*WHERE LD_CARR_CD = 'FRAN'*/) fran ON fran.LD_LEG_ID = ald.LD_LEG_ID
+WHERE ald.SRVC_CD = 'OPEN'
+AND ald.FRAN IS NULL
+
 /*
 Update Rate Type
 Logic in email from Jeff Perrot on 5/29/2020
@@ -3612,6 +3633,8 @@ AND (RateType <>
                   ELSE 'Contract'
                 END
 OR ald.RateType IS NULL)
+
+
 
 /*
 Execute Bid App Add and Update
