@@ -40,17 +40,17 @@ from turbodbc import connect, make_options
 from io import StringIO
 from datetime import datetime
 import time
-from shutil import copyfile
+from shutil import copyfile, move
 
 #Set starting directory
 startDir = '\\\\USTCA097\\Stage\\Database Files\\USBank\\1 - Files To Process'
-
+"""
 #If there's a text file already in the directory, delete that ish
 for filename in os.listdir(startDir):
     if filename.endswith('.txt'):
         filepath = startDir +'\\'+ filename
         os.remove(filepath)
-
+"""
 #Set directory which has files
 fileDir = '\\\\sappa4fs.kcc.com\\interfaces\\PA4\\Mulesoft\\EDI\\USBANK\\IN\\Processed'
 
@@ -61,9 +61,10 @@ for filename in os.listdir(fileDir):
         filepath = fileDir +'\\'+ filename
         modDate = datetime.fromtimestamp(os.path.getmtime(filepath))
         hoursOld = (now - modDate).total_seconds() / 3600
-        if hoursOld != 24 and os.path.getsize(filepath) > 0:
+        if hoursOld < 24 and os.path.getsize(filepath) > 0:
                 destfilepath = startDir +'\\'+ filename
                 copyfile(filepath, destfilepath)
+                #copyfile(filepath, destfilepath)
 
 #Set completed directory
 compDir = '\\\\USTCA097\\Stage\\Database Files\\USBank\\2 - Completed Files'
@@ -165,7 +166,8 @@ def renameFiles():
 
         oldFile = i[0]
         newFile = i[-1]
-        os.rename(oldFile, newFile) 
+        move(oldFile, newFile + '.txt')
+        #os.rename(oldFile, newFile + '.txt') 
 
 #Loop over each filename
 #Loop Counter
@@ -209,15 +211,30 @@ for filename in os.listdir(startDir):
             #Get the first 2 characters of the word
             first2 = _words[0:1]
 
+            #Get the first 4 characters of the word
+            first4 = _words[0:4]
+
             # Append master record to own array
-            if '00' in first2:
+            if '00' in first2 or '"00"' in first4:
                 master += line
 
-            elif '01' in first2:
+            elif '01' in first2 or '"01"' in first4:
                 freightBill += line
 
-            elif '02' in first2:
+            elif '02' in first2 or '"02"' in first4:
                 freightBillDetail += line
+
+        fileOutput = open('\\\\USTCA097\\Stage\\Database Files\\USBank\\master.txt', 'w')
+        fileOutput.write(master)
+        fileOutput.close
+
+        fileOutput = open('\\\\USTCA097\\Stage\\Database Files\\USBank\\FreightBill.txt', 'w')
+        fileOutput.write(freightBill)
+        fileOutput.close
+
+        fileOutput = open('\\\\USTCA097\\Stage\\Database Files\\USBank\\freightBillDetail.txt', 'w')
+        fileOutput.write(freightBillDetail)
+        fileOutput.close
 
         # Create master dataframe and invoice key for final invoice merge
         master_df = pd.read_csv(io.StringIO(master), sep='|', header=None)
@@ -597,6 +614,10 @@ for filename in os.listdir(startDir):
         merge_df.VoucherID = merge_df.VoucherID.astype('object')
         merge_df.VoyageNumber = merge_df.VoyageNumber.astype('object')
 
+        #Get rid of quotes that have appeared, since the update on 6/21/2020
+        merge_df = merge_df.applymap(str)
+        merge_df.apply(lambda s:s.str.replace('"', ""))
+
         #Fix string special characters
         merge_df['EquipmentType'] = merge_df['EquipmentType'].str.replace('~1|_~1', "")
         merge_df['Container1Type'] = merge_df['Container1Type'].str.replace('~1|_~1', "")
@@ -717,6 +738,8 @@ for filename in os.listdir(startDir):
 
         # print data types
         #print(merge_df.info(verbose=True))
+
+
 
         # Dump it to Excel for QA
         #writer = pd.ExcelWriter(startDir + '\\' + filename.replace('.txt','') +'.xlsx' , engine='xlsxwriter')
