@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 6/17/2020 9:55:05 AM ******/
+/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 7/1/2020 10:57:56 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -9,8 +9,9 @@ GO
 -- =============================================
 -- Author:		<Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team>
 -- Create date: <9/30/2019>
--- Last modified: <6/17/2020>
+-- Last modified: <7/1/2020>
 -- Description:	<Executes query against Oracle, loads to temp table, then appends/updates dbo.tblActualLoadDetail>
+-- 7/1/2020 - SW - Added 2447 as a Consumer BU per Lynlee Robinson
 -- 6/17/2020 - SW - Added secondary FRAN update query, in case the audit table was to get purged
 -- 5/29/2020 - SW - Added dedicated fleet and rate type marker logic to update new fields on USCTTDEV.dbo.tblActualLoadDetail
 -- 4/16/2020 - SW - Added BUSegment queries, which will add new business segments to dbo.tblShipmentItems, but also update BUSegment with the appropriate BUSegment
@@ -1205,7 +1206,8 @@ FROM
 							''2851'',
 							''2433'',
 							''2047'',
-							''2431''
+							''2431'',
+							''2447''
                         ) THEN
                             ''CONSUMER''
                         WHEN substr(last_shpg_loc_cd, 1, 4) IN (
@@ -2010,7 +2012,8 @@ FROM
 							''2851'',
 							''2433'',
 							''2047'',
-							''2431''
+							''2431'',
+							''2447''
                         ) THEN
                             ''CONSUMER''
                         WHEN substr(last_shpg_loc_cd, 1, 4) IN (
@@ -3634,8 +3637,6 @@ AND (RateType <>
                 END
 OR ald.RateType IS NULL)
 
-
-
 /*
 Execute Bid App Add and Update
 */
@@ -3661,7 +3662,6 @@ DROP TABLE IF EXISTS
 ##tblPreRateLoadDetailsRaw,
 ##tblTMSMasterZones
 ;
-
 
 /*
 SELECT LD_LEG_ID, BU, CONSUMERVolume, KCPVolume, NonWovenVolume, UnknownVolume, BUCount FROM ##tblActualLoadDetailsALD WHERE BUCount >1
