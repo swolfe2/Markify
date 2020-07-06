@@ -21,24 +21,27 @@ runType = 'Sandbox'
 
 def creds():
     if runType == 'Production':
-        return 'ZI9Q8iKw3E67rcjb', 'https://api.coyote.com/connect/token'
+        return {'api_key':'ZI9Q8iKw3E67rcjb'
+        , 'token_endpoint':'https://api.coyote.com/connect/token'}
     else:
-        return 'rORDZaG66FEa31ty', 'https://api-sandbox.coyote.com/connect/token'
+        return {'api_key':'rORDZaG66FEa31ty'
+        , 'token_endpoint':'https://api-sandbox.coyote.com/connect/token'}
 
-# Get api_key / endpoint from creds()
-api_key, credEndpoint = creds()
 
-# API Payload that will be sent to the endpoint
+# Get the credentials dictionary
+credsDict = creds()
+
+# API Payload that will be sent to the api_endpoint
 authPayload = {
     'client_id': client_ID,
-    'client_secret': api_key,
+    'client_secret': credsDict.get("api_key"),
     'grant_type': 'client_credentials',
     'scope': 'ExternalApi'
 }
 
 def getToken():
     # Make API POST for credentials
-    r = requests.post(credEndpoint, data=authPayload)
+    r = requests.post(credsDict.get("token_endpoint"), data=authPayload)
     if r.status_code == 200:
         jsonResponse = r.json()
         return jsonResponse['access_token']
@@ -47,8 +50,9 @@ def getToken():
 
 # Token used to make calls against endpoints
 token = getToken()
-headers = {'Content-type':'application/json', 'Accept':'application/json', 'Authorization': 'Bearer ' + token}
-endpoint = credEndpoint.replace('/connect/token', '/api/v1/SpotQuotes')
+
+# API endpoint string is a modified token endpoint string
+api_endpoint = credsDict.get("token_endpoint").replace('/connect/token', '/api/v1/SpotQuotes')
 
 # Payload requests
 payload = json.dumps({
@@ -65,7 +69,7 @@ payload = json.dumps({
         'countryCode': 'US',
         'postalCode': '53703'
     },
-    'pickUpDateUTC': '2020-07-05T12:41:03.6402864Z',
+    'pickUpDateUTC': '2020-07-07T12:41:03.6402864Z', #MUST BE A FUTURE DATE!
     'minTemperature': None,
     'maxTemperature': None,
     'weight': 100,
@@ -79,7 +83,8 @@ payload = json.dumps({
 # Get data reply from API
 def getData():
     # Post requests to get spot rate
-    r = requests.post(endpoint, data=payload, headers=headers)
+    headers = {'Content-type':'application/json', 'Accept':'application/json', 'Authorization': 'Bearer ' + token}
+    r = requests.post(api_endpoint, data=payload, headers=headers)
     if r.status_code == 200:        
         return r
     else:
