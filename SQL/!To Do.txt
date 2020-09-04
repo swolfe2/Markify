@@ -1,3 +1,12 @@
+// Carrier Scorecards
+60% of score is service / 40% is compliance to awards
+S:\Transportation\Corporate Transportation\Rate> & Analysis Team\Carrier Scorecard\2019
+If a single carrier is selected, show that carrier but hide the other carrier names
+264281416
+107002719810
+
+
+
 // RFT seriously what am I doing here? what is this crap?
 Load Completion
 - Manually updating the Status
@@ -19,6 +28,8 @@ Appointment Status Screen in TMS
 Needs to be refreshable
 -- Excel File
 **Copy of 7 Days Out - By Technician.xlsx
+
+
 New Appointment Report
 -- Total-All Techs table
 
@@ -57,3 +68,26 @@ ELSEIF [PreRateCharge] = 'Yes' THEN [PreRate_ZUSB]
 ELSEIF [Act_ZUSB] > [PreRate_ZUSB] THEN [Act_ZUSB]
 ELSE [PreRate_ZUSB]
 END)
+
+// OTP VIsual Management
+Bucketed into 3 hour blocks
+Brokers / Auctions
+
+Link to outputs
+\\kcfiles\share\Corporate\DISTRIBUTION\Distrib\KPI
+
+Live Load Details files > Carrier Details
+Site / SCAC / Month / Ship ID / Carr On-Time / Load Ready Time / Carr Arr Time / WMS / Best Arr Time / Carr Arrival to LRT / DC Load Start / DC Load End / DC Dwell / Time to load
+
+\\ Link to SAS file
+\\kcfiles\share\Corporate\DISTRIBUTION\Distrib\SAS Programs
+
+Rate Type Dashboard:
+Remove LTL
+
+Broker Dashboard:
+Add BU
+Find out why the percentages aren't mapping
+
+//Remove LTL
+//Add lane awards

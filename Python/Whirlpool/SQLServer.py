@@ -7,7 +7,7 @@ server = '158.52.179.7'
 database = 'Telephony'
 username = 'tcsodbc'
 password = 'tcsodbc'
-cnxn = pyodbc.connect('Driver={ODBC Driver 13 for SQL Server};SERVER=' +
+cnxn = pyodbc.connect('Driver={ODBC Driver 17 for SQL Server};SERVER=' +
                       server+';DATABASE='+database+';UID='+username+';PWD='+password)
 
 # Sample SQL Query

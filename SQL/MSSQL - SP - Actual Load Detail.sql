@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 7/1/2020 10:57:56 AM ******/
+/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 9/4/2020 12:31:31 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -9,8 +9,9 @@ GO
 -- =============================================
 -- Author:		<Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team>
 -- Create date: <9/30/2019>
--- Last modified: <7/1/2020>
+-- Last modified: <9/2/2020>
 -- Description:	<Executes query against Oracle, loads to temp table, then appends/updates dbo.tblActualLoadDetail>
+-- 9/2/2020 - SW - Updated RFT to use new table instead of old
 -- 7/1/2020 - SW - Added 2447 as a Consumer BU per Lynlee Robinson
 -- 6/17/2020 - SW - Added secondary FRAN update query, in case the audit table was to get purged
 -- 5/29/2020 - SW - Added dedicated fleet and rate type marker logic to update new fields on USCTTDEV.dbo.tblActualLoadDetail
@@ -1207,7 +1208,8 @@ FROM
 							''2433'',
 							''2047'',
 							''2431'',
-							''2447''
+							''2447'',
+							''2540''
                         ) THEN
                             ''CONSUMER''
                         WHEN substr(last_shpg_loc_cd, 1, 4) IN (
@@ -1503,12 +1505,13 @@ FROM
         FROM
             nai2padm.tbllanes
     )
+	WHERE CODE NOT LIKE ''US-%''
 ORDER BY
     cityname ASC')
 
 /*
 Add new zones to USCTTDEV.dbo.tblTMSZones
-SELECT * FROM USCTTDEV.dbo.tblTMSZones WHERE CTY_CD = 'FORT ST. JOHN'
+SELECT * FROM USCTTDEV.dbo.tblTMSZones WHERE ZN_CD LIKE 'US-%' WHERE CTY_CD = 'FORT ST. JOHN'
 */
 INSERT INTO USCTTDEV.dbo.tblTMSZones (ZN_CD,
 ZN_DESC,
@@ -1579,6 +1582,19 @@ AND z.CTRY_CD IN (''USA'',''CAN'',''MEX'')
 AND g.CITY_NAME IS NOT NULL
 ORDER BY z.ZN_CD ASC')) zones ON zones.ZN_CD = tmsz.ZN_CD
 AND zones.CTY_CD = tmsz.CTY_CD
+
+/*
+Delete duplicate zones that might exist for some reason
+*/
+DELETE FROM USCTTDEV.dbo.tblTMSZones
+FROM USCTTDEV.dbo.tblTMSZones tmz
+INNER JOIN(
+SELECT DISTINCT ZN_CD, ZN_DESC, COUNT(*) AS COUNT, MIN(ID) AS MinID
+FROM USCTTDEV.dbo.tblTMSZones
+GROUP BY ZN_CD, ZN_DESC
+HAVING COUNT(*) > 1) dupes ON dupes.ZN_CD = tmz.ZN_CD
+AND dupes.ZN_DESC = tmz.ZN_DESC
+WHERE tmz.ID <> dupes.MinID
 
 /*
 Update ORIGIN_ZONE if it's null to match origdest
@@ -1895,8 +1911,8 @@ DECLARE @BUWeightRawQuery NVARCHAR(MAX)
 SET @BUWeightRawQuery = 'SELECT DISTINCT
     ld_leg_id,
     ob_bu as OBBU,
-    sum(vol) as TotalVolume,
-    sum(nmnl_wgt) as TotalWeight,
+    CAST(ROUND(sum(vol),2) AS NUMERIC(18,2)) as TotalVolume,
+    CAST(ROUND(sum(nmnl_wgt),2) AS NUMERIC(18,2)) as TotalWeight,
     count(ld_leg_id) as Count
 FROM
     (
@@ -1915,8 +1931,8 @@ FROM
                 SELECT DISTINCT
                     l.ld_leg_id,
                     sh.rfrc_num10 AS bu,
-                    sh.vol,
-                    sh.nmnl_wgt,
+                    SUM(sh.vol) AS vol,
+                    SUM(sh.nmnl_wgt) AS nmnl_wgt,
                     CASE
                         WHEN substr(last_shpg_loc_cd, 1, 4) IN (
                             ''2000'',
@@ -2013,7 +2029,8 @@ FROM
 							''2433'',
 							''2047'',
 							''2431'',
-							''2447''
+							''2447'',
+							''2540''
                         ) THEN
                             ''CONSUMER''
                         WHEN substr(last_shpg_loc_cd, 1, 4) IN (
@@ -2150,8 +2167,214 @@ FROM
                         ''USA''
                     )
 					AND l.last_shpg_loc_cd NOT LIKE ''LCL%''
+                    /*AND l.LD_LEG_ID = ''519549007''*/
+                    GROUP BY l.ld_leg_id,
+                    sh.rfrc_num10,
+                    CASE
+                        WHEN substr(last_shpg_loc_cd, 1, 4) IN (
+                            ''2000'',
+                            ''2019'',
+                            ''2022'',
+                            ''2023'',
+                            ''2024'',
+                            ''2026'',
+                            ''2027'',
+                            ''2028'',
+                            ''2029'',
+                            ''2031'',
+                            ''2032'',
+                            ''2035'',
+                            ''2036'',
+                            ''2038'',
+                            ''2041'',
+                            ''2049'',
+                            ''2050'',
+                            ''2054'',
+                            ''2063'',
+                            ''2075'',
+                            ''2094'',
+                            ''2100'',
+                            ''2137'',
+                            ''2138'',
+                            ''2142'',
+                            ''2170'',
+                            ''2171'',
+                            ''2172'',
+                            ''2183'',
+                            ''2187'',
+                            ''2191'',
+                            ''2197'',
+                            ''2210'',
+                            ''2213'',
+                            ''2240'',
+                            ''2275'',
+                            ''2283'',
+                            ''2291'',
+                            ''2292'',
+                            ''2300'',
+                            ''2303'',
+                            ''2307'',
+                            ''2314'',
+                            ''2320'',
+                            ''2331'',
+                            ''2336'',
+                            ''2347'',
+                            ''2353'',
+                            ''2358'',
+                            ''2359'',
+                            ''2360'',
+                            ''2369'',
+                            ''2370'',
+                            ''2385'',
+                            ''2399'',
+                            ''2408'',
+                            ''2412'',
+                            ''2414'',
+                            ''2419'',
+                            ''2422'',
+                            ''2443'',
+                            ''2463'',
+                            ''2483'',
+                            ''2487'',
+                            ''2489'',
+                            ''2496'',
+                            ''2500'',
+                            ''2510'',
+                            ''2511'',
+                            ''2822'',
+                            ''2839'',
+							''1022'',
+							''1027'',
+							''1028'',
+							''1029'',
+							''1031'',
+							''1032'',
+							''1283'',
+							''1313'',
+							''2060'',
+							''2073'',
+							''2499'',
+							''2516'',
+							''2519'',
+							''2522'',
+							''2524'',
+							''2528'',
+							''2840'',
+							''2853'',
+							''2427'',
+							''2851'',
+							''2433'',
+							''2047'',
+							''2431'',
+							''2447'',
+							''2540''
+                        ) THEN
+                            ''CONSUMER''
+                        WHEN substr(last_shpg_loc_cd, 1, 4) IN (
+                           ''2034'',
+                            ''2039'',
+                            ''2040'',
+                            ''2042'',
+                            ''2043'',
+                            ''2044'',
+                            ''2048'',
+                            ''2051'',
+                            ''2079'',
+                            ''2080'',
+                            ''2091'',
+                            ''2096'',
+                            ''2099'',
+                            ''2104'',
+                            ''2106'',
+                            ''2111'',
+                            ''2112'',
+                            ''2113'',
+                            ''2124'',
+                            ''2126'',
+                            ''2161'',
+                            ''2177'',
+                            ''2200'',
+                            ''2234'',
+                            ''2299'',
+                            ''2301'',
+                            ''2302'',
+                            ''2304'',
+                            ''2310'',
+                            ''2323'',
+                            ''2325'',
+                            ''2334'',
+                            ''2348'',
+                            ''2349'',
+                            ''2350'',
+                            ''2356'',
+                            ''2362'',
+                            ''2363'',
+                            ''2375'',
+                            ''2386'',
+                            ''2415'',
+                            ''2416'',
+                            ''2425'',
+                            ''2429'',
+                            ''2446'',
+                            ''2449'',
+                            ''2459'',
+                            ''2460'',
+                            ''2467'',
+                            ''2474'',
+                            ''2476'',
+                            ''2477'',
+                            ''2485'',
+                            ''2495'',
+                            ''2505'',
+                            ''2827'',
+                            ''2833'',
+                            ''2834'',
+                            ''2837'',
+							''1042'',
+							''1048'',
+							''1820'',
+							''1827'',
+							''1833'',
+							''1837'',
+							''2151'',
+							''2481'',
+							''2498'',
+							''2513'',
+							''2520''
+                        ) THEN
+                            ''KCP''
+						WHEN substr(last_shpg_loc_cd, 1, 4) IN (
+						''1044'',
+						''1049''
+						) THEN
+							''NON WOVENS''
+                        ELSE
+                            ''UNKNOWN''
+                    END,
+                    CASE
+                        WHEN sh.rfrc_num10 IN (
+                            ''2810'',
+                            ''2820'',
+                            ''Z01''
+                        ) THEN
+                            ''CONSUMER''
+                        WHEN sh.rfrc_num10 IN (
+                            ''2811'',
+                            ''2821'',
+                            ''Z02'',
+                            ''Z04'',
+                            ''Z06'',
+                            ''Z07''
+                        ) THEN
+                            ''KCP''
+                        WHEN sh.rfrc_num10 = ''Z05'' THEN
+                            ''NON-WOVENS''
+                        ELSE
+                            NULL
+                    END
             )
     ) 
+
     --WHERE LD_LEG_ID = ''517901035''
     group by ld_leg_id, ob_bu
     order by ld_leg_id ASC'
@@ -2457,22 +2680,23 @@ ALTER TABLE ##tblActualLoadDetailsALD ADD RFT NVARCHAR(30)
 
 /*
 Update ##tblActualLoadDetailsALD to match the ManuallyTouchedReason from tblRFTDetailDataHistorical, which matches the Tableau reason
+SELECT TOP 10 * FROM USCTTDEV.dbo.tblRFTDetailDataHistoricalNew
 */
 UPDATE ##tblActualLoadDetailsALD
-SET RFT = rft.ManuallyTouchedReason
+SET RFT = rft.FirstFailure
 FROM ##tblActualLoadDetailsALD ald
 	INNER JOIN (
 		SELECT rf.*, SUM(cnt.Count) as Count FROM (
-			SELECT DISTINCT LOAD_NUMBER, ManuallyTouchedReason
-			from USCTTDEV.dbo.tblRFTDetailDataHistorical
+			SELECT DISTINCT LOAD_NUMBER, FirstFailure
+			from USCTTDEV.dbo.tblRFTDetailDataHistoricalNew
 			) rf
 				INNER JOIN (
 					SELECT DISTINCT LOAD_NUMBER, 1 as Count 
-					from USCTTDEV.dbo.tblRFTDetailDataHistorical 
+					from USCTTDEV.dbo.tblRFTDetailDataHistoricalNew 
 					) cnt ON
 						cnt.load_Number = rf.LOAD_NUMBER
-						WHERE rf.ManuallyTouchedReason <> 'Automated'
-						GROUP BY rf.LOAD_NUMBER, rf.ManuallyTouchedReason						
+						WHERE rf.FirstFailure <> 'Automated'
+						GROUP BY rf.LOAD_NUMBER, rf.FirstFailure						
 					) rft ON
 			rft.LOAD_NUMBER = ald.LD_LEG_ID
 
@@ -3518,7 +3742,7 @@ WHERE ald.BUSegment IS NULL AND ald.BUSegment <> 'NFG'
 Update to KCP where BU Is already KCP
 */
 UPDATE USCTTDEV.dbo.tblActualLoadDetail
-SET BUSegment = BU
+SET BUSegment = REPLACE(BU,' ','')
 WHERE (BUSegment IS NULL AND BUSegment <> 'Wadding' AND BUSegment <> 'NFG') 
 AND BUSegment <> BU
 AND BU = 'KCP'
@@ -3527,7 +3751,7 @@ AND BU = 'KCP'
 Update to NonWovens WHERE BU Is already NonWovens
 */
 UPDATE USCTTDEV.dbo.tblActualLoadDetail
-SET BUSegment = BU
+SET BUSegment = REPLACE(BU,' ','')
 WHERE (BUSegment IS NULL AND BUSegment <> 'Wadding' AND BUSegment <> 'NFG' ) 
 AND BUSegment <> BU
 AND BU = 'NON WOVENS'
@@ -3539,7 +3763,7 @@ SELECT * FROM ##tblShipmentItemsRaw WHERE LD_LEG_ID = '515222131' ORDER BY RANK 
  
 */
  UPDATE USCTTDEV.dbo.tblActualLoadDetail
-SET BUSegment =  rankings.BUSegment
+SET BUSegment =  REPLACE(rankings.BUSegment,' ','')
 FROM USCTTDEV.dbo.tblActualLoadDetail ald
 INNER JOIN (SELECT DISTINCT LD_LEG_ID, BUSegment FROM ##tblShipmentItemsRaw WHERE Rank = 1) rankings ON rankings.LD_LEG_ID = ald.LD_LEG_ID
 WHERE ald.BUSegment IS NULL
@@ -3637,6 +3861,8 @@ AND (RateType <>
                 END
 OR ald.RateType IS NULL)
 
+
+
 /*
 Execute Bid App Add and Update
 */
@@ -3662,6 +3888,7 @@ DROP TABLE IF EXISTS
 ##tblPreRateLoadDetailsRaw,
 ##tblTMSMasterZones
 ;
+
 
 /*
 SELECT LD_LEG_ID, BU, CONSUMERVolume, KCPVolume, NonWovenVolume, UnknownVolume, BUCount FROM ##tblActualLoadDetailsALD WHERE BUCount >1

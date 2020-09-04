@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_RFT]    Script Date: 2/21/2020 8:43:13 AM ******/
+/****** Object:  StoredProcedure [dbo].[sp_RFT]    Script Date: 7/14/2020 11:11:04 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -9,7 +9,8 @@ GO
 -- =============================================
 -- Author:		Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team
 -- Create date: 12/6/2019
--- Last modified: 2/21/2020
+-- Last modified: 7/14/2020
+-- 7/14/2020 - SW - Commented out LTL/PKG exclusions per John Crumpton
 -- 2/21/2020 - SW - Pretty large functionality changes. Now bringing in all shipments in the last 2 calendar years that aren't cancelled. Also, completely started new table from scratch,
 and am only going to bring in the last stop details of the load.
 -- 1/20/2020 - SW - Added steps at the bottom to take the full manually touched reason table, pivot, then update RFT table with pivoted values
@@ -757,9 +758,8 @@ FROM
                     AND (l.cur_optlstat_id BETWEEN 300 AND 350)
                     AND EXTRACT(YEAR FROM
 						CASE
-							WHEN l.shpd_dtt IS NOT NULL THEN l.shpd_dtt
 							WHEN l.shpd_dtt IS NOT NULL THEN l.shpd_dtt							
-							ELSE l.shpd_dtt	
+							ELSE l.strd_dtt	
 						END
 					) >= EXTRACT(YEAR FROM SYSDATE)-1
                     AND (last_ctry_cd IN (
@@ -984,7 +984,7 @@ WHERE
         ''CAN'',
         ''MEX''
     ) or load_leg_r.frst_ctry_cd is null)
-	  AND (load_leg_r.eqmt_typ NOT IN (''LTL'',''PKG'') OR load_leg_r.eqmt_typ IS NULL)
+	 /* AND (load_leg_r.eqmt_typ NOT IN (''LTL'',''PKG'') OR load_leg_r.eqmt_typ IS NULL) */
       AND (( substr(frst_shpg_loc_cd, 1, 1) <> ''R'' ) or frst_shpg_loc_cd is null)
       AND (( substr(last_shpg_loc_cd, 1, 1) <> ''R'' ) or last_shpg_loc_cd is null))
 	  AND (load_leg_r.CUR_OPTLSTAT_ID between 300 and 350)
@@ -1044,7 +1044,7 @@ WHERE
         ''CAN'',
         ''MEX''
     )  or load_leg_r.frst_ctry_cd is null)
-	  AND (load_leg_r.eqmt_typ NOT IN (''LTL'',''PKG'') OR load_leg_r.eqmt_typ IS NULL)
+	  /*AND (load_leg_r.eqmt_typ NOT IN (''LTL'',''PKG'') OR load_leg_r.eqmt_typ IS NULL)*/
       AND (( substr(frst_shpg_loc_cd, 1, 1) <> ''R'' ) or frst_shpg_loc_cd is null)
       AND (( substr(last_shpg_loc_cd, 1, 1) <> ''R'' ) or last_shpg_loc_cd is null))
 	  AND (load_leg_r.CUR_OPTLSTAT_ID between 300 and 350)
@@ -1306,41 +1306,73 @@ INNER JOIN ##tblManuallyTouchedHighLevel mthl on mthl.LoadNumber = ald.load_numb
 SELECT * FROM USCTTDEV.dbo.tblRFTDetailDataHistoricalNew
 Update USCTTDEV.dbo.tblRFTDetailDataHistoricalNew to match all data from ##tblActualLoadDetailsRFT
 SELECT DISTINCT LOTenderedOn FROM  ##tblActualLoadDetailsRFT
+SELECT TOP 5 * FROM ##tblActualLoadDetailsRFT
 */
 UPDATE USCTTDEV.dbo.tblRFTDetailDataHistoricalNew
 SET 
 LastUpdated = GETDATE(),
-currentstatus = rfdh.currentstatus,
-currentStatusDesc = rfdh.currentStatusDesc,
-LOPlannedStatus = rfdh.LOPlannedStatus,
-LOPlannedDesc = rfdh.LOPlannedDesc,
-LOPlannedOn = rfdh.LOPlannedOn,
-LOPlannedUserID = rfdh.LOPlannedUserID,
-LOPlannedCount = rfdh.LOPlannedCount,
-LOTenderedStatus = rfdh.LOTenderedStatus,
-LOTenderedDesc = rfdh.LOTenderedDesc,
-LOTenderedOn = rfdh.LOTenderedOn,
-LOTenderedUserID = rfdh.LOTenderedUserID,
-LOTenderedCount = rfdh.LOTenderedCount,
-AppointmentDeleted = rfdh.AppointmentDeleted,
-ConfirmReversal = rfdh.ConfirmReversal,
-DockChanged = rfdh.DockChanged,
-DockCreated = rfdh.DockCreated,
-DockDeleted = rfdh.DockDeleted,
-LoadUnsuspended = rfdh.LoadUnsuspended,
-ManuallyAccepted = rfdh.ManuallyAccepted,
-ManuallyPlanned = rfdh.ManuallyPlanned,
-ManuallyTendered = rfdh.ManuallyTendered,
-TenderCancelled = rfdh.TenderCancelled,
-TenderRejected = rfdh.TenderRejected,
-TotalTouches = rfdh.TotalTouches,
-TotalProcessTouches = rfdh.TotalProcessTouches,
-FirstFailure = rfdh.FirstFailure,
-LOPlanned = rfdh.LOPlanned,
-LOTendered = rfdh.LOTendered,
-CAPSManuallyReviewed = rfdh.CAPSManuallyReviewed
+SHIPMENT_TYPE = aldrft.SHIPMENT_TYPE,
+ImportExport = aldrft.ImportExport,
+DomesticInt = aldrft.DomesticInt,
+shpd_dtt   = aldrft.shpd_dtt, 
+/*origin_id   = aldrft.origin_id, 
+origin_name  = aldrft.origin_name, 
+orig_city  = aldrft.orig_city, 
+orig_state  = aldrft.orig_state, 
+orig_zip  = aldrft.orig_zip, 
+orig_country  = aldrft.orig_country, */
+stop_num  = aldrft.stop_num, 
+shpm_num_count  = aldrft.shpm_num_count, 
+/*dest_id  = aldrft.dest_id,
+dest_name  = aldrft.dest_name, 
+dest_state  = aldrft.dest_state, 
+dest_zip  = aldrft.dest_zip, 
+dest_country = aldrft.dest_country, */
+carrier  = aldrft.carrier, 
+service  = aldrft.service,
+eq_type  = aldrft.eq_type, 
+/*miles = aldrft.miles,*/
+num_stop = aldrft.num_stop,
+num_shpm = aldrft.num_shpm,
+ld_source = aldrft.ld_source,
+plan_id = aldrft.plan_id,
+team_name = aldrft.team_name,
+team_leader_id = aldrft.team_leader_id,
+team_leader_name = aldrft.team_leader_name,
+analyst_id = aldrft.analyst_id,
+analyst_name = aldrft.analyst_name,
+createdate = aldrft.createdate,
+currentstatus = aldrft.currentstatus,
+currentStatusDesc = aldrft.currentStatusDesc,
+LOPlannedStatus = aldrft.LOPlannedStatus,
+LOPlannedDesc = aldrft.LOPlannedDesc,
+LOPlannedOn = aldrft.LOPlannedOn,
+LOPlannedUserID = aldrft.LOPlannedUserID,
+LOPlannedCount = aldrft.LOPlannedCount,
+LOTenderedStatus = aldrft.LOTenderedStatus,
+LOTenderedDesc = aldrft.LOTenderedDesc,
+LOTenderedOn = aldrft.LOTenderedOn,
+LOTenderedUserID = aldrft.LOTenderedUserID,
+LOTenderedCount = aldrft.LOTenderedCount,
+AppointmentDeleted = aldrft.AppointmentDeleted,
+ConfirmReversal = aldrft.ConfirmReversal,
+DockChanged = aldrft.DockChanged,
+DockCreated = aldrft.DockCreated,
+DockDeleted = aldrft.DockDeleted,
+LoadUnsuspended = aldrft.LoadUnsuspended,
+ManuallyAccepted = aldrft.ManuallyAccepted,
+ManuallyPlanned = aldrft.ManuallyPlanned,
+ManuallyTendered = aldrft.ManuallyTendered,
+TenderCancelled = aldrft.TenderCancelled,
+TenderRejected = aldrft.TenderRejected,
+TotalTouches = aldrft.TotalTouches,
+TotalProcessTouches = aldrft.TotalProcessTouches,
+FirstFailure = aldrft.FirstFailure,
+LOPlanned = aldrft.LOPlanned,
+LOTendered = aldrft.LOTendered,
+CAPSManuallyReviewed = aldrft.CAPSManuallyReviewed
 FROM USCTTDEV.dbo.tblRFTDetailDataHistoricalNew rfdh
-INNER JOIN ##tblActualLoadDetailsRFT ald ON ald.load_number = rfdh.load_number
+INNER JOIN ##tblActualLoadDetailsRFT aldrft ON aldrft.load_number = rfdh.load_number
 
 /*
 Add new lines to tblRFTDetailDataHistoricalNew from ##tblActualLoadDetailsRFT where they don't exist
@@ -1489,6 +1521,11 @@ WHERE rfdh.load_number IS NULL
 ORDER BY ald.CreateDate ASC, load_number ASC
 
 /*
+Delete if the orig/dest countries are null
+*/
+DELETE FROM USCTTDEV.dbo.tblRFTDetailDataHistoricalNew WHERE orig_country IS NULL OR orig_country IS NULL
+
+/*
 Add Manually Touched Details to USCTTDEV.dbo.tblRFTManuallyTouchedDetails
 */
 INSERT INTO USCTTDEV.dbo.tblRFTManuallyTouchedDetails(AddedOn, LoadNumber, LoadCount, Reason, Ordinal, User_Login, User_Name, EventDate)
@@ -1551,6 +1588,7 @@ Create temp table for Dynamically Pivoted Reason Table
 DECLARE @cols AS NVARCHAR(MAX),
 @query AS NVARCHAR(MAX)
 */
+
 DROP TABLE IF EXISTS ##tblManuallyTouchedPivotFinal
 SET @cols = STUFF((
 			SELECT DISTINCT ',' + QUOTENAME(c.Reason)
@@ -1692,5 +1730,15 @@ TotalProcessTouches = mtpf.TotalProcessTouches
 FROM USCTTDEV.dbo.tblRFTDetailDataHistoricalNew rftNew
 INNER JOIN ##tblManuallyTouchedPivotFinal mtpf ON mtpf.LoadNumber = rftNew.load_number
 
+/*
+Update Manually Built process failure
+*/
+UPDATE tblRFTDetailDataHistoricalNew
+SET ManuallyBuilt = 1,
+TotalTouches = COALESCE(TotalTouches,0) - 1,
+TotalProcessTouches = COALESCE(TotalProcessTouches,0) - 1,
+FirstFailure = 'MANUALLY BUILT'
+WHERE LD_SOURCE = 'Manual'
+AND FirstFailure <> 'Manually Built'
 
 END

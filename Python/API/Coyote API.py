@@ -69,7 +69,7 @@ payload = json.dumps({
         'countryCode': 'US',
         'postalCode': '53703'
     },
-    'pickUpDateUTC': '2020-07-07T12:41:03.6402864Z', #MUST BE A FUTURE DATE!
+    'pickUpDateUTC': '2020-08-07T12:41:03.6402864Z', #MUST BE A FUTURE DATE!
     'minTemperature': None,
     'maxTemperature': None,
     'weight': 100,

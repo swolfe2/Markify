@@ -1,22 +1,28 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_OperationalMetrics]    Script Date: 1/17/2020 11:53:01 AM ******/
+/****** Object:  StoredProcedure [dbo].[sp_OperationalMetrics]    Script Date: 9/2/2020 12:24:09 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
+/*
 -- =============================================
 -- Author:		<Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team>
 -- Create date: <9/6/2019>
--- Last modified: <1/14/2020>
+-- Last modified: <6/29/2020>
 -- Description:	<Executes Tim Zoppa's query against Oracle, loads to temp table, then appends/updates dbo.tblOperationalMetrics>
-
+-- 6/29/2020 - SW - Added new fields needed by Katie Haynes for Tableau Reporting, updating directly from Actual Load Detail
+-- 6/25/2020 - SW - Added CREATE_DTT, FIRST_APPT_NOTIFIED, FIRST_APPT_CONFIRMED for Curtis Moore, and Appointment Reporting
+-- 6/11/2020 - SW - Added TM_AUCT_CNT, and changed First Tendered to exclude CARR_CD 'FRAN' per email from Taylor Rotella
+-- 1/24/2020 - SW - Added new queries to handle CORP1_ID from LOAD_AT_R
+Added queries to assign Region / Carrier manager to table
 -- 1/14/2020 - SW - Update new column, DestCity, with unique dest city value from dbo_tblZoneCities
 -- 1/2/2020 - Added Cancelled Loads stored procedure at end
 -- 12/2/2019 - Added CARR_ARRIVED_AT_DATETIME from OTC Caps Master
 -- 10/28/2019 - Added update query to change status to match RFT if no longer in SQL query
 
 -- =============================================
+*/
 ALTER PROCEDURE [dbo].[sp_OperationalMetrics]
 
 AS
@@ -1224,6 +1230,7 @@ SET @myQuery = 'SELECT * FROM (WITH
                 ) AS row_nbr
             FROM
                 najdaadm.tdr_req_t trt
+				WHERE CARR_CD <> ''FRAN'' 
         )
     WHERE
         row_nbr = 1
@@ -1637,7 +1644,10 @@ SELECT
                 1
         END
     ) AS award_service_cnt,
-	cps.CARR_ARRIVED_AT_DATETIME
+	cps.CARR_ARRIVED_AT_DATETIME,
+	lar.corp1_id,
+	CASE WHEN LLR.RFRC_NUM16 IS NOT NULL THEN 1 ELSE 0 END AS TM_AUCT_CNT,
+	llr.crtd_dtt AS CREATE_DTT
 FROM
     najdaadm.load_leg_r               llr
     JOIN najdaadm.load_at_r                lar ON llr.frst_shpg_loc_cd = lar.shpg_loc_cd
@@ -1864,7 +1874,10 @@ GROUP BY
                 rsd2.reason_desc
         END,
     trunc(SYSDATE, ''MI''),
-	cps.CARR_ARRIVED_AT_DATETIME
+	cps.CARR_ARRIVED_AT_DATETIME,
+	lar.corp1_id,
+	CASE WHEN LLR.RFRC_NUM16 IS NOT NULL THEN 1 ELSE 0 END,
+	llr.crtd_dtt 
     ) 
 '
 
@@ -1936,11 +1949,15 @@ CREATE TABLE ##tblOperationalMetricsTemp
      AWARD_LANE_CNT                INT, 
      AWARD_SERVICE_STATUS          NVARCHAR(20), 
      AWARD_SERVICE_CNT             INT,
-	 CARR_ARRIVED_AT_DATETIME	   DATETIME
+	 CARR_ARRIVED_AT_DATETIME	   DATETIME,
+	 CORP1_ID					   NVARCHAR(20),
+	 TM_AUCT_CNT			INT,
+	 CREATE_DTT DATETIME
   ) 
 
   /*
   Append records from giant Oracle query into MSSQL temp table
+  SELECT * FROM ##tblOperationalMetricsTemp
   */
   INSERT INTO ##tblOperationalMetricsTemp
   EXEC (@myQuery) AT NAJDAPRD
@@ -2012,7 +2029,10 @@ CREATE TABLE ##tblOperationalMetricsTemp
              AWARD_LANE_CNT, 
              AWARD_SERVICE_STATUS, 
              AWARD_SERVICE_CNT,
-			 CARR_ARRIVED_AT_DATETIME) 
+			 CARR_ARRIVED_AT_DATETIME,
+			 CORP1_ID,
+			 TM_AUCT_CNT,
+			 CREATE_DTT) 
 SELECT OMT.LD_LEG_ID, 
        OMT.SALES_ORG, 
        OMT.FREIGHT_TYPE, 
@@ -2076,7 +2096,10 @@ SELECT OMT.LD_LEG_ID,
        OMT.AWARD_LANE_CNT, 
        OMT.AWARD_SERVICE_STATUS, 
        OMT.AWARD_SERVICE_CNT,
-	   OMT.CARR_ARRIVED_AT_DATETIME
+	   OMT.CARR_ARRIVED_AT_DATETIME,
+	   OMT.CORP1_ID,
+	   OMT.TM_AUCT_CNT,
+	   OMT.CREATE_DTT
 FROM   ##TBLOPERATIONALMETRICSTEMP AS OMT 
        LEFT JOIN USCTTDEV.DBO.TBLOPERATIONALMETRICS OM 
               ON OM.LD_LEG_ID = OMT.LD_LEG_ID 
@@ -2158,7 +2181,10 @@ OM.AWARD_LANE_STATUS = OMT.AWARD_LANE_STATUS,
 OM.AWARD_LANE_CNT = OMT.AWARD_LANE_CNT,
 OM.AWARD_SERVICE_STATUS = OMT.AWARD_SERVICE_STATUS,
 OM.AWARD_SERVICE_CNT = OMT.AWARD_SERVICE_CNT,
-OM.CARR_ARRIVED_AT_DATETIME = OMT.CARR_ARRIVED_AT_DATETIME
+OM.CARR_ARRIVED_AT_DATETIME = OMT.CARR_ARRIVED_AT_DATETIME,
+OM.CORP1_ID = OMT.CORP1_ID,
+OM.TM_AUCT_CNT = OMT.TM_AUCT_CNT,
+OM.CREATE_DTT = OMT.CREATE_DTT
 FROM USCTTDEV.DBO.TBLOPERATIONALMETRICS AS OM
 INNER JOIN   ##TBLOPERATIONALMETRICSTEMP AS OMT 
               ON OM.LD_LEG_ID = OMT.LD_LEG_ID 
@@ -2171,14 +2197,14 @@ DROP TABLE IF EXISTS
 ##tblOperationalMetricsTemp
 
 /*
-Update USCTTDEV.dbo.tblOperationalMetrics if no longer appears on Oracle query, to whatever status matches from USCTTDEV.dbo.tblRFTDetailDataHistorical
+Update USCTTDEV.dbo.tblOperationalMetrics if no longer appears on Oracle query, to whatever status matches from USCTTDEV.dbo.tblRFTDetailDataHistoricalNew
 */
 UPDATE USCTTDEV.dbo.tblOperationalMetrics
 SET LOAD_STATUS = rft.CurrentStatusDesc, LastUpdated = rft.LastUpdated
 FROM USCTTDEV.dbo.tblOperationalMetrics om
-LEFT JOIN USCTTDEV.dbo.tblRFTDetailDataHistorical rft on rft.load_number = om.ld_leg_id
+LEFT JOIN USCTTDEV.dbo.tblRFTDetailDataHistoricalNew rft on rft.load_number = om.ld_leg_id
 WHERE LOAD_STATUS <> rft.CurrentStatusDesc
-AND rft.CurrentStatusDesc Is Not Null
+AND rft.FirstFailure Is Not Null
 AND LOAD_STATUS <> 'Completed'
 AND om.LastUpdated < rft.LastUpdated-1
 
@@ -2198,8 +2224,304 @@ LEFT JOIN USCTTDEV.dbo.tblZoneCities zc
   AND zc.CityName = ald.LAST_CTY_NAME
 
 /*
+Update Operational Metrics if CORP1_ID = 'RF' and SHIP_TYPE = 'RECFIBER', 
+but CORP1_ID is still null for some reason
+*/
+UPDATE USCTTDEV.dbo.tblOperationalMetrics
+SET CORP1_ID = 'RF'
+WHERE SHIP_TYPE = 'RECFIBER'
+AND CORP1_ID IS NULL
+
+/*
+Determine order type for each Load
+SELECT * FROM USCTTDEV.dbo.tblOperationalMetrics WHERE ORDERTYPE IS NULL AND LOAD_STATUS <> 'CANCELED'
+*/
+UPDATE USCTTDEV.dbo.tblOperationalMetrics
+SET OrderType = 
+CASE WHEN CORP1_ID = 'RM' Then 'RM-INBOUND'
+WHEN CORP1_ID = 'RF' Then 'RF-INBOUND' 
+WHEN substring(LAST_SHPG_LOC_CD,1,1) = 'R' then 'RETURNS'
+WHEN substring(LAST_SHPG_LOC_CD,1,1) = '1' then 'INTERMILL'
+WHEN substring(LAST_SHPG_LOC_CD,1,1) = '2' then 'INTERMILL'
+WHEN substring(LAST_SHPG_LOC_CD,1,1) = '5' then 'CUSTOMER'
+WHEN substring(LAST_SHPG_LOC_CD,1,1) = '9' then 'CUSTOMER'
+ELSE NULL
+END
+
+/*
+Determine CarrierManager, Region, Join State for each load
+SELECT * FROM USCTTDEV.dbo.tblOperationalMetrics WHERE ID <20
+*/
+UPDATE USCTTDEV.dbo.tblOperationalMetrics
+SET CarrierManager = ra.CarrierManager,
+Region = ra.Region,
+RegionJoinState = ra.StateAbbv,
+RegionJoinCountry = ra.Country
+
+FROM USCTTDEV.dbo.tblOperationalMetrics om
+ INNER JOIN USCTTDEV.dbo.tblRegionalAssignments AS ra
+    ON ( ra.StateAbbv = 
+    CASE WHEN om.[OrderType] LIKE '%INBOUND%' THEN
+        FINAL_STA_CD
+        ELSE
+        FRST_STA_CD
+    END)
+
+/*
 Execute Cancelled Loads Stored Procedure
 */
 exec USCTTDEV.dbo.sp_CancelledLoads
+
+/*
+Create a table of temp appointment data for the past 2 calendar years
+*/
+
+DROP TABLE IF EXISTS ##tblAppointments
+SELECT * INTO ##tblAppointments FROM OPENQUERY(NAJDAPRD, 'SELECT DISTINCT
+    load_leg_detail_r.ld_leg_id           AS loadnumber,
+    load_leg_detail_r.dlvy_stop_seq_num   AS stopnumber,
+    load_leg_detail_r.to_shpg_loc_cd      AS destinationid,
+    load_leg_detail_r.to_shpg_loc_name    AS destinationname,
+    load_leg_detail_r.to_cty_name         AS destinationcity,
+    load_leg_detail_r.to_sta_cd           AS destinationstate,
+    load_leg_detail_r.to_pstl_cd          AS destinationpostalcd,
+    load_leg_r.frst_shpg_loc_cd           AS originid,
+    load_leg_r.frst_shpg_loc_name         AS originname,
+    load_leg_r.frst_cty_name              AS origincity,
+    load_leg_r.frst_sta_cd                AS originstate,
+    load_leg_r.frst_pstl_cd               AS originpostalcd,
+    CASE
+        WHEN appointments.appointment_status IS NULL THEN
+            ''No Appointments''
+        ELSE
+            appointments.appointment_status
+    END AS appointment_status,
+    appointments.apptchgdatetime,
+    appointments.apptchgdate,
+    appointments.apptcghyear,
+    appointments.apptchgmonth,
+    appointments.apptchgweek,
+    appointments.userid,
+    appointments.name,
+    appointments.apptfromdtt,
+    appointments.appttodtt,
+    appointments.firstdate,
+    appointments.status,
+    appointments.first,
+    appointments.rework,
+    appointments.count
+FROM
+    najdaadm.load_leg_r              load_leg_r
+    INNER JOIN najdaadm.load_leg_detail_r       load_leg_detail_r ON load_leg_detail_r.ld_leg_id = load_leg_r.ld_leg_id
+    INNER JOIN najdaadm.distribution_center_r   distribution_center_r ON distribution_center_r.shpg_loc_cd = load_leg_detail_r.to_shpg_loc_cd
+    INNER JOIN (
+        SELECT DISTINCT
+            load_number,
+            stop_number,
+            appointment_status,
+            apptchgdatetime,
+            CAST(TRUNC(apptchgdatetime, ''DD'') AS DATE) AS apptchgdate,
+            EXTRACT(YEAR FROM apptchgdatetime) AS apptcghyear,
+            EXTRACT(MONTH FROM apptchgdatetime) AS apptchgmonth,
+            trunc(apptchgdatetime, ''IW'') AS apptchgweek,
+            userid,
+            name,
+            usr_grp_cd,
+            apptfromdtt,
+            appttodtt,
+            firstdate,
+            CASE
+                WHEN firstdate = apptchgdatetime THEN
+                    appointment_status || '' First''
+                ELSE
+                    appointment_status || '' Rework''
+            END AS status,
+            CASE
+                WHEN firstdate = apptchgdatetime THEN
+                    1
+                ELSE
+                    0
+            END AS first,
+            CASE
+                WHEN firstdate <> apptchgdatetime THEN
+                    1
+                ELSE
+                    0
+            END AS rework,
+            1 AS count
+        FROM
+            (
+                SELECT DISTINCT
+                    abpp_otc_appointmenthistory.load_number,
+                    abpp_otc_appointmenthistory.stop_number,
+                    abpp_otc_appointmenthistory.appointment_status,
+                    abpp_otc_appointmenthistory.appointment_change_time   AS apptchgdatetime,
+                    upper(abpp_otc_appointmenthistory.appointment_changed_by) AS userid,
+                    users.name,
+                    users.usr_grp_cd,
+                    abpp_otc_appointmenthistory.appointment_from_time     AS apptfromdtt,
+                    abpp_otc_appointmenthistory.appointment_to_time       AS appttodtt,
+                    MIN(abpp_otc_appointmenthistory.appointment_change_time) KEEP(DENSE_RANK FIRST ORDER BY abpp_otc_appointmenthistory
+                    .appointment_change_time ASC) OVER(
+                        PARTITION BY abpp_otc_appointmenthistory.load_number, appointment_status, stop_number
+                    ) AS firstdate
+                FROM
+                    trn_appt.abpp_otc_appointmenthistory abpp_otc_appointmenthistory
+                    LEFT JOIN (
+                        SELECT DISTINCT
+                            upper(usr_cd) AS userid,
+                            name,
+                            usr_grp_cd
+                        FROM
+                            nai2padm.usr_t
+                    ) users ON upper(users.userid) = upper(abpp_otc_appointmenthistory.appointment_changed_by)
+                WHERE
+            EXTRACT( YEAR FROM abpp_otc_appointmenthistory.appointment_change_time) >= EXTRACT(YEAR FROM SYSDATE) - 2
+            AND
+                    ( abpp_otc_appointmenthistory.stop_number > ''1'' )
+                    AND ( abpp_otc_appointmenthistory.appointment_status IN (
+                        ''Confirmed'',
+                        ''Notified''
+                    ) )
+            /*AND load_number = ''518606710''*/
+                GROUP BY
+                    abpp_otc_appointmenthistory.load_number,
+                    abpp_otc_appointmenthistory.stop_number,
+                    abpp_otc_appointmenthistory.appointment_status,
+                    abpp_otc_appointmenthistory.appointment_change_time,
+                    upper(abpp_otc_appointmenthistory.appointment_changed_by),
+                    users.name,
+                    users.usr_grp_cd,
+                    abpp_otc_appointmenthistory.appointment_from_time,
+                    abpp_otc_appointmenthistory.appointment_to_time
+                ORDER BY
+                    abpp_otc_appointmenthistory.load_number,
+                    abpp_otc_appointmenthistory.stop_number,
+                    abpp_otc_appointmenthistory.appointment_change_time
+            ) appointments
+    ) appointments ON appointments.load_number = load_leg_detail_r.ld_leg_id
+                      AND appointments.stop_number = load_leg_detail_r.dlvy_stop_seq_num
+WHERE
+    (/* ( load_leg_r.shpd_dtt >= add_months(trunc(SYSDATE, ''MM''), - 2) )*/
+	EXTRACT(YEAR FROM load_leg_r.shpd_dtt) >= EXTRACT(YEAR FROM SYSDATE) -2
+      AND ( load_leg_detail_r.dlvy_stop_seq_num > 1 )
+      AND ( load_leg_detail_r.to_ctry_cd IN (
+        ''USA'',
+        ''CAN'',
+		''MEX''
+    ) )
+      AND ( load_leg_detail_r.to_pnt_typ_enu = ''Distribution Center'' )
+      AND ( load_leg_r.eqmt_typ IN (
+        ''48FT'',
+        ''53FT'',
+        ''53IM'',
+        ''53RT'',
+        ''53TC'',
+        ''53HC''
+    ) )
+      AND ( distribution_center_r.apt_rqrd_yn = ''Y'' ) ) /*AND
+    LOAD_LEG_R.LD_LEG_ID = ''518606710''*/
+ORDER BY
+    load_leg_detail_r.ld_leg_id,
+    load_leg_detail_r.dlvy_stop_seq_num,
+    appointments.apptchgdatetime') data
+
+/*
+Create a table of MIN appointment stuff, for when the first appointment was made for Notified and Confirmed
+SELECT TOP 50 * FROM ##tblAppointments ORDER BY LOADNUMBER ASC, APPTCHGDATETIME ASC
+
+*/
+DROP TABLE IF EXISTS ##tblAppointmentsMin
+SELECT DISTINCT LoadNumber INTO ##tblAppointmentsMin FROM ##tblAppointments
+
+/*
+Add FIRST_APPT_NOTIFIED and FIRST_APPT_CONFIRMED to ##tblAppointmentsMin
+SELECT TOP 50  * FROM ##tblAppointmentsMin
+*/
+IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'FIRST_APPT_NOTIFIED'				AND TABLE_NAME LIKE '##tblAppointmentsMin') ALTER TABLE ##tblAppointmentsMin ADD [FIRST_APPT_NOTIFIED] 		DATETIME NULL	
+IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'FIRST_APPT_CONFIRMED'		AND TABLE_NAME LIKE '##tblAppointmentsMin') ALTER TABLE ##tblAppointmentsMin ADD [FIRST_APPT_CONFIRMED]	DATETIME NULL	
+
+/*
+Update ##tblAppointmentsMin with first appointment notified datetime
+SELECT * FROM ##tblAppointmentsMin
+*/
+UPDATE ##tblAppointmentsMin
+SET FIRST_APPT_NOTIFIED = notified.FIRST_APPT_NOTIFIED
+FROM ##tblAppointmentsMin aptm
+INNER JOIN(
+	SELECT LoadNumber, MIN(apt.APPTCHGDATETIME) AS FIRST_APPT_NOTIFIED
+	FROM ##tblAppointments apt
+	WHERE apt.STATUS = 'Notified First'
+	GROUP BY LoadNumber) notified On notified.LoadNumber = aptm.LoadNumber
+
+/*
+Update ##tblAppointmentsMin with first appointment notified datetime
+*/
+UPDATE ##tblAppointmentsMin
+SET FIRST_APPT_CONFIRMED = confirmed.FIRST_APPT_CONFIRMED
+FROM ##tblAppointmentsMin aptm
+INNER JOIN(
+	SELECT LoadNumber, MIN(apt.APPTCHGDATETIME) AS FIRST_APPT_CONFIRMED
+	FROM ##tblAppointments apt
+	WHERE apt.STATUS = 'Confirmed First'
+	GROUP BY LoadNumber) confirmed On confirmed.LoadNumber = aptm.LoadNumber
+
+
+/*
+Update Operational Metrics with FIRST_APPT_NOTIFIED and FIRST_APPT_CONFIRMED
+*/
+UPDATE USCTTDEV.dbo.tblOperationalMetrics
+SET FIRST_APPT_NOTIFIED = min.FIRST_APPT_NOTIFIED,
+FIRST_APPT_CONFIRMED = min.FIRST_APPT_CONFIRMED
+FROM USCTTDEV.dbo.tblOperationalMetrics om 
+INNER JOIN ##tblAppointmentsMin min ON min.LoadNumber = om.LD_LEG_ID
+
+/*
+Attempt to update Business Unit from Actual Load Detail.
+Otherwise, assume that it's KCNA
+*/
+UPDATE USCTTDEV.dbo.tblOperationalMetrics
+SET BUSINESS_UNIT = CASE WHEN om.BUSINESS_UNIT IS NOT NULL THEN om.BUSINESS_UNIT
+WHEN ald.BU IS NULL THEN 'KCNA' ELSE ald.BU END
+FROM USCTTDEV.dbo.tblOperationalMetrics om
+LEFT JOIN USCTTDEV.dbo.tblActualLoadDetail ald ON ald.LD_LEG_ID = om.LD_LEG_ID
+WHERE om.BUSINESS_UNIT IS NULL
+AND CAST(om.LastUpdated AS DATE) = CAST(GETDATE() AS DATE)
+
+/*
+Force to KCNA or KCP Business Units
+*/
+UPDATE USCTTDEV.dbo.tblOperationalMetrics
+SET BUSINESS_UNIT = CASE WHEN BUSINESS_UNIT = 'KCP' THEN 'KCP'
+ELSE 'KCNA' END
+WHERE CAST(LastUpdated AS DATE) = CAST(GETDATE() AS DATE)
+
+/*
+Update Operational Metrics with new fields from Actual Load Detail
+*/
+UPDATE USCTTDEV.dbo.tblOperationalMetrics
+SET FRAN = CASE WHEN ald.FRAN = 'eAuction' THEN 'eAuction' ELSE NULL END,
+AwardLane = ald.AwardLane,
+AWARD_LANE_STATUS = CASE WHEN ald.AwardLane = 'Y' THEN 'Award Lane' ELSE 'Not Award Lane' END,
+AWARD_LANE_CNT = CASE WHEN ald.AwardLane = 'Y' THEN '1' ELSE '0' END,
+AwardCarrier = ald.AwardCarrier,
+AWARD_SERVICE_STATUS = CASE WHEN ald.AwardCarrier = 'Y' THEN 'Award Carrier' ELSE 'Not Award Carrier' END,
+AWARD_SERVICE_CNT = CASE WHEN ald.AwardCarrier = 'Y' THEN '1' ELSE '0' END,
+Broker = ald.Broker,
+Spacemaker = ald.Spacemaker,
+WeightedAwardRPM = ald.WeightedAwardRPM,
+BUSegment = CASE WHEN ald.BUSegment IS NULL THEN 'UNKNOWN' ELSE ald.BUSegment END,
+Dedicated = ald.Dedicated,
+RateType = CASE WHEN ald.RateType IS NULL THEN 'UNKNOWN' ELSE ald.RateType END,
+LiveLoad = ald.LiveLoad
+FROM USCTTDEV.dbo.tblOperationalMetrics om 
+LEFT JOIN USCTTDEV.dbo.tblActualLoadDetail ald ON ald.LD_LEG_ID = om.LD_LEG_ID
+WHERE (CAST(om.LastUpdated AS DATE) = CAST(GETDATE() AS DATE) OR CAST(ald.LastUpdated AS DATE) = CAST(GETDATE() AS DATE))
+
+/*
+Clear appointment temp tables
+*/
+DROP TABLE IF EXISTS ##tblAppointments
+DROP TABLE IF EXISTS ##tblAppointmentsMin
 
 END
