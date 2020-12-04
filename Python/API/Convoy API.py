@@ -74,8 +74,8 @@ payload = json.dumps({
             },
             "timezone": "EST",
             "stopType": "PICKUP",
-            "startTime": "2020-08-06T13:12:06.556Z",
-            "endTime": "2020-08-06T13:12:06.556Z"
+            "startTime": "2020-11-06T13:12:06.556Z",
+            "endTime": "2020-11-06T13:12:06.556Z"
             },
 
             # Stop 1 info
@@ -92,8 +92,8 @@ payload = json.dumps({
             },
             "timezone": "EST",
             "stopType": "DROPOFF",
-            "startTime": "2020-08-07T19:12:06.556Z",
-            "endTime": "2020-08-07T19:12:06.556Z"
+            "startTime": "2020-11-07T19:12:06.556Z",
+            "endTime": "2020-11-07T19:12:06.556Z"
             }
         ]
     })

@@ -1,26 +1,63 @@
-/*
-TO DO: RITM0457212 to add permissions for CDO message to work
+USE [USCTTDEV]
+GO
+/****** Object:  StoredProcedure [dbo].[sp_BidAppAddAndUpdate]    Script Date: 9/11/2020 1:28:38 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+-- =============================================
+-- Author:		Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team
+-- Create date: 3/25/2020
+-- Last modified: 9/11/2020
+-- 9/11/2020 - SW -Update [Order Type] to match the one most used on USCTTDEV.dbo.tblActualLoadDetail if it's different than what's on tblBidAppLanes
+-- 6/5/2020 - SW - Updates to logic to exclude ZAR-% Rates
+-- Description:	Add new rates to Bid App tables, and update Bid App tables if rates are different
+-- =============================================
 
+ALTER PROCEDURE [dbo].[sp_BidAppAddAndUpdate]
+
+AS
+BEGIN
+	-- SET NOCOUNT ON added to prevent extra result sets from
+	-- interfering with SELECT statements.
+	SET NOCOUNT ON;
+
+/*
 What does this procedure do?
 1) Create temp table of all TM rates, where the Effective Date is <= todays date OR the Year of the Effective Date is this year
 2) Compare rates against the Bid App Lanes table
-3) If a lane exists in the TM Rates table, but not in the Bid App table, SEND EMAIL with those lanes
+3) If a lane exists in the TM Rates table, but not in the Bid App table, add to USCTTDEV.dbo.tblBidAppLanes
+4) If a lane exists in the TM Rates table, but the rate is not in the Bid App Rates table, add to USCTTDEV.dbo.tblBidAppRates
+5) If the rate from TM does not match the rate in USCTTDEV.dbo.tblBidAppRates, update with the new rate
+6) Send HTML Formatted email to people who need to be aware of Bid App Updates
 */
+
 /*
 Make sure any previous temp tables are deleted
 */
 DROP TABLE IF EXISTS ##tblTMRPMForBidApp,
 ##tblBidAppMissingLanes,
-##tblCityStateTemp
+##tblBIdAppMissingRates,
+##tblBidAppRateDifferences,
+##tblChangelogTemp,
+##tblChangelogTempFinal,
+##tblLaneAAOTemp,
+##tblCityStateTemp/*,
+##tblBidAppMissingRates,
+##tblBidAppRateDifferences,
+##tblChangelogTemp,
+##tblChangelogTempFinal,
+*/
 
 /*
 Create temp table for TM Rates
 This is for lanes which are marked as 'MILE' or 'ZTEM'
 
 SELECT * FROM ##tblTMRPMForBidApp WHERE [Origin City] like '%(%'
+SELECT * FROM ##tblTMRPMForBidApp
 */
 
-SELECT * INTO ##tblTMRPMForBidApp FROM OPENQUERY(NAJDAPRD,'SELECT
+SELECT DISTINCT * INTO ##tblTMRPMForBidApp FROM OPENQUERY(NAJDAPRD,'SELECT
     *
 FROM
     (
@@ -75,7 +112,7 @@ FROM
             LEFT JOIN najdaadm.mstr_srvc_t   mst ON l.srvc_cd = mst.srvc_cd
         WHERE
             (r.efct_dt <= SYSDATE OR EXTRACT(YEAR FROM r.efct_dt) = EXTRACT(YEAR FROM SYSDATE))
-            AND r.expd_dt > SYSDATE
+			AND r.expd_dt >= SYSDATE
             /*AND rr.brk_amt_dlr >.01*/
             AND (r.chrg_cd = ''MILE'' OR CHRG_CD = ''ZTEM'')
             /*AND l.orig_zn_cd || ''-'' || l.dest_zn_cd LIKE ''%WIOSHKOS-5CA92831%''
@@ -83,7 +120,7 @@ FROM
             AND upper(mst.srvc_desc) NOT LIKE ''%TRAIN%''
             AND upper(mst.srvc_desc) NOT LIKE ''%TOFC%''
             AND upper(mst.srvc_desc) NOT LIKE ''%INTERMILL%''*/
-			AND (substr(l.orig_zn_cd,1,1) <> ''9'' AND l.orig_zn_cd NOT IN (''ALLUSA'',''ALLMEX'',''ALLCAN'') AND l.orig_zn_cd NOT LIKE ''US-%'' AND l.orig_zn_cd NOT LIKE ''REGION%'')
+			AND (substr(l.orig_zn_cd,1,1) <> ''9'' AND substr(l.orig_zn_cd,1,1) <> ''5'' AND l.orig_zn_cd NOT IN (''ALLUSA'',''ALLMEX'',''ALLCAN'') AND l.orig_zn_cd NOT LIKE ''US-%'' AND l.orig_zn_cd NOT LIKE ''5-%'' AND l.orig_zn_cd NOT LIKE ''ZAR-%''  AND l.orig_zn_cd NOT LIKE ''REGION%'')
 			AND (substr(l.dest_zn_cd,1,1) <> ''9'' AND l.dest_zn_cd NOT IN (''ALLUSA'',''ALLMEX'',''ALLCAN'') AND l.dest_zn_cd NOT LIKE ''US-%'' AND l.dest_zn_cd NOT LIKE ''6%'' AND l.dest_zn_cd NOT LIKE ''REGION%'')
     ) rpm 
 
@@ -109,6 +146,18 @@ DELETE ##tblTMRPMForBidApp
 FROM ##tblTMRPMForBidApp tmba
 WHERE [Dest Zone Code] LIKE 'KC%'
 AND [Dest Zone Code] NOT LIKE 'KCILROME%'
+
+DELETE ##tblTMRPMForBidApp
+FROM ##tblTMRPMForBidApp
+WHERE [Origin Zone Code] LIKE '5%'
+
+DELETE ##tblTMRPMForBidApp
+FROM ##tblTMRPMForBidApp
+WHERE [Origin Zone Code] LIKE 'ZAR%'
+
+DELETE ##tblTMRPMForBidApp
+FROM ##tblTMRPMForBidApp
+WHERE [SERVICE] LIKE 'ZAR%'
 
 UPDATE ##tblTMRPMForBidApp
 SET [Origin City] = REPLACE([Origin City], 'KC in ','')
@@ -164,6 +213,7 @@ IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME
 /*
 Update ##tblTMRPMForBidApp with LaneID from USCTTDEV.dbo.tblBidAppLanes
 SELECT * FROM USCTTDEV.dbo.tblBidAppLanes where ID <10
+SELECT * FROM ##tblTMRPMForBidApp WHERE LaneStatus IS NULL
 */
 UPDATE ##tblTMRPMForBidApp
 SET LaneID = bal.LaneID,
@@ -270,6 +320,31 @@ WHERE DATEPART(year,CASE WHEN ald.SHPD_DTT IS NULL THEN ald.STRD_DTT ELSE ald.SH
 GROUP BY ald.Origin_ZOne, ald.Dest_Zone
 ) ald on ald.Origin_Zone = ml.[Origin Zone Code]
 AND ald.Dest_Zone = ml.[Dest Zone Code]
+
+/*
+Update null strings to whatever matches in Actual Load Detail, if something matches
+Only use which ZIP has the most loads
+SELECT * FROM ##tblBidAppMissingLanes
+*/
+UPDATE ##tblBidAppMissingLanes
+SET OriginZip = zips.Zip
+FROM ##tblBidAppMissingLanes bal
+INNER JOIN (
+SELECT Origin, 
+ZIP,
+LoadCount,
+Rank
+FROM(
+SELECT DISTINCT ald.FRST_CTY_NAME + ', ' +   ald.FRST_STA_CD AS Origin, 
+CASE WHEN ald.FRST_CTRY_CD = 'USA' THEN LEFT(ald.FRST_PSTL_CD,5) ELSE ald.FRST_PSTL_CD END AS Zip,
+COUNT(*) AS LoadCount,
+ROW_NUMBER() OVER (PARTITION BY ald.FRST_CTY_NAME + ', ' +   ald.FRST_STA_CD ORDER BY COUNT(*) DESC) Rank
+FROM USCTTDEV.dbo.tblActualLoadDetail ald
+GROUP BY ald.FRST_CTY_NAME + ', ' +   ald.FRST_STA_CD,
+CASE WHEN ald.FRST_CTRY_CD = 'USA' THEN LEFT(ald.FRST_PSTL_CD,5) ELSE ald.FRST_PSTL_CD END
+) data
+WHERE data.Rank = 1) zips ON zips.Origin = bal.[Origin City]
+WHERE bal.OriginZip IS NULL
 
 /*
 Update ##tblMissingBidAppLanes with Dest details
@@ -385,13 +460,14 @@ FROM ##tblBidAppMissingLanes baml
 INNER JOIN ##tblCityStateTemp cst ON cst.PSTL_CD = SUBSTRING(baml.[Dest Zone Code],4,5)
 WHERE baml.[Dest Country] = 'USA'
 AND baml.DEST IS NULL
+AND cst.Rank = 1
 
 /*
 Update to UNKNOWN, STATE if the dest zone code is still unknown
 SELECT * FROM ##tblBidAppMissingLanes ORDER BY LaneID ASC
 SELECT DISTINCT [Order Type], BusinessUnit FROM USCTTDEV.dbo.tblBidAppLanes
 */
-UPDATE ##tblBidAPpMissingLanes
+UPDATE ##tblBidAppMissingLanes
 SET Dest = 'UNKNOWN, ' + CASE WHEN [Dest Zone Code] LIKE '5%' THEN SUBSTRING([Dest Zone Code],2,2) ELSE SUBSTRING([Dest Zone Code],1,2) END,
 OrderType = 'UNKNOWN',
 BusinessUnit = 'UNKNOWN'
@@ -504,6 +580,7 @@ WHERE tm.LaneID IS NULL OR tm.LaneID <> bal.LaneID
 Delete from ##tblBidAppMissingLanes if still on table, but exists on ##tblTMRPM ForBidAp as LaneStatus 'Exists'
 
 SELECT * FROM ##tblBidAppMissingLanes ORDER BY LANEID ASC
+SELECT TOP 10 * FROM USCTTDEV.dbo.tblBidAppLanes ORDER BY LaneID DESC
 SELECT * FROM ##tblTMRPMFOrBidApp WHERE [Origin Zone Code] = 'NJSWEDES' AND [Dest Zone Code] = '5MD21061'
 */
 DELETE ##tblBidAppMissingLanes
@@ -575,6 +652,25 @@ HAVING COUNT(*) > 1) dupe ON dupe.Lane = bar.Lane
 AND dupe.SCAC = bar.SCAC
 WHERE ID <> dupe.MinID
 
+/*
+Update USCTTDEV.dbo.tblBidAppLanes where Miles = 1
+*/
+UPDATE USCTTDEV.dbo.tblBidAppLanes
+SET MILES = miles.Miles
+FROM USCTTDEV.dbo.tblBidAppLanes bal
+INNER JOIN(
+SELECT Lane, ShipmentCount, Miles, Row
+FROM (SELECT DISTINCT Lane, 
+COUNT(*) AS ShipmentCount,
+FIXD_ITNR_DIST AS Miles,
+ROW_NUMBER() OVER(PARTITION BY Lane ORDER BY COUNT(*) DESC) Row
+FROM USCTTDEV.dbo.tblActualLoadDetail
+WHERE LANE IS NOT NULL
+/*AND LANE = 'CAFULLER-5CA91708'*/
+GROUP BY Lane, FIXD_ITNR_DIST) miles
+WHERE Row = 1
+) miles ON miles.Lane = bal.Lane
+WHERE bal.MILES <= 1
 
 /*
 Append to temp changelog table
@@ -582,17 +678,18 @@ Append to temp changelog table
 DROP TABLE IF EXISTS ##tblChangelogTemp
 CREATE TABLE ##tblChangelogTemp
 (
-LaneID			int,
-Lane			nvarchar(50),
-ChangeType		nvarchar(50),
-ChangeReason	nvarchar(50),
-SCAC			nvarchar(5),
-Field			nvarchar(50),
-PreviousValue	nvarchar(2000),
-NewValue		nvarchar(2000),
-UpdatedBy		nvarchar(50),
-UpdatedByName	nvarchar(50),
-UpdatedOn		datetime
+LaneID						int,
+Lane							nvarchar(50),
+ChangeType				nvarchar(50),
+ChangeReason			nvarchar(50),
+SCAC							nvarchar(5),
+Field							nvarchar(50),
+PreviousValue			nvarchar(2000),
+NewValue					nvarchar(2000),
+UpdatedBy					nvarchar(50),
+UpdatedByName		nvarchar(50),
+UpdatedOn				datetime,
+TMEffectiveDate		datetime
 )
 
 /*
@@ -634,10 +731,10 @@ CASE WHEN tm.ShipMode = 'INTERMODAL' THEN 'IM' ELSE 'T' END AS Mode,
 'Y' AS Confirmed,
 bal.Origin,
 bal.Dest,
-tm.[TM Effective Date],
-tm.[TM Expiration Date],
-CASE WHEN tm.[Min Charge] >.01 THEN 0 ELSE CAST(tm.[Rate Per Mile] AS NUMERIC (18,2)) END AS [Rate Per Mile],
-CASE WHEN tm.[Min Charge] = .01 THEN 0 ELSE tm.[Min Charge] END AS [Min Charge],
+CAST(tm.[TM Effective Date] AS DATE) AS [TM Effective Date],
+CAST(tm.[TM Expiration Date] AS DATE) AS [TM Expiration Date],
+CASE WHEN CAST(tm.[Min Charge] AS NUMERIC (18,2)) >.01 THEN 0 ELSE CAST(tm.[Rate Per Mile] AS NUMERIC (18,2)) END AS [Rate Per Mile],
+CASE WHEN CAST(tm.[Min Charge] AS NUMERIC(18,2))= .01 THEN 0 ELSE CAST(tm.[Min Charge] AS NUMERIC(18,2)) END AS [Min Charge],
 tm.[BS Charge],
 CASE WHEN tm.[Min Charge] >.01 THEN 'Flat Rate' ELSE 'Rate Per Mile' END AS ChargeType,
 tm.LaneStatus,
@@ -688,9 +785,9 @@ bamr.Origin,
 bamr.Dest, 
 bamr.[TM Effective Date], 
 bamr.[TM Expiration Date], 
-bamr.[Rate Per Mile], 
-bamr.[Min Charge], 
-bamr.[Rate Per Mile], 
+CASE WHEN bamr.ChargeType = 'Rate Per Mile' THEN CAST(bamr.[Rate Per Mile] AS NUMERIC(18,2)) END, 
+CASE WHEN bamr.ChargeType <> 'Rate Per Mile' THEN CAST(bamr.[Min Charge] AS NUMERIC(18,2)) END, 
+CASE WHEN bamr.ChargeType = 'Rate Per Mile' THEN CAST(bamr.[Rate Per Mile] AS NUMERIC(18,2)) END, 
 bamr.ChargeType
 FROM ##tblBidAppMissingRates bamr
 LEFT JOIN USCTTDEV.dbo.tblBidAppRates bar ON bar.LaneID = bamr.LaneID
@@ -702,16 +799,17 @@ ORDER BY bamr.LaneID ASC, bamr.Service ASC
 /*
 Add changes to temp changelog
 SELECT * FROM ##tblBidAppMissingRates ORDER BY LaneID DESC
-
+DELETE FROM ##tblChangelogTemp WHERE [TmEffectiveDate] IS NOT NULL
 SELECT * FROM ##tblChangelogTemp
 */
-INSERT INTO ##tblChangelogTemp(LaneID, Lane, ChangeType, ChangeReason, SCAC, Field, NewValue, UpdatedBy, UpdatedByName, UpdatedOn)
+INSERT INTO ##tblChangelogTemp(LaneID, Lane, ChangeType, ChangeReason, SCAC, Field, NewValue, UpdatedBy, UpdatedByName, UpdatedOn, TMEffectiveDate)
 SELECT bamr.LaneID, bamr.Lane, 'Rate Level - RPM', 'New Carrier on Lane', bamr.Service, 
 CASE WHEN bamr.ChargeType = 'Flat Rate' THEN 'Min Charge' ELSE 'CUR_RPM' END, 
 CASE WHEN bamr.ChargeType = 'Flat Rate' THEN bamr.[Min Charge] ELSE bamr.[Rate Per Mile] END,
 'SYSTEM',
 'Stored Procedure',
-GETDATE()
+GETDATE(),
+CAST([TM Effective Date] AS DATE)
 FROM ##tblBidAppMissingRates bamr
 LEFT JOIN ##tblChangelogTemp clt ON clt.LaneID = bamr.LaneID
 AND clt.SCAC = bamr.Service
@@ -791,14 +889,15 @@ SELECT * FROM ##tblBidAppRateDifferences ORDER BY LaneID, Service ASC
 
 SELECT * FROM ##tblChangelogTemp
 */
-INSERT INTO ##tblChangelogTemp(LaneID, Lane, ChangeType, ChangeReason, SCAC, Field, PreviousValue, NewValue, UpdatedBy, UpdatedByName, UpdatedOn)
+INSERT INTO ##tblChangelogTemp(LaneID, Lane, ChangeType, ChangeReason, SCAC, Field, PreviousValue, NewValue, UpdatedBy, UpdatedByName, UpdatedOn, TMEffectiveDate)
 SELECT bard.LaneID, bard.Lane, 'Rate Level - RPM', 'Stored Procedure Difference', bard.Service, 
 CASE WHEN bard.TMRateType = 'Flat Charge' THEN 'Min Charge' ELSE 'CUR_RPM' END, 
 bard.BidAppRate,
 bard.TMRate,
 'SYSTEM',
 'Stored Procedure',
-GETDATE()
+GETDATE(),
+CAST([TM Effective Date] AS DATE)
 FROM ##tblBidAppRateDifferences bard
 LEFT JOIN ##tblChangelogTemp clt ON clt.LaneID = bard.LaneID
 AND clt.SCAC = bard.Service
@@ -862,7 +961,7 @@ SELECT * FROM ##tblChangelogTemp
 SELECT * FROM ##tblChangelogTempFinal ORDER BY ID ASC
 */
 DROP TABLE IF EXISTS ##tblChangelogTempFinal
-SELECT ID, LaneID, Lane, ChangeType, ChangeReason, SCAC, Field, PreviousValue, NewValue, UpdatedBy, UpdatedByName, GETDATE() AS UpdatedOn
+SELECT ID, LaneID, Lane, ChangeType, ChangeReason, SCAC, Field, PreviousValue, NewValue, UpdatedBy, UpdatedByName, GETDATE() AS UpdatedOn, TMEffectiveDate
 INTO ##tblChangelogTempFinal
 FROM ##tblChangelogTemp cl
 ORDER BY cl.ID ASC
@@ -900,48 +999,63 @@ BEGIN
 	DECLARE @NewRates NVARCHAR(MAX)
 	DECLARE @Updates NVARCHAR(MAX)
 	DECLARE @Headers NVARCHAR(MAX)
+	DECLARE @HeadersNewRates NVARCHAR(MAX)
+	DECLARE @HeadersTM NVARCHAR(MAX)
 	DECLARE @body NVARCHAR(MAX)
+	DECLARE @subj NVARCHAR(MAX)
 
-	DECLARE @NewLaneCount INT = (SELECT COUNT(*) FROM USCTTDEV.dbo.tblBidAppChangelog WHERE ChangeReason = 'New Lane' 
+	DECLARE @NewLaneCount INT = (SELECT CASE WHEN COUNT(*) IS NULL THEN 0 ELSE COUNT(*) END FROM ##tblChangelogTempFinal WHERE ChangeReason = 'New Lane' 
 	AND CAST(UpdatedOn AS DATE) = CAST(GETDATE() AS DATE)) 
-	DECLARE @NewRateCount INT = (SELECT COUNT(*) FROM USCTTDEV.dbo.tblBidAppChangelog WHERE ChangeReason = 'New Carrier on Lane' 
+	PRINT('New Lane count: '+REPLACE(STR(@NewLaneCount),' ',''))
+	DECLARE @NewRateCount INT = (SELECT CASE WHEN COUNT(*) IS NULL THEN 0 ELSE COUNT(*) END FROM ##tblChangelogTempFinal WHERE ChangeReason = 'New Carrier on Lane' 
 	AND CAST(UpdatedOn AS DATE) = CAST(GETDATE() AS DATE))
-	DECLARE @UpdateCount INT = (SELECT COUNT(*) FROM USCTTDEV.dbo.tblBidAppChangelog WHERE ChangeReason = 'Stored Procedure Difference'
+	PRINT('New Rate count: '+REPLACE(STR(@NewRateCount),' ',''))
+	DECLARE @UpdateCount INT = (SELECT CASE WHEN COUNT(*) IS NULL THEN 0 ELSE COUNT(*) END FROM ##tblChangelogTempFinal WHERE ChangeReason = 'Stored Procedure Difference'
 	AND CAST(UpdatedOn AS DATE) = CAST(GETDATE() AS DATE))
+	PRINT('Update count: '+REPLACE(STR(@UpdateCount),' ',''))
 
 	--SELECT @NewLaneCount, @NewRateCount, @UpdateCount
 
 
 	-- creating an xml table to be used in html formatted email- this joins the data table and distinct analyst table where the id matches the @counter
 	SET @xml = CAST(( SELECT ID AS 'td','', LaneID AS 'td','', Lane AS 'td','', ChangeType AS 'td','', ChangeReason as 'td','', SCAC as 'td','',
-		Field as 'td','', CASE WHEN PreviousValue IS NULL THEN ' ' ELSE PreviousValue END as 'td','', NewValue as 'td','', UpdatedBy as 'td','', UpdatedByName as 'td','', FORMAT(UpdatedOn, 'M/d/yyyy h:m tt') as 'td',''
+		Field as 'td','', CASE WHEN PreviousValue IS NULL THEN ' ' ELSE PreviousValue END as 'td','', NewValue as 'td','', UpdatedBy as 'td','', UpdatedByName as 'td','', FORMAT(UpdatedOn, 'M/d/yyyy') as 'td',''
 	FROM ##tblChangelogTempFinal WHERE CAST(UpdatedOn AS DATE) = CAST(GETDATE() AS DATE) ORDER BY ID ASC 
 	FOR XML PATH('tr'), ELEMENTS ) AS NVARCHAR(MAX))
 
 	/*
 	New Lanes Lines
+	SELECT * FROM ##tblChangelogTempFinal WHERE ChangeReason = 'New Lane' 
 	*/
+	/*
 	SET @NewLanes = CAST(( SELECT ID AS 'td','', LaneID AS 'td','', Lane AS 'td','', ChangeType AS 'td','', ChangeReason as 'td','', CASE WHEN SCAC IS NULL THEN ' ' ELSE SCAC END as 'td','',
-		Field as 'td','', CASE WHEN PreviousValue IS NULL THEN ' ' ELSE PreviousValue END as 'td','', NewValue as 'td','', UpdatedBy as 'td','', UpdatedByName as 'td','', FORMAT(UpdatedOn, 'M/d/yyyy h:m tt') as 'td',''
-	FROM USCTTDEV.dbo.tblBidAppChangelog WHERE ChangeReason = 'New Lane' 
+		Field as 'td','', CASE WHEN PreviousValue IS NULL THEN ' ' ELSE PreviousValue END as 'td','', NewValue as 'td','', UpdatedBy as 'td','', UpdatedByName as 'td','', FORMAT(UpdatedOn, 'M/d/yyyy') as 'td',''
+	FROM ##tblChangelogTempFinal WHERE ChangeReason = 'New Lane' 
+	AND CAST(UpdatedOn AS DATE) = CAST(GETDATE() AS DATE) ORDER BY ID ASC
+	FOR XML PATH('tr'), ELEMENTS ) AS NVARCHAR(MAX))
+	*/
+		SET @NewLanes = CAST(( SELECT ID AS 'td','', LaneID AS 'td','', Lane AS 'td','', ChangeType AS 'td','', ChangeReason as 'td','', UpdatedBy as 'td','', UpdatedByName as 'td','', FORMAT(UpdatedOn, 'M/d/yyyy') as 'td',''
+	FROM ##tblChangelogTempFinal WHERE ChangeReason = 'New Lane' 
 	AND CAST(UpdatedOn AS DATE) = CAST(GETDATE() AS DATE) ORDER BY ID ASC
 	FOR XML PATH('tr'), ELEMENTS ) AS NVARCHAR(MAX))
 
 	/*
 	New Rates Lines
+	SELECT * FROM ##tblChangelogTempFinal WHERE ChangeReason = 'New Carrier on Lane' 
 	*/
-	SET @NewRates = CAST(( SELECT ID AS 'td','', LaneID AS 'td','', Lane AS 'td','', ChangeType AS 'td','', ChangeReason as 'td','', CASE WHEN SCAC IS NULL THEN ' ' ELSE SCAC END as 'td','',
-		Field as 'td','', CASE WHEN PreviousValue IS NULL THEN ' ' ELSE PreviousValue END as 'td','', NewValue as 'td','', UpdatedBy as 'td','', UpdatedByName as 'td','', FORMAT(UpdatedOn, 'M/d/yyyy h:m tt') as 'td',''
-	FROM USCTTDEV.dbo.tblBidAppChangelog WHERE ChangeReason = 'New Carrier on Lane' 
+	SET @NewRates = CAST(( SELECT ID AS 'td','', LaneID AS 'td','', Lane AS 'td','', ChangeType AS 'td','', ChangeReason as 'td','', CASE WHEN SCAC IS NULL THEN ' ' ELSE SCAC END as 'td','', Field as 'td','', 
+	'$' + NewValue as 'td','', UpdatedBy as 'td','', UpdatedByName as 'td','', FORMAT(UpdatedOn, 'M/d/yyyy') as 'td','', FORMAT(TMEffectiveDate, 'M/d/yyyy') as 'td',''
+	FROM ##tblChangelogTempFinal WHERE ChangeReason = 'New Carrier on Lane' 
 	AND CAST(UpdatedOn AS DATE) = CAST(GETDATE() AS DATE) ORDER BY ID ASC
 	FOR XML PATH('tr'), ELEMENTS ) AS NVARCHAR(MAX))
 
 	/*
-	New Rates Lines
+	Update Rates Lines
+	SELECT * FROM ##tblChangelogTempFinal WHERE ChangeReason = 'Stored Procedure Difference'
 	*/
-	SET @Updates = CAST(( SELECT ID AS 'td','', LaneID AS 'td','', Lane AS 'td','', ChangeType AS 'td','', ChangeReason as 'td','', CASE WHEN SCAC IS NULL THEN ' ' ELSE SCAC END as 'td','',
-		Field as 'td','', CASE WHEN PreviousValue IS NULL THEN ' ' ELSE PreviousValue END as 'td','', NewValue as 'td','', UpdatedBy as 'td','', UpdatedByName as 'td','', FORMAT(UpdatedOn, 'M/d/yyyy h:m tt') as 'td',''
-	FROM USCTTDEV.dbo.tblBidAppChangelog WHERE ChangeReason = 'Stored Procedure Difference'
+	SET @Updates = CAST(( SELECT ID AS 'td','', LaneID AS 'td','', Lane AS 'td','', ChangeType AS 'td','', ChangeReason as 'td','', CASE WHEN SCAC IS NULL THEN ' ' ELSE SCAC END as 'td','', Field as 'td','', 
+	CASE WHEN PreviousValue IS NULL THEN ' ' ELSE  '$' + PreviousValue END as 'td','', '$' + NewValue as 'td','', UpdatedBy as 'td','', UpdatedByName as 'td','', FORMAT(UpdatedOn, 'M/d/yyyy') as 'td','', FORMAT(TMEffectiveDate, 'M/d/yyyy') as 'td',''
+	FROM ##tblChangelogTempFinal WHERE ChangeReason = 'Stored Procedure Difference'
 	AND CAST(UpdatedOn AS DATE) = CAST(GETDATE() AS DATE) ORDER BY ID ASC
 	FOR XML PATH('tr'), ELEMENTS ) AS NVARCHAR(MAX))
 
@@ -950,8 +1064,23 @@ BEGIN
 	*/
 	SET @Headers = '
 	<tr>
+	<th> ID </th> <th> LaneID </th> <th> Lane </th> <th> Change Type </th> <th> Change Reason </th> <th> Updated By </th> <th> Process </th> <th> Updated On </th> </tr> '  
+
+	/*
+	Set table headers
+	*/
+	SET @HeadersNewRates =  '
+	<tr>
 	<th> ID </th> <th> LaneID </th> <th> Lane </th> <th> Change Type </th> <th> Change Reason </th> <th> SCAC </th> <th> Field </th>
-	<th> Previous Value </th> <th> New Value </th> <th> Updated By </th> <th> Process </th> <th> Updated On </th> </tr> '  
+	 <th> New Value </th> <th> Updated By </th> <th> Process </th> <th> Updated On </th> <th> Rate Effective Date</th>  </tr> '  
+
+	/*
+	Set table headers
+	*/
+	SET @HeadersTM = '
+	<tr>
+	<th> ID </th> <th> LaneID </th> <th> Lane </th> <th> Change Type </th> <th> Change Reason </th> <th> SCAC </th> <th> Field </th>
+	<th> Previous Value </th> <th> New Value </th> <th> Updated By </th> <th> Process </th> <th> Updated On </th> <th> Rate Effective Date</th>  </tr> '  
 
 	-- create a body variable that houses the HTML code used to make a table of the data
 	SET @body ='<html><head>
@@ -988,96 +1117,71 @@ BEGIN
 	--Greeting, and High Level Body
 	SET @body = @body 
 	+ 'Hello, <br><br> 
-	Please see below for details for changes made today within the Bid App, both by stored procedure and manually.'
+	Please see below for details for changes made today within the Bid App tables by Stored Procedure.'
 	+ '<p><H3>High Level Change Count</H3>' 
 	+ '<table border = 1>'
 	+ '<tr><th>Change Type</th><th>Change Count</th></tr>'
-	+ '<tr><td>New Lanes</td><td>' + CAST(@NewLaneCount AS VARCHAR) + '</td></tr>'
-	+ '<tr><td>New Rates</td><td>' + CAST(@NewRateCount AS VARCHAR) + '</td></tr>'
-	+ '<tr><td>Rate Updates</td><td>' + CAST(@UpdateCount AS VARCHAR) + '</td></tr></table>'
+	+ CASE WHEN @NewLaneCount > 0 THEN '<tr><td>New Lanes</td><td>' + CAST(@NewLaneCount AS VARCHAR) + '</td></tr>' ELSE '' END
+	+ CASE WHEN @NewRateCount > 0 THEN'<tr><td>New Rates</td><td>' + CAST(@NewRateCount AS VARCHAR) + '</td></tr>' ELSE '' END
+	+ CASE WHEN @UpdateCount > 0 THEN '<tr><td>Rate Updates</td><td>' + CAST(@UpdateCount AS VARCHAR) + '</td></tr>' ELSE '' END
+	+'</table>'
   
+
 	-- add the xml data into the body variable table template, and use closing html tags
 	SET @body = @body 
-	+ '<p><H3>New Lanes</H3>' 
-	+ '<table border = 1>' +@Headers + @NewLanes + '</table></p>'
-	+ '<p><H3>New Rates On Existing Lanes</H3>' 
-	+ '<table border = 1>' +@Headers + @NewRates + '</table></p>'
-	+ '<p><H3>Rate Updates</H3>' 
-	+ '<table border = 1>' +@Headers + @Updates + '</table></p>'
+	+ CASE WHEN @NewLaneCount > 0 THEN '<p><H3>New Lanes</H3><table border = 1>' +@Headers + @NewLanes + '</table></p>' ELSE '' END
+	+ CASE WHEN @NewRateCount > 0 THEN '<p><H3>New Rates</H3> <table border = 1>' +@HeadersNewRates + @NewRates + '</table></p>' ELSE '' END
+	+ CASE WHEN @UpdateCount > 0 THEN '<p><H3>Rate Updates</H3> <table border = 1>' +@HeadersTM + @Updates + '</table></p>' ELSE '' END
 	+'</body></html>'
 
+	SET @subj = 'Bid App Updates - ' + CONVERT(VARCHAR, GETDATE(), 101)
 	-- send the email based on the email stored procedure
 	EXEC msdb.dbo.sp_send_dbmail
 	@profile_name = 'Transportation Analytics and Reporting - KCNA', -- replace with your SQL Database Mail Profile 
 	@reply_to = 'StrategyAndAnalysis.ctt@kcc.com',
 	@body = @body,
 	@body_format ='HTML',
-	@recipients = 'steve.wolfe@kcc.com',  
-	@subject = 'Bid App Updates'
+	@recipients = 'scarpent@kcc.com; slindsey@kcc.com; jbhook@kcc.com',  
+	@copy_recipients = 'schrysan@kcc.com',
+	@blind_copy_recipients =  'StrategyAndAnalysis.ctt@kcc.com',
+	@subject =  @subj
+	
 END
 
+/*
+Update [Order Type] to match the one most used on USCTTDEV.dbo.tblActualLoadDetail if it's different than what's on tblBidAppLanes
+*/
+UPDATE USCTTDEV.dbo.tblBidAppLanes
+SET [Order Type] = OrderType.OrderType
+FROM USCTTDEV.dbo.tblBidAppLanes bal
+LEFT JOIN (SELECT
+  *
+FROM (SELECT DISTINCT
+  ald.Lane,
+  ald.OrderType,
+  COUNT(DISTINCT ald.LD_LEG_ID) AS LoadCount,
+  ROW_NUMBER() OVER (PARTITION BY ald.Lane ORDER BY COUNT(DISTINCT ald.LD_LEG_ID) DESC, ald.OrderType ASC) AS Rank
+FROM USCTTDEV.dbo.tblActualLoadDetail ald
+WHERE YEAR(ald.SHPD_DTT) = YEAR(GETDATE())
+GROUP BY ald.Lane,
+         ald.OrderType) OrderType
+WHERE OrderType.Rank = 1) OrderType
+  ON OrderType.Lane = bal.Lane
+WHERE bal.[Order Type] <> OrderType.OrderType
+OR bal.[Order Type] IS NULL
+
+/*
+Execute BidAppLanesUpdateCountryZip, which also includes ranking functions
+*/
+EXEC USCTTDEV.dbo.sp_BidAppLanesUpdateCountryZip
+
+/*
+Execute sp_AAP to assign AAO's
+*/
+EXEC USCTTDEV.dbo.sp_AAO
+
+/*
 exec msdb.dbo.sysmail_configure_sp 'MaxFileSize','2000000'
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-Update Bid App Rates table where rate exists with SCAC, but rate TM Rate differs
-*/
-/*
-SELECT bal.LaneID,
-bal.Lane,
-'Rate Level' AS ChangeType,
-'Stored Procedure Difference' as ChangeReason,
-bar.SCAC,
-CASE WHEN tm.[Min Charge] > .01 THEN 'Min Charge' ELSE 'CUR_RPM' END AS Field,
-CASE WHEN tm.[Min Charge] > .01 THEN bar.[Min Charge] ELSE bar.CUR_RPM END AS PreviousValue,
-CASE WHEN tm.[Min Charge] > .01 THEN tm.[Min Charge] ELSE tm.[Rate Per Mile] END AS NewValue,
-'SYSTEM' AS UpdatedBy,
-'sp_BidAppRateUpdate' AS UpdatedByName,
-GETDATE() AS UpdatedOn
-FROM ##tblTMRPMForBidApp tm 
-INNER JOIN USCTTDEV.dbo.tblBidAppLanes bal ON bal.LaneID = tm.LaneID
-INNER JOIN USCTTDEV.dbo.tblBidAppRates bar ON bar.LaneID = tm.LaneID
-AND bar.SCAC = tm.SERVICE
-WHERE bar.SCAC IS NULL
-AND CASE WHEN tm.[Min Charge] > .01 THEN tm.[Min Charge] ELSE tm.[Rate Per Mile] END <> 
-CASE WHEN tm.[Min Charge] > .01 THEN bar.[Min Charge] ELSE bar.[CUR_RPM] END
-AND CAST(tm.[TM Effective Date] AS DATE) >= CAST(bal.EffectiveDate AS DATE)
-ORDER BY tm.LaneID ASC, tm.SERVICE ASC
 */
 
-
-
+END
