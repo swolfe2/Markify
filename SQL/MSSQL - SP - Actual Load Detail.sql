@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 9/4/2020 12:31:31 PM ******/
+/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 12/7/2020 9:58:11 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -9,8 +9,12 @@ GO
 -- =============================================
 -- Author:		<Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team>
 -- Create date: <9/30/2019>
--- Last modified: <9/2/2020>
+-- Last modified: <12/7/2020>
 -- Description:	<Executes query against Oracle, loads to temp table, then appends/updates dbo.tblActualLoadDetail>
+-- 12/7/2020 - SW - Updated Live Load flag logic per email from Eric Mailhan, where he said that there are carriers in SAP/SE16 table ZOTNA_TS is marked as 'Y'as a live load carrier 
+-- 10/20/2020 - SW - Added 2508 and 2469 to Consumer BU logic, per Lynlee Robinson
+-- 10/8/2020 - SW - Updated RateType logic to include Repo, per Lynlee Robinson
+-- 9/8/2020 - SW - Removed all stuff from the WHERE clause in the [Dedicated] flag
 -- 9/2/2020 - SW - Updated RFT to use new table instead of old
 -- 7/1/2020 - SW - Added 2447 as a Consumer BU per Lynlee Robinson
 -- 6/17/2020 - SW - Added secondary FRAN update query, in case the audit table was to get purged
@@ -98,7 +102,9 @@ DROP TABLE IF EXISTS
 ##tblLaneAwards,
 ##tblPreRateLoadDetailsPivot,
 ##tblPreRateLoadDetailsRaw,
-##tblTMSMasterZones
+##tblTMSMasterZones,
+##tblShipmentItemsAgg,
+##tblShipmentItemsRaw
 
 /*
 Create temp table for Actual Load Details
@@ -1209,7 +1215,9 @@ FROM
 							''2047'',
 							''2431'',
 							''2447'',
-							''2540''
+							''2540'',
+							''2508'',
+							''2469''
                         ) THEN
                             ''CONSUMER''
                         WHEN substr(last_shpg_loc_cd, 1, 4) IN (
@@ -1282,7 +1290,8 @@ FROM
 							''2481'',
 							''2498'',
 							''2513'',
-							''2520''
+							''2520'',
+							''2531''
                         ) THEN
                             ''KCP''
 						WHEN substr(last_shpg_loc_cd, 1, 4) IN (
@@ -1326,7 +1335,15 @@ FROM
                 WHERE
                     l.ld_leg_id = ld.ld_leg_id
                     AND ld.shpm_num = sh.shpm_num
-                    AND l.cur_optlstat_id >= 320
+                        AND l.cur_optlstat_id IN (
+						300,
+						305,
+						310,
+						320,
+						325,
+						335,
+						345
+					)
                     AND EXTRACT(YEAR FROM
 						CASE
 							WHEN l.shpd_dtt IS NULL THEN
@@ -1911,8 +1928,8 @@ DECLARE @BUWeightRawQuery NVARCHAR(MAX)
 SET @BUWeightRawQuery = 'SELECT DISTINCT
     ld_leg_id,
     ob_bu as OBBU,
-    CAST(ROUND(sum(vol),2) AS NUMERIC(18,2)) as TotalVolume,
-    CAST(ROUND(sum(nmnl_wgt),2) AS NUMERIC(18,2)) as TotalWeight,
+    CAST(ROUND(CASE WHEN sum(vol)>0 THEN sum(vol) else .01 END,2) AS NUMERIC(18,2)) as TotalVolume,
+    CAST(ROUND(CASE WHEN sum(nmnl_wgt)>0 THEN sum(nmnl_wgt) ELSE .01 END,2) AS NUMERIC(18,2)) as TotalWeight,
     count(ld_leg_id) as Count
 FROM
     (
@@ -2030,7 +2047,9 @@ FROM
 							''2047'',
 							''2431'',
 							''2447'',
-							''2540''
+							''2540'',
+							''2508'',
+							''2469''
                         ) THEN
                             ''CONSUMER''
                         WHEN substr(last_shpg_loc_cd, 1, 4) IN (
@@ -2103,7 +2122,8 @@ FROM
 							''2481'',
 							''2498'',
 							''2513'',
-							''2520''
+							''2520'',
+							''2531''
                         ) THEN
                             ''KCP''
 						WHEN substr(last_shpg_loc_cd, 1, 4) IN (
@@ -2267,7 +2287,9 @@ FROM
 							''2047'',
 							''2431'',
 							''2447'',
-							''2540''
+							''2540'',
+							''2508'',
+							''2469''
                         ) THEN
                             ''CONSUMER''
                         WHEN substr(last_shpg_loc_cd, 1, 4) IN (
@@ -2340,7 +2362,8 @@ FROM
 							''2481'',
 							''2498'',
 							''2513'',
-							''2520''
+							''2520'',
+							''2531''
                         ) THEN
                             ''KCP''
 						WHEN substr(last_shpg_loc_cd, 1, 4) IN (
@@ -2618,6 +2641,8 @@ FROM ##tblActualLoadDetailsALD
 /*
 Now that we've got total cost, let's split out by the difference business units
 If there's less than a volume (cube) of 2, then use Weight
+
+SELECT * FROM ##tblActualLoadDetailsALD WHERE ConsumerWeight = 0
 */
 UPDATE ##tblActualLoadDetailsALD SET
 /*
@@ -3230,6 +3255,18 @@ LEFT JOIN USCTTDEV.dbo.tblZoneCities zc
   AND zc.CityName = ald.LAST_CTY_NAME
 
 /*
+9/9/2020 Update CARR_CD due to bad data in TMS
+Replace CMCU CARR_CD to CYLI
+*/
+UPDATE USCTTDEV.dbo.tblActualLoadDetail 
+SET CARR_CD = 'CYLI',
+Name = 'Crowley Logistics, Inc.'
+WHERE (SRVC_CD = 'CYLI' OR  SRVC_CD = 'CWGY')
+UPDATE USCTTDEV.dbo.tblOperationalMetrics
+SET CARR_CD = 'CYLI'
+WHERE (SRVC_CD = 'CYLI' OR  SRVC_CD = 'CWGY')
+
+/*
 Update Actual Load Detail Broker Flag
 */
 UPDATE USCTTDEV.dbo.tblActualLoadDetail
@@ -3466,8 +3503,17 @@ dates.ExpirationDate
 ) weighted
 ON weighted.Lane = ald.Lane
 AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT ELSE ald.STRD_DTT END AS DATE) BETWEEN CAST(weighted.EffectiveDate AS DATE) and CAST(weighted.ExpirationDate AS DATE)
-WHERE ald.WeightedAwardRPM IS NULL
-OR ald.WeightedAwardRPM <> weighted.WeightedCUR_RPM
+WHERE (ald.WeightedAwardRPM IS NULL
+OR ald.WeightedAwardRPM <> weighted.WeightedCUR_RPM)
+AND ald.EQMT_TYp <> 'LTL'
+
+/*
+10.28 - Per Jeff, delete WeightedAwardRPM if EQMT_TYP = LTL
+*/
+UPDATE USCTTDEV.dbo.tblActualLoadDetail
+SET WeightedAwardRPM = Null
+WHERE EQMT_TYP = 'LTL'
+AND WeightedAwardRPM IS NOT NULL
 
 /*
 Update Actual Load Detail table to null if no longer in weighted award table
@@ -3780,24 +3826,20 @@ SET Dedicated =
 FROM USCTTDEV.dbo.tblActualLoadDetail ald
 LEFT JOIN USCTTDEV.dbo.tblCarriers ca ON ca.CARR_CD = ald.CARR_CD
 	AND ca.SRVC_CD = ald.SRVC_CD
-WHERE CONVERT(date, ald.LastUpdated) = CONVERT(date, GETDATE())
-AND (ald.Dedicated <>
-                     CASE
-                       WHEN ca.Dedicated = 'Y' THEN 'Y'
-                       ELSE NULL
-                     END
-OR ald.Dedicated IS NULL)
 
 /*
 Update LiveLoad flag where the last appointment made was for a Live Load
+SELECT * FROM USCTTDEV.dbo.tblActualLoadDetail where liveload = 'y'
 */
 UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET LiveLoad =
               CASE
-                WHEN data.LOAD_NUMBER IS NOT NULL THEN 'Y'
+                WHEN data.LOAD_NUMBER IS NOT NULL OR ca.LiveLoad = 'Y' THEN 'Y'
                 ELSE NULL
               END
 FROM USCTTDEV.dbo.tblActualLoadDetail ald
+LEFT JOIN USCTTDEV.dbo.tblCarriers ca ON ca.SRVC_CD = ald.SRVC_CD
+AND ca.CARR_CD = ald.CARR_CD
 LEFT JOIN (SELECT
   *
 FROM OPENQUERY(NAJDAPRD, '
@@ -3815,6 +3857,8 @@ WHERE aph.LIVE_LOAD = ''Y''
 GROUP BY aph.LOAD_NUMBER, aph.APPOINTMENT_CHANGE_TIME, aph.LIVE_LOAD
 ')) data
   ON data.LOAD_NUMBER = ald.LD_LEG_ID
+
+
 
  /*
 FRAN Update with Thomas's table, should it be null
@@ -3839,6 +3883,7 @@ AND ald.FRAN IS NULL
 /*
 Update Rate Type
 Logic in email from Jeff Perrot on 5/29/2020
+10/8/2020 - Updated to include Repo, per Lynlee Robinson
 */
 UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET RateType =
@@ -3846,12 +3891,14 @@ SET RateType =
                 WHEN FRAN IS NOT NULL THEN 'Spot'
                 WHEN Act_ZSPT IS NOT NULL AND
                   Act_ZSPT <> 0 THEN 'Spot'
+				WHEN Act_Repo IS NOT NULL AND
+                  Act_Repo <> 0 THEN 'Spot'
                 WHEN SRVC_CD = 'OPEN' THEN 'Spot'
                 ELSE 'Contract'
               END
 FROM USCTTDEV.dbo.tblActualLoadDetail ald
 WHERE CONVERT(date, ald.LastUpdated) = CONVERT(date, GETDATE())
-AND (RateType <>
+/*AND (RateType <>
                 CASE
                   WHEN FRAN IS NOT NULL THEN 'Spot'
                   WHEN Act_ZSPT IS NOT NULL AND
@@ -3859,9 +3906,7 @@ AND (RateType <>
                   WHEN SRVC_CD = 'OPEN' THEN 'Spot'
                   ELSE 'Contract'
                 END
-OR ald.RateType IS NULL)
-
-
+OR ald.RateType IS NULL)*/
 
 /*
 Execute Bid App Add and Update
@@ -3886,9 +3931,10 @@ DROP TABLE IF EXISTS
 ##tblLaneAwards,
 ##tblPreRateLoadDetailsPivot,
 ##tblPreRateLoadDetailsRaw,
-##tblTMSMasterZones
+##tblTMSMasterZones,
+##tblShipmentItemsAgg,
+##tblShipmentItemsRaw
 ;
-
 
 /*
 SELECT LD_LEG_ID, BU, CONSUMERVolume, KCPVolume, NonWovenVolume, UnknownVolume, BUCount FROM ##tblActualLoadDetailsALD WHERE BUCount >1
