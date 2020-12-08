@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_BidAppAddAndUpdate]    Script Date: 9/11/2020 1:28:38 PM ******/
+/****** Object:  StoredProcedure [dbo].[sp_BidAppAddAndUpdate]    Script Date: 12/8/2020 12:21:27 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -8,7 +8,8 @@ GO
 -- =============================================
 -- Author:		Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team
 -- Create date: 3/25/2020
--- Last modified: 9/11/2020
+-- Last modified: 12/8/2020
+-- 12/8/2020 - SW - Update the Dest City/State to match Actual Load Detail by the lane if different and available; else by the Dest Zone if different and available (email thread with John Hook), and insert into changelog
 -- 9/11/2020 - SW -Update [Order Type] to match the one most used on USCTTDEV.dbo.tblActualLoadDetail if it's different than what's on tblBidAppLanes
 -- 6/5/2020 - SW - Updates to logic to exclude ZAR-% Rates
 -- Description:	Add new rates to Bid App tables, and update Bid App tables if rates are different
@@ -42,7 +43,8 @@ DROP TABLE IF EXISTS ##tblTMRPMForBidApp,
 ##tblChangelogTemp,
 ##tblChangelogTempFinal,
 ##tblLaneAAOTemp,
-##tblCityStateTemp/*,
+##tblCityStateTemp,
+##tblBidAppDestUpdate/*,
 ##tblBidAppMissingRates,
 ##tblBidAppRateDifferences,
 ##tblChangelogTemp,
@@ -969,8 +971,8 @@ ORDER BY cl.ID ASC
 /*
 Add records into USCTTDEV.dbo.tblBidAppChangelog
 */
-INSERT INTO USCTTDEV.dbo.tblBidAppChangelog(LaneID, Lane, ChangeType, ChangeReason, SCAC, Field, PreviousValue, NewValue, UpdatedBY, UpdatedByName, UpdatedOn)
-SELECT cltf.LaneID, cltf.Lane, cltf.ChangeType, cltf.ChangeReason, cltf.SCAC, cltf.Field, cltf.PreviousValue, cltf.NewValue, cltf.UpdatedBY, cltf.UpdatedByName, cltf.UpdatedOn 
+INSERT INTO USCTTDEV.dbo.tblBidAppChangelog(LaneID, Lane, ChangeType, ChangeReason, SCAC, Field, PreviousValue, NewValue, UpdatedBY, UpdatedByName, UpdatedOn, ChangeTable)
+SELECT cltf.LaneID, cltf.Lane, cltf.ChangeType, cltf.ChangeReason, cltf.SCAC, cltf.Field, cltf.PreviousValue, cltf.NewValue, cltf.UpdatedBY, cltf.UpdatedByName, cltf.UpdatedOn, CASE WHEN cltf.ChangeType LIKE 'RATE%' THEN 'tblBidAppRates' ELSE 'tblBidAppLanes' END
 FROM ##tblChangelogTempFinal cltf
 LEFT JOIN USCTTDEV.dbo.tblBidAppChangelog cl ON cl.LaneID = cltf.LaneID
 AND cl.ChangeType = cltf.ChangeType
@@ -1169,6 +1171,80 @@ WHERE OrderType.Rank = 1) OrderType
   ON OrderType.Lane = bal.Lane
 WHERE bal.[Order Type] <> OrderType.OrderType
 OR bal.[Order Type] IS NULL
+
+/*
+Drop table to ensure clean process
+*/
+DROP TABLE IF EXISTS ##tblBidAppDestUpdate
+
+/*
+Create temp table for updating
+SELECT * FROM ##tblBidAppDestUpdate ORDER BY LaneID ASC
+*/
+SELECT * INTO ##tblBidAppDestUpdate FROM (
+SELECT
+bal.LaneID,
+bal.Lane,
+'Lane Level' AS ChangeType,
+'Dest Update / ' + CASE WHEN aldLane.Lane IS NULL THEN 'Dest Zone Aggregate' ELSE 'Actual Load Detail' END AS ChangeReason,
+'DEST_CITY_STATE' AS Field,
+bal.Dest AS PreviousValue, 
+CASE WHEN aldLane.Lane IS NULL THEN DestCityState.CityState ELSE aldLane.CityState END AS NewValue,
+'SYSTEM' AS UpdatedBy,
+'SYSTEM' AS UpdatedByName,
+GETDATE() AS UpdatedOn,
+'tblBidAppLanes' AS ChangeTable
+FROM USCTTDEV.dbo.tblBidAppLanes bal
+INNER JOIN (
+		SELECT DISTINCT ald.Dest_Zone,
+		ald.LAST_CTY_NAME  + ', ' + ald.LAST_STA_CD AS CityState,
+		COUNT(DISTINCT ald.LD_LEG_ID) AS LoadCount,
+		ROW_NUMBER() OVER (PARTITION BY ald.Dest_Zone ORDER BY COUNT(DISTINCT ald.LD_LEG_ID) DESC ) AS CityStateRank
+		FROM USCTTDEV.dbo.tblActualLoadDetail ald
+		WHERE CAST(ald.SHPD_DTT AS DATE) >= CAST(GETDATE() - 180 AS DATE) 
+		GROUP BY ald.Dest_Zone,
+		ald.LAST_CTY_NAME  + ', ' + ald.LAST_STA_CD
+) DestCityState ON DestCityState.Dest_Zone = bal.DEST_CITY_STATE
+AND DestCityState.CityStateRank = 1
+LEFT JOIN (
+SELECT DISTINCT ald.Lane,
+		ald.LAST_CTY_NAME  + ', ' + ald.LAST_STA_CD AS CityState,
+		COUNT(DISTINCT ald.LD_LEG_ID) AS LoadCount,
+		ROW_NUMBER() OVER (PARTITION BY ald.Lane ORDER BY COUNT(DISTINCT ald.LD_LEG_ID) DESC ) AS CityStateRank
+		FROM USCTTDEV.dbo.tblActualLoadDetail ald
+		WHERE CAST(ald.SHPD_DTT AS DATE) >= CAST(GETDATE() - 180 AS DATE) 
+		GROUP BY ald.Lane,
+		ald.LAST_CTY_NAME  + ', ' + ald.LAST_STA_CD
+) aldLane ON aldLane.Lane = bal.Lane
+AND aldLane.CityStateRank = 1
+WHERE bal.Dest <> CASE WHEN aldLane.Lane IS NULL THEN DestCityState.CityState ELSE aldLane.CityState END
+)data
+ORDER BY data.LaneID ASC
+
+/*
+Update USCTTDEV.dbo.tblBidAppLanes to the Dest City/State value in ##tblBidAppDestUpdate
+*/
+UPDATE USCTTDEV.dbo.tblBidAppLanes
+SET Dest = badu.NewValue
+FROM USCTTDEV.dbo.tblBidAppLanes bal
+INNER JOIN ##tblBidAppDestUpdate badu ON badu.LaneID = bal.LaneID
+
+/*
+Insert changes into changelog
+*/
+INSERT INTO USCTTDEV.dbo.tblBidAppChangelog(LaneID, Lane, ChangeReason, Field, PreviousValue, NewValue, UpdatedBy, UpdatedByName, UpdatedOn, ChangeTable)
+SELECT badu.LaneID, badu.Lane, badu.ChangeReason, badu.Field, badu.PreviousValue, badu.NewValue, badu.UpdatedBy, badu.UpdatedByName, badu.UpdatedOn, badu.ChangeTable
+FROM ##tblBidAppDestUpdate badu
+LEFT JOIN USCTTDEV.dbo.tblBidAppChangelog bacl ON bacl.LaneID = badu.LaneID
+AND CAST(bacl.UpdatedOn AS DATE) = CAST(badu.UpdatedOn AS DATE)
+AND bacl.NewValue = badu.NewValue
+WHERE bacl.NewValue IS NULL
+ORDER BY badu.LaneID ASC
+
+/*
+Don't really need to do this, but I do it anyway #yolo
+*/
+DROP TABLE IF EXISTS ##tblBidAppDestUpdate
 
 /*
 Execute BidAppLanesUpdateCountryZip, which also includes ranking functions
