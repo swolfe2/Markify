@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 12/7/2020 9:58:11 AM ******/
+/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 12/14/2020 8:05:13 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -9,8 +9,9 @@ GO
 -- =============================================
 -- Author:		<Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team>
 -- Create date: <9/30/2019>
--- Last modified: <12/7/2020>
+-- Last modified: <12/14/2020>
 -- Description:	<Executes query against Oracle, loads to temp table, then appends/updates dbo.tblActualLoadDetail>
+-- 12/14/2020 -  SW - tblLanes in Oracle has disappeared, and the stored procedure has been rewritten to overcome
 -- 12/7/2020 - SW - Updated Live Load flag logic per email from Eric Mailhan, where he said that there are carriers in SAP/SE16 table ZOTNA_TS is marked as 'Y'as a live load carrier 
 -- 10/20/2020 - SW - Added 2508 and 2469 to Consumer BU logic, per Lynlee Robinson
 -- 10/8/2020 - SW - Updated RateType logic to include Repo, per Lynlee Robinson
@@ -1494,37 +1495,55 @@ ALTER TABLE ##tblActualLoadDetailsALD ADD Dest_Zone NVARCHAR(25)
 ALTER TABLE ##tblActualLoadDetailsALD ADD Lane NVARCHAR(25)
 
 /*
-Create table for unique origin/destination by CityName from Thomas' Oracle tables
+UPDATE: 12/14 - Thomas' previous table has been deleted. Now getting what exists on Actual Load Detail as the gospel.
 SELECT * FROM ##tblLaneOrigDest
+SELECT * FROM USCTTDEV.dbo.tblTMSZones
 */
 DROP TABLE IF EXISTS ##tblLaneOrigDest
-Select * into ##tblLaneOrigDest from OPENQUERY(NAJDAQAX,'
+
+SELECT data.Code,
+data.CityName,
+data.OrigDest
+INTO ##tblLaneOrigDest
+FROM (
 SELECT DISTINCT
-    code,
-    cityname,
-    /*upper(order_type) AS type,*/
-    origdest
-FROM
-    (
-        SELECT DISTINCT
-            orig_city_state   AS code,
-            origin            AS cityname,
-            /*order_type,*/
-            ''ORIGIN'' AS origdest
-        FROM
-            nai2padm.tbllanes
-        UNION ALL
-        SELECT DISTINCT
-            dest_city_state   AS code,
-            dest              AS cityname,
-            /*order_type,*/
-            ''DEST'' AS origdest
-        FROM
-            nai2padm.tbllanes
-    )
-	WHERE CODE NOT LIKE ''US-%''
-ORDER BY
-    cityname ASC')
+origin.Code,
+origin.CityName,
+origin.OrigDest
+FROM(
+SELECT DISTINCT 
+ald.Origin_Zone AS Code,
+ald.FRST_CTY_NAME + ', ' + ald.FRST_STA_CD AS CityName,
+'Origin' AS origdest,
+ROW_NUMBER() OVER (PARTITION BY ald.FRST_CTY_NAME + ', ' + ald.FRST_STA_CD ORDER BY COUNT(DISTINCT ald.LD_LEG_ID) DESC) AS RowNum,
+COUNT(DISTINCT ald.LD_LEG_ID) AS LoadCount
+FROM USCTTDEV.dbo.tblActualLoadDetail ald
+WHERE CAST(ald.SHPD_DTT AS DATE) >= CAST(GETDATE() - 365 AS DATE)
+GROUP BY ald.FRST_CTY_NAME + ', ' + ald.FRST_STA_CD,
+ald.Origin_Zone) origin
+WHERE origin.RowNum = 1
+
+UNION ALL
+
+SELECT DISTINCT
+dest.Code,
+dest.CityName,
+dest.OrigDest
+FROM(
+SELECT DISTINCT 
+ald.Dest_Zone AS Code,
+ald.LAST_CTY_NAME + ', ' + ald.LAST_STA_CD AS CityName,
+'Dest' AS origdest,
+ROW_NUMBER() OVER (PARTITION BY ald.LAST_CTY_NAME + ', ' + ald.LAST_STA_CD ORDER BY COUNT(DISTINCT ald.LD_LEG_ID) DESC) AS RowNum,
+COUNT(DISTINCT ald.LD_LEG_ID) AS LoadCount
+FROM USCTTDEV.dbo.tblActualLoadDetail ald
+WHERE CAST(ald.SHPD_DTT AS DATE) >= CAST(GETDATE() - 365 AS DATE)
+GROUP BY ald.LAST_CTY_NAME + ', ' + ald.LAST_STA_CD,
+ald.Dest_Zone
+) dest
+WHERE dest.RowNum = 1
+) data
+ORDER BY data.CityName ASC
 
 /*
 Add new zones to USCTTDEV.dbo.tblTMSZones
@@ -2686,16 +2705,13 @@ If on the audit table as 'FRAN', and also 'OPEN' in srvc_cd, then mark FRAN as '
 Also, yo dawg... I see you like FRAN, so I put a FRAN in your FRAN so you can FRAN while you FRAN
 UPDATE 3/16/2020 - Jeff Perrot only wants to see where it went through the process, and was tendered.
 Change FRAN - Tendered to just FRAN, and FRAN - Attempted to null
+'Updated FRAN to use Thomas' table
 */
 UPDATE ##tblActualLoadDetailsALD
 SET FRAN = (CASE WHEN ald.srvc_cd='OPEN' THEN 'FRAN' ELSE NULL END )
 FROM ##tblActualLoadDetailsALD ald
-INNER JOIN (SELECT * from OPENQUERY(NAJDAPRD,'
-	SELECT DISTINCT LD_LEG_ID, ''FRAN'' AS FRAN
-	FROM NAJDAADM.AUDIT_LOAD_LEG_R alr
-	WHERE LD_CARR_CD = ''FRAN''                  
-	GROUP BY LD_LEG_ID, ''FRAN''
-')) fran ON ald.ld_leg_id = fran.ld_leg_id
+INNER JOIN USCTTDEV.dbo.tblAuditLoadLeg alls ON alls.LD_LEG_ID = ald.LD_LEG_ID
+AND alls.LD_CARR_CD = 'FRAN'
 
 /*
 Update ##tblActualLoadDetailsALD with RFT marker
@@ -2724,119 +2740,6 @@ FROM ##tblActualLoadDetailsALD ald
 						GROUP BY rf.LOAD_NUMBER, rf.FirstFailure						
 					) rft ON
 			rft.LOAD_NUMBER = ald.LD_LEG_ID
-
-/*
-Create temp table for All Awards
-*/
-DROP TABLE IF EXISTS ##tblAwards
-Select * into ##tblAwards from OPENQUERY(NAJDAQAX,'SELECT DISTINCT
-    tbllanes.laneid,
-    tbllanes.orig_city_state   AS OriginZone,
-    tbllanes.dest_city_state   AS DestZone,
-	tbllanes.orig_city_state || ''-'' || tbllanes.dest_city_state AS Lane,
-	miles                      AS Mileage,
-	brk_amt_dlr                AS RPM,
-    min_chrg_dlr               AS MinCharge,
-	CASE
-        WHEN miles = 0 THEN
-            ROUND(brk_amt_dlr,2)
-        ELSE
-            CASE
-                WHEN ( brk_amt_dlr * miles ) > min_chrg_dlr THEN
-                    ROUND(brk_amt_dlr,2)
-                ELSE
-                    Round(( min_chrg_dlr ) / miles,2)
-            END
-    END AS AwardRPM,
-	CASE
-        WHEN miles = 0 THEN
-            ''Rate Per Mile''
-        ELSE
-            CASE
-                WHEN ( brk_amt_dlr * miles ) > min_chrg_dlr THEN
-                    ''Rate Per Mile''
-                ELSE
-                    ''Min Charge''
-            END
-    END AS ChargeType,
-	'''' AS Rank,
-	tblawards.scac AS Service,
-	awardpct,
-    CAST(tbllaneaudit.updated_loads AS VARCHAR(1000)) AS LaneAnnualVol,
-	CASE
-    WHEN round(awardpct *(updated_loads / 52), 1) < 1 THEN
-        1
-    ELSE
-        round(awardpct *(updated_loads / 52), 1)
-    END AS CarrWKVol,
-	CASE
-		WHEN round((awardpct *(updated_loads / 52)) * 1.15, 1) < 1 THEN
-			1
-		ELSE
-			round((awardpct *(updated_loads / 52)) * 1.15, 1)
-    END AS CarrWKVol_Surge,
-    CASE
-        WHEN ship_mode = ''IM'' THEN
-            ''53IM''
-        ELSE
-            ''53FT''
-    END AS EquipType,
-	CASE
-		WHEN ship_mode = ''IM'' THEN
-			''Intermodal''
-		ELSE
-			''Truck''
-    END AS ShipMode,
-	CAST(laneeff AS date) AS LaneEff,
-    CAST(laneexp AS date) AS LaneExp,
-	CAST(awardeff as date) AS AwardEff,
-    CAST(awardexp as date) AS AwardExp,
-    CAST (efct_dt AS date) AS RateEff,
-    CAST (expd_dt AS date) AS rateExp,
-	CAST(tbllaneaudit.comments AS VARCHAR(1000)) AS LaneComments,
-    CAST(tblawards.comments AS VARCHAR(1000)) AS AwardComments,
-    reason
-FROM
-    nai2padm.tbllanes tbllanes
-    INNER JOIN nai2padm.tbllaneaudit tbllaneaudit ON nai2padm.tbllanes.laneid = nai2padm.tbllaneaudit.laneid
-    INNER JOIN nai2padm.tblawards tblawards ON nai2padm.tbllanes.laneid = nai2padm.tblawards.laneid
-    INNER JOIN nai2padm.tbltmrates tbltmrates ON nai2padm.tbllanes.laneid = nai2padm.tbltmrates.laneid
-    INNER JOIN nai2padm.tblcarriers tblcarriers ON nai2padm.tblawards.scac = nai2padm.tblcarriers.scac
-                                       AND nai2padm.tblawards.scac = nai2padm.tblcarriers.scac
-                                       AND nai2padm.tblawards.scac = nai2padm.tbltmrates.scac
-WHERE
-    tblawards.awardpct > 0
-    AND tbllanes.laneid > 0
-ORDER BY originzone, destzone, service ASC')
-
-/*
-Update ##tblActualLoadDetailsALD CARR_CD / NAME
-*/
-ALTER TABLE ##tblAwards DROP COLUMN IF EXISTS CARR_CD
-ALTER TABLE ##tblAwards DROP COLUMN IF EXISTS NAME
-ALTER TABLE ##tblAwards ADD CARR_CD NVARCHAR(50)
-ALTER TABLE ##tblAwards ADD NAME NVARCHAR(50)
-
-/*
-Create temp table for Current Awards
-*/
-DROP TABLE IF EXISTS ##tblCurrentAwards
-select * into ##tblCurrentAwards 
-from ##tblawards
-where laneexp >= getdate()
-and awardexp >= getdate()
-and rateexp >= getdate()
-order by originzone, destzone, service ASC
-
-/*
-Create temp table for historic lane level awards
-*/
-DROP TABLE IF EXISTS ##tblLaneAwards
-SELECT DISTINCT ORIGINZONE, DESTZONE, ORIGINZONE +'-'+DESTZONE as Lane, Min(RATEEFF) as EffectiveDate, MAX(RATEEXP) as ExpirationDate
-INTO ##tblLaneAwards
-FROM ##tblAwards
-GROUP BY ORIGINZONE, DESTZONE, ORIGINZONE +'-'+DESTZONE
-ORDER BY ORIGINZONE +'-'+DESTZONE ASC
 
 /*
 Update ##tblActualLoadDetailsALD with AwardLane and AwardCarrier

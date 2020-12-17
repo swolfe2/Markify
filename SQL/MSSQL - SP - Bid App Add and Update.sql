@@ -1230,7 +1230,16 @@ FROM USCTTDEV.dbo.tblBidAppLanes bal
 INNER JOIN ##tblBidAppDestUpdate badu ON badu.LaneID = bal.LaneID
 
 /*
+Update USCTTDEV.dbo.tblBidAppRates to the Dest City/State value
+*/
+UPDATE USCTTDEV.dbo.tblBidAppRates
+SET Dest = badu.NewValue
+FROM USCTTDEV.dbo.tblBidAppRates bar
+INNER JOIN ##tblBidAppDestUpdate badu ON badu.LaneID = bar.LaneID
+
+/*
 Insert changes into changelog
+SELECT TOP 200 * FROM USCTTDEV.dbo.tblBidAppChangelog ORDER BY ID DESC
 */
 INSERT INTO USCTTDEV.dbo.tblBidAppChangelog(LaneID, Lane, ChangeReason, Field, PreviousValue, NewValue, UpdatedBy, UpdatedByName, UpdatedOn, ChangeTable)
 SELECT badu.LaneID, badu.Lane, badu.ChangeReason, badu.Field, badu.PreviousValue, badu.NewValue, badu.UpdatedBy, badu.UpdatedByName, badu.UpdatedOn, badu.ChangeTable
