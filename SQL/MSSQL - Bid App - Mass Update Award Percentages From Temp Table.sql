@@ -79,7 +79,7 @@ AND cl.SCAC = clt.SCAC
 AND CAST(cl.UpdatedOn AS DATE) = CAST(clt.UpdatedOn AS DATE)
 WHERE cl.LaneID IS NULL
 AND cl.SCAC IS NULL
-ORDER BY clt.LaneID ASC, clt.SCAC ASC
+ORDER BY CAST(clt.LaneID AS INT) ASC, clt.SCAC ASC
 
 /*
 Execute stored procedures
@@ -87,3 +87,5 @@ Execute stored procedures
 EXEC USCTTDEV.dbo.sp_AwardWeightedAveragesRFP
 
 EXEC USCTTDEV.dbo.sp_BidAppRatesRank
+
+DROP TABLE IF EXISTS ##tblChangelogTemp

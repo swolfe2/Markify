@@ -17,49 +17,28 @@ UpdatedByName NVARCHAR(50),
 UpdatedOn Datetime
 )
 
-DECLARE @SCAC NVARCHAR(5)
-SET @SCAC = 'TPGH'
-
 /*
-Insert rates to be deleted
-SELECT * FROM ##tblChangelogTemp ORDER BY LaneID ASC
+Add the lanes to be deleted
 */
-INSERT INTO ##tblChangelogTemp (LaneID, Lane, ChangeType, ChangeReason, SCAC, Field, PreviousValue)
-SELECT bar.LaneID,
-bar.Lane, 
-'Rate Level',
-'Mass Rate Delete',
-bar.SCAC, 
-CASE WHEN bar.[Min Charge] IS NOT NULL THEN 'Min Charge' ELSE 'CUR_RPM' END,
-CASE WHEN bar.[Min Charge] IS NOT NULL THEN bar.[Min Charge] ELSE bar.CUR_RPM END
+INSERT INTO ##tblChangelogTemp (LaneID,  Lane, SCAC, PreviousValue, Field)
+SELECT DISTINCT bar.LaneID,  
+remove.Lane, 
+remove.SCAC, 
+CASE WHEN bar.[Min Charge] IS NOT NULL THEN bar.[Min Charge] ELSE bar.CUR_RPM END AS PreviousValue,
+CASE WHEN bar.[Min Charge] IS NOT NULL THEN 'Min Charge' ELSE 'CUR_RPM' END AS Field
 FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 bar
-WHERE bar.SCAC = @SCAC
-ORDER BY bar.LaneID ASC, bar.SCAC ASC
+INNER JOIN (SELECT 'ALFAIRHO-5AL36610' AS Lane, 'SWOA' AS SCAC UNION ALL
+SELECT 'KCILROME-SKIN-5IL60586' AS Lane, 'KNBK' AS SCAC 
+) remove ON remove.Lane = bar.Lane
+AND remove.SCAC = bar.SCAC
+ORDER BY bar.LaneID ASC
 
 /*
-Insert awards that will be deleted
-SELECT * FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 bar WHERE SCAC = 'TPGH' AND bar.AWARD_PCT IS NOT NULL
-*/
-INSERT INTO ##tblChangelogTemp (LaneID, Lane, ChangeType, ChangeReason, SCAC, Field, PreviousValue)
-SELECT bar.LaneID,
-bar.Lane, 
-'Rate Level',
-'Mass Rate Delete',
-bar.SCAC, 
-'AWARD_PCT',
-bar.AWARD_PCT
-FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 bar
-WHERE bar.SCAC = @SCAC
-AND bar.AWARD_PCT IS NOT NULL
-ORDER BY bar.LaneID ASC, bar.SCAC ASC
-
-/*
-Final Changelog Updates
-SELECT * FROM ##tblChangelogTemp WHERE Field <> 'AWARD_PCT'
-SELECT * INTO ##tblBidAppRatesRFPTempy FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 
+Update Lane Level Deletions text
 */
 UPDATE ##tblChangelogTemp
-SET
+SET ChangeType = 'Rate Level',
+ChangeReason = 'Mass Rate Delete',
 UpdatedBy = 'B40962',
 UpdatedByName = 'Stelios Chrysandreas',
 UpdatedOn = GETDATE()
@@ -72,6 +51,7 @@ ORDER BY CAST(LaneID AS INT) ASC, SCAC ASC
 
 /*
 Delete from Bid App Rates
+SELECT * INTO ##tblBidAppRates2021Tempy2 FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 
 */
 DELETE USCTTDEV.dbo.tblBidAppRatesRFP2021
 FROM  USCTTDEV.dbo.tblBidAppRatesRFP2021 bar
@@ -80,7 +60,7 @@ AND clt.SCAC = bar.SCAC
 
 /*
 Insert changes into changelog
-SELECT * FROM USCTTDEV.dbo.tblBidAppChangelog WHERE UpdatedOn = '2020-12-18 11:57:35.610'
+DELETE FROM USCTTDEV.dbo.tblBidAppChangelog WHERE UpdatedOn = '2020-12-11 08:25:01.877'
 */
 INSERT INTO USCTTDEV.dbo.tblBIdAppChangelog(LaneID, Lane, ChangeType, ChangeReason, SCAC, Field, PreviousValue, NewValue, UpdatedBy, UpdatedByName, UpdatedOn, ChangeTable)
 SELECT clt.LaneID,
@@ -94,7 +74,7 @@ clt.NewValue,
 clt.UpdatedBy,
 clt.UpdatedByName,
 clt.UpdatedOn,
-CASE WHEN clt.ChangeReason LIKE '%Lane%' THEN 'tblBidAppLanesRFP2021' ELSE 'tblBidAppRatesRFP2021' END
+'tblBidAppRatesRFP2021'
 FROM ##tblChangelogTemp clt
 LEFT JOIN USCTTDEV.dbo.tblBIdAppChangelog cl ON clt.LaneID = cl.LaneID
 AND cl.SCAC = clt.SCAC
