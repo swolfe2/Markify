@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_BidAppAddAndUpdate]    Script Date: 12/8/2020 12:21:27 PM ******/
+/****** Object:  StoredProcedure [dbo].[sp_BidAppAddAndUpdate]    Script Date: 1/18/2021 9:30:22 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -8,7 +8,8 @@ GO
 -- =============================================
 -- Author:		Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team
 -- Create date: 3/25/2020
--- Last modified: 12/8/2020
+-- Last modified: 1/18/2021
+-- 1/18/2021 - SW - Changes to Effective Date to accommodate 2 rates which may be loaded and have expiration dates in the future
 -- 12/8/2020 - SW - Update the Dest City/State to match Actual Load Detail by the lane if different and available; else by the Dest Zone if different and available (email thread with John Hook), and insert into changelog
 -- 9/11/2020 - SW -Update [Order Type] to match the one most used on USCTTDEV.dbo.tblActualLoadDetail if it's different than what's on tblBidAppLanes
 -- 6/5/2020 - SW - Updates to logic to exclude ZAR-% Rates
@@ -44,7 +45,8 @@ DROP TABLE IF EXISTS ##tblTMRPMForBidApp,
 ##tblChangelogTempFinal,
 ##tblLaneAAOTemp,
 ##tblCityStateTemp,
-##tblBidAppDestUpdate/*,
+##tblBidAppDestUpdate;
+/*,
 ##tblBidAppMissingRates,
 ##tblBidAppRateDifferences,
 ##tblChangelogTemp,
@@ -97,6 +99,10 @@ FROM
                 ORDER BY
                     rr.brk_amt_dlr ASC, l.min_chrg_dlr ASC, l.tff_id ASC
             ) AS Rank,
+			ROW_NUMBER() OVER (PARTITION BY l.orig_zn_cd, l.dest_zn_cd, l.srvc_cd
+                ORDER BY
+                    r.efct_dt ASC
+			) AS EffectiveDateRank,
             l.tff_id         AS "Tariff ID",
             t.tff_cd         AS "Tariff Code",
             r.rate_cd        AS "Rate Code",
@@ -113,7 +119,8 @@ FROM
             LEFT JOIN najdaadm.carrier_r     c ON t.carr_cd = c.carr_cd
             LEFT JOIN najdaadm.mstr_srvc_t   mst ON l.srvc_cd = mst.srvc_cd
         WHERE
-            (r.efct_dt <= SYSDATE OR EXTRACT(YEAR FROM r.efct_dt) = EXTRACT(YEAR FROM SYSDATE))
+            /*(r.efct_dt <= SYSDATE OR EXTRACT(YEAR FROM r.efct_dt) = EXTRACT(YEAR FROM SYSDATE))*/
+			CAST(r.efct_dt AS DATE) <= CAST(SYSDATE AS DATE)
 			AND r.expd_dt >= SYSDATE
             /*AND rr.brk_amt_dlr >.01*/
             AND (r.chrg_cd = ''MILE'' OR CHRG_CD = ''ZTEM'')
@@ -132,8 +139,14 @@ ORDER BY
     Shipmode,
     Rank,
     Service') RPM
+/*WHERE RPM.EffectiveDateRank = 1*/;
 
 /*
+
+SELECT * FROM ##tblTMRPMForBidApp WHERE [Origin Zone Code] = 'AGAGUASC'
+AND [Dest Zone Code] = '5IL60446'
+AND SERVICE IN ('CLLQ','HJBB')
+
 Base table updates to remove incorrect strings
 SELECT * FROM ##tblTMRPMForBidApp WHERE [Origin Zone Code] = 'KCILROME-NOF'
 SELECT DISTINCT [Origin Zone Code] FROM ##tblTMRPMForBidApp WHERE [Origin Zone Code] LIKE 'KC%'
@@ -142,36 +155,36 @@ SELECT DISTINCT [Dest Zone Code] FROM ##tblTMRPMForBidApp WHERE [Dest Zone Code]
 DELETE ##tblTMRPMForBidApp
 FROM ##tblTMRPMForBidApp tmba
 WHERE [Origin Zone Code] LIKE 'KC%'
-AND [Origin Zone Code] NOT LIKE 'KCILROME%'
+AND [Origin Zone Code] NOT LIKE 'KCILROME%';
 
 DELETE ##tblTMRPMForBidApp
 FROM ##tblTMRPMForBidApp tmba
 WHERE [Dest Zone Code] LIKE 'KC%'
-AND [Dest Zone Code] NOT LIKE 'KCILROME%'
+AND [Dest Zone Code] NOT LIKE 'KCILROME%';
 
 DELETE ##tblTMRPMForBidApp
 FROM ##tblTMRPMForBidApp
-WHERE [Origin Zone Code] LIKE '5%'
+WHERE [Origin Zone Code] LIKE '5%';
 
 DELETE ##tblTMRPMForBidApp
 FROM ##tblTMRPMForBidApp
-WHERE [Origin Zone Code] LIKE 'ZAR%'
+WHERE [Origin Zone Code] LIKE 'ZAR%';
 
 DELETE ##tblTMRPMForBidApp
 FROM ##tblTMRPMForBidApp
-WHERE [SERVICE] LIKE 'ZAR%'
+WHERE [SERVICE] LIKE 'ZAR%';
 
 UPDATE ##tblTMRPMForBidApp
 SET [Origin City] = REPLACE([Origin City], 'KC in ','')
-WHERE [Origin City] LIKE 'KC in%'
+WHERE [Origin City] LIKE 'KC in%';
 
 UPDATE ##tblTMRPMForBidApp
 SET [Origin City] = REPLACE([Origin City], ' KCP','')
-WHERE [Origin City] LIKE '% KCP'
+WHERE [Origin City] LIKE '% KCP';
 
 UPDATE ##tblTMRPMForBidApp
 SET [Origin City] = REPLACE([Origin City], ' SKIN CARE','')
-WHERE [Origin City] LIKE '% SKIN CARE'
+WHERE [Origin City] LIKE '% SKIN CARE';
 
 UPDATE ##tblTMRPMForBidApp
 SET [Origin City] = CASE
@@ -179,19 +192,19 @@ SET [Origin City] = CASE
 							RTRIM(left([Origin City], CHARINDEX(' (', [Origin City]) - 1))
 						ELSE
 							[Origin City]
-					END
+					END;
 
 UPDATE ##tblTMRPMForBidApp
 SET [Dest State/ZIP] = REPLACE([Dest State/ZIP], 'KC in ','')
-WHERE [Dest State/ZIP] LIKE 'KC in%'
+WHERE [Dest State/ZIP] LIKE 'KC in%';
 
 UPDATE ##tblTMRPMForBidApp
 SET [Dest State/ZIP] = REPLACE([Dest State/ZIP], ' KCP','')
-WHERE [Dest State/ZIP] LIKE '% KCP'
+WHERE [Dest State/ZIP] LIKE '% KCP';
 
 UPDATE ##tblTMRPMForBidApp
 SET [Dest State/ZIP] = REPLACE([Dest State/ZIP], ' SKIN CARE','')
-WHERE [Dest State/ZIP] LIKE '% SKIN CARE'
+WHERE [Dest State/ZIP] LIKE '% SKIN CARE';
 
 UPDATE ##tblTMRPMForBidApp
 SET [Dest State/ZIP] = CASE
@@ -199,18 +212,18 @@ SET [Dest State/ZIP] = CASE
 							RTRIM(left([Dest State/ZIP], CHARINDEX(' (', [Dest State/ZIP]) - 1))
 						ELSE
 							[Dest State/ZIP]
-					END
+					END;
 									   					 
 UPDATE ##tblTMRPMForBidApp
 SET [Origin City] = LTRIM(RTRIM([Origin City])),
-[Dest State/ZIP] = LTRIM(RTRIM([Dest State/ZIP]))
+[Dest State/ZIP] = LTRIM(RTRIM([Dest State/ZIP]));
 
 /*
 Add LaneID column to join against USCTTDEV.dbo.tblBidAppLanes
 */
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'LaneID'		AND TABLE_NAME LIKE '##tblTMRPMForBidApp') ALTER TABLE ##tblTMRPMForBidApp ADD [LaneID]	INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'LaneStatus'	AND TABLE_NAME LIKE '##tblTMRPMForBidApp') ALTER TABLE ##tblTMRPMForBidApp ADD LaneStatus	NVARCHAR(50) NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'RateStatus'	AND TABLE_NAME LIKE '##tblTMRPMForBidApp') ALTER TABLE ##tblTMRPMForBidApp ADD RateStatus	NVARCHAR(50) NULL
+IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'LaneID'		AND TABLE_NAME LIKE '##tblTMRPMForBidApp') ALTER TABLE ##tblTMRPMForBidApp ADD [LaneID]	INT NULL;
+IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'LaneStatus'	AND TABLE_NAME LIKE '##tblTMRPMForBidApp') ALTER TABLE ##tblTMRPMForBidApp ADD LaneStatus	NVARCHAR(50) NULL;
+IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'RateStatus'	AND TABLE_NAME LIKE '##tblTMRPMForBidApp') ALTER TABLE ##tblTMRPMForBidApp ADD RateStatus	NVARCHAR(50) NULL;
 
 /*
 Update ##tblTMRPMForBidApp with LaneID from USCTTDEV.dbo.tblBidAppLanes
@@ -224,7 +237,7 @@ FROM ##tblTMRPMForBidApp tm
 INNER JOIN USCTTDEV.dbo.tblBidAppLanes bal ON bal.ORIG_CITY_STATE = tm.[Origin Zone Code]
 AND bal.DEST_CITY_STATE = tm.[Dest Zone Code]
 WHERE tm.LaneID IS NULL OR tm.LaneID <> bal.LaneID
-AND bal.Lane NOT LIKE '%(TC)%'
+AND bal.Lane NOT LIKE '%(TC)%';
 
 /*
 Create temp table of missing lanes
@@ -265,7 +278,7 @@ tm.[Origin Country],
         tm.[Dest Zone Code]
 	END, */
 tm.[Dest Zone Code],
-tm.[Dest Country]) missing
+tm.[Dest Country]) missing;
 
 /*
 Update with new Index number, just in CASE the old one was duplicated for some unknown reason
@@ -276,13 +289,13 @@ UPDATE ##tblBidAppMissingLanes
 SET LaneID = row.row
 FROM ##tblBidAppMissingLanes baml
 INNER JOIN (SELECT ROW_NUMBER() OVER (ORDER BY [Origin Zone Code]+'-'+[Dest Zone Code]) as Row,
-[Origin Zone Code]+'-'+[Dest Zone Code] AS Lane FROM ##tblBidAppMissingLanes) row ON row.Lane = baml.[Origin Zone Code]+'-'+baml.[Dest Zone Code]
+[Origin Zone Code]+'-'+[Dest Zone Code] AS Lane FROM ##tblBidAppMissingLanes) row ON row.Lane = baml.[Origin Zone Code]+'-'+baml.[Dest Zone Code];
 
 /*
 Update ##tblBidAppMissingLanes.LaneID to 1+Max(USCTTDEV.dbo.tblBidAppLanes.LaneID)
 */
 UPDATE ##tblBidAppMissingLanes
-SET LaneID = LaneID + (SELECT MAX(LaneID) AS MaxLaneID FROM USCTTDEV.dbo.tblBidAppLanes)
+SET LaneID = LaneID + (SELECT MAX(LaneID) AS MaxLaneID FROM USCTTDEV.dbo.tblBidAppLanes);
 
 /*
 Add LaneID column to join against USCTTDEV.dbo.tblBidAppLanes
@@ -290,13 +303,13 @@ SELECT * FROM ##tblBidAppMissingLanes
 SELECT * FROM ##tblTMRPMForBidApp
 SELECT * FROM USCTTDEV.dbo.tblTMSZones
 */
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'OriginZip'		AND TABLE_NAME LIKE '##tblBidAppMissingLanes')	 ALTER TABLE ##tblBidAppMissingLanes ADD OriginZip		NVARCHAR(100) NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Dest'			AND TABLE_NAME LIKE '##tblBidAppMissingLanes')	 ALTER TABLE ##tblBidAppMissingLanes ADD Dest			NVARCHAR(100) NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Order Type'		AND TABLE_NAME LIKE '##tblBidAppMissingLanes')	 ALTER TABLE ##tblBidAppMissingLanes ADD OrderType		NVARCHAR(100) NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'BusinessUnit'	AND TABLE_NAME LIKE '##tblBidAppMissingLanes')	 ALTER TABLE ##tblBidAppMissingLanes ADD BusinessUnit	NVARCHAR(100) NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'LoadCount'		AND TABLE_NAME LIKE '##tblBidAppMissingLanes')	 ALTER TABLE ##tblBidAppMissingLanes ADD [LoadCount]	INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'AddedBY'		AND TABLE_NAME LIKE '##tblBidAppMissingLanes')	 ALTER TABLE ##tblBidAppMissingLanes ADD AddedBy		NVARCHAR(100) NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'AddedOn'		AND TABLE_NAME LIKE '##tblBidAppMissingLanes')	 ALTER TABLE ##tblBidAppMissingLanes ADD AddedOn		DATETIME NULL
+IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'OriginZip'		AND TABLE_NAME LIKE '##tblBidAppMissingLanes')	 ALTER TABLE ##tblBidAppMissingLanes ADD OriginZip		NVARCHAR(100) NULL;
+IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Dest'			AND TABLE_NAME LIKE '##tblBidAppMissingLanes')	 ALTER TABLE ##tblBidAppMissingLanes ADD Dest			NVARCHAR(100) NULL;
+IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Order Type'		AND TABLE_NAME LIKE '##tblBidAppMissingLanes')	 ALTER TABLE ##tblBidAppMissingLanes ADD OrderType		NVARCHAR(100) NULL;
+IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'BusinessUnit'	AND TABLE_NAME LIKE '##tblBidAppMissingLanes')	 ALTER TABLE ##tblBidAppMissingLanes ADD BusinessUnit	NVARCHAR(100) NULL;
+IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'LoadCount'		AND TABLE_NAME LIKE '##tblBidAppMissingLanes')	 ALTER TABLE ##tblBidAppMissingLanes ADD [LoadCount]	INT NULL;
+IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'AddedBY'		AND TABLE_NAME LIKE '##tblBidAppMissingLanes')	 ALTER TABLE ##tblBidAppMissingLanes ADD AddedBy		NVARCHAR(100) NULL;
+IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'AddedOn'		AND TABLE_NAME LIKE '##tblBidAppMissingLanes')	 ALTER TABLE ##tblBidAppMissingLanes ADD AddedOn		DATETIME NULL;
 
 /*
 Update OriginZips from unique Bid App Lanes Origin Zips
@@ -305,7 +318,7 @@ UPDATE ##tblBidAppMissingLanes
 SET OriginZip = zips.OriginZip
 FROM ##tblBidAppMissingLanes baml
 INNER JOIN (SELECT DISTINCT bal.ORIG_CITY_STATE, bal.OriginZip FROM USCTTDEV.dbo.tblBidAppLanes bal) zips ON zips.ORIG_CITY_STATE = baml.[Origin Zone Code]
-WHERE baml.OriginZip IS NULL
+WHERE baml.OriginZip IS NULL;
 
 /*
 Update ##tblBidAppMissingLanes.LoadCount with counts from USCTTDEV.dbo.tblActualLoadDetail where origin/dest zones match, and shipments are in this year
@@ -321,7 +334,7 @@ FROM USCTTDEV.dbo.tblActualLoadDetail ald
 WHERE DATEPART(year,CASE WHEN ald.SHPD_DTT IS NULL THEN ald.STRD_DTT ELSE ald.SHPD_DTT END) = DATEPART(year,GETDATE())
 GROUP BY ald.Origin_ZOne, ald.Dest_Zone
 ) ald on ald.Origin_Zone = ml.[Origin Zone Code]
-AND ald.Dest_Zone = ml.[Dest Zone Code]
+AND ald.Dest_Zone = ml.[Dest Zone Code];
 
 /*
 Update null strings to whatever matches in Actual Load Detail, if something matches
@@ -346,7 +359,7 @@ GROUP BY ald.FRST_CTY_NAME + ', ' +   ald.FRST_STA_CD,
 CASE WHEN ald.FRST_CTRY_CD = 'USA' THEN LEFT(ald.FRST_PSTL_CD,5) ELSE ald.FRST_PSTL_CD END
 ) data
 WHERE data.Rank = 1) zips ON zips.Origin = bal.[Origin City]
-WHERE bal.OriginZip IS NULL
+WHERE bal.OriginZip IS NULL;
 
 /*
 Update ##tblMissingBidAppLanes with Dest details
@@ -360,7 +373,7 @@ INNER JOIN (
 SELECT DISTINCT Dest, DEST_CITY_STATE
 FROM USCTTDEV.dbo.tblBidAppLanes
 GROUP BY Dest, DEST_CITY_STATE
-) dests ON dests.DEST_CITY_STATE = baml.[Dest Zone Code]
+) dests ON dests.DEST_CITY_STATE = baml.[Dest Zone Code];
 
 UPDATE ##tblBidAppMissingLanes
 SET Dest = origins.[Origin]
@@ -369,7 +382,7 @@ INNER JOIN (
 SELECT DISTINCT Origin, ORIG_CITY_STATE
 FROM USCTTDEV.dbo.tblBidAppLanes
 GROUP BY Origin, ORIG_CITY_STATE
-) origins ON origins.ORIG_CITY_STATE = baml.[Dest Zone Code]
+) origins ON origins.ORIG_CITY_STATE = baml.[Dest Zone Code];
 
 /*
 IF the Dest is still null, update from tblTMRPMForBidApp where Dest State/ZIP has a comma, and does not include 'ZIP' in the string
@@ -379,7 +392,7 @@ SET DEST = ba.[Dest State/ZIP]
 FROM ##tblBidAppMissingLanes baml
 INNER JOIN ##tblTMRPMForBidApp ba ON ba.[Dest Zone Code] = baml.[Dest Zone Code]
 WHERE ba.[Dest State/Zip] LIKE '%, %'
-AND baml.[Dest Country] <> 'USA'
+AND baml.[Dest Country] <> 'USA';
 
 /*
 Some local values to update as
@@ -389,7 +402,7 @@ UPDATE ##tblBidAppMissingLanes
 SET Dest = UPPER(CASE WHEN [Dest Zone Code] = 'QCMONT' THEN 'Mont-Tremblant, QC'
 WHEN [Dest Zone Code] = 'KCILROME' THEN 'Romeoville, IL'
 END)
-WHERE Dest IS NULL
+WHERE Dest IS NULL;
 
 /*
 Create table of City/States from TM ADDRESS_R
@@ -448,7 +461,7 @@ FROM
                     ELSE
                         ar.pstl_cd
                 END
-    ) zips') zips
+    ) zips') zips;
 
 /*
 Update Missing CityState from TM data
@@ -462,7 +475,7 @@ FROM ##tblBidAppMissingLanes baml
 INNER JOIN ##tblCityStateTemp cst ON cst.PSTL_CD = SUBSTRING(baml.[Dest Zone Code],4,5)
 WHERE baml.[Dest Country] = 'USA'
 AND baml.DEST IS NULL
-AND cst.Rank = 1
+AND cst.Rank = 1;
 
 /*
 Update to UNKNOWN, STATE if the dest zone code is still unknown
@@ -474,7 +487,7 @@ SET Dest = 'UNKNOWN, ' + CASE WHEN [Dest Zone Code] LIKE '5%' THEN SUBSTRING([De
 OrderType = 'UNKNOWN',
 BusinessUnit = 'UNKNOWN'
 WHERE Dest IS NULL
-AND [Dest Country] = 'USA'
+AND [Dest Country] = 'USA';
 
 /*
 Update Default Order Type / BusinessUnit where not 'UNKNOWN'
@@ -483,14 +496,14 @@ SELECT * FROM ##tblBidAppMissingLanes WHERE Dest LIKE '%UNKNOWN%'
 UPDATE ##tblBidAppMissingLanes
 SET OrderType = 'CUSTOMER', 
 BusinessUnit = 'CONSUMER'
-WHERE Dest NOT LIKE '%UNKNOWN%'
+WHERE Dest NOT LIKE '%UNKNOWN%';
 
 /*
 Update AddedBy/AddedOn
 */
 UPDATE ##tblBidAppMissingLanes
 SET AddedBy = 'SYSTEM', 
-AddedOn = GETDATE()
+AddedOn = GETDATE();
 
 /*
 Delete from ##tblTMRPMForBidApp where Origin/Dest zones start with KC, but do not have the -
@@ -503,7 +516,7 @@ INNER JOIN ##tblBidAppMissingLanes baml ON baml.[Origin Zone Code] = tmbp.[Origi
 AND baml.[Dest Zone Code] = tmbp.[Dest Zone Code]
 WHERE ((baml.OrderType = 'UNKNOWN' AND baml.[Origin Zone Code] LIKE 'KC%') 
 OR (baml.OrderType = 'UNKNOWN' AND baml.[Dest Zone Code] LIKE 'KC%'))
-AND tmbp.LaneStatus IS NULL
+AND tmbp.LaneStatus IS NULL;
 
 /*
 Delete from ##tblBidAppMissingLanes WHERE LaneID no longer exists
@@ -512,7 +525,7 @@ DELETE ##tblBidAppMissingLanes
 FROM ##tblBidAppMissingLanes baml
 LEFT JOIN ##tblTMRPMForBidApp tmbp ON tmbp.[Origin Zone Code] = baml.[Origin Zone Code]
 AND tmbp.[Dest Zone Code] = baml.[Dest Zone Code]
-WHERE tmbp.[Origin Zone Code] IS NULL AND tmbp.[Dest Zone Code] IS NULL
+WHERE tmbp.[Origin Zone Code] IS NULL AND tmbp.[Dest Zone Code] IS NULL;
 
 /*
 Final update for LaneID on ##tblBidAppMissingLanes
@@ -521,7 +534,7 @@ Final update for LaneID on ##tblBidAppMissingLanes
 /*
 Set LaneID back to null, and start the whole match thing over again
 */
-UPDATE ##tblBidAppMissingLanes SET LaneID = Null
+UPDATE ##tblBidAppMissingLanes SET LaneID = Null;
 
 /*
 Update with new Index number, just in CASE the old one was duplicated for some unknown reason
@@ -532,14 +545,14 @@ UPDATE ##tblBidAppMissingLanes
 SET LaneID = row.row
 FROM ##tblBidAppMissingLanes baml
 INNER JOIN (SELECT ROW_NUMBER() OVER (ORDER BY [Origin Zone Code]+'-'+[Dest Zone Code]) as Row,
-[Origin Zone Code]+'-'+[Dest Zone Code] AS Lane FROM ##tblBidAppMissingLanes) row ON row.Lane = baml.[Origin Zone Code]+'-'+baml.[Dest Zone Code]
+[Origin Zone Code]+'-'+[Dest Zone Code] AS Lane FROM ##tblBidAppMissingLanes) row ON row.Lane = baml.[Origin Zone Code]+'-'+baml.[Dest Zone Code];
 
 /*
 Update ##tblBidAppMissingLanes.LaneID to 1+Max(USCTTDEV.dbo.tblBidAppLanes.LaneID)
 SELECT * FROM ##tblBidAppMissingLanes ORDER BY LaneID ASC
 */
 UPDATE ##tblBidAppMissingLanes
-SET LaneID = LaneID + (SELECT MAX(LaneID) AS MaxLaneID FROM USCTTDEV.dbo.tblBidAppLanes)
+SET LaneID = LaneID + (SELECT MAX(LaneID) AS MaxLaneID FROM USCTTDEV.dbo.tblBidAppLanes);
 
 /*
 Update ##tblTMRPMForBidApp, and set all LaneID's > the max value from BidAppLanes to null
@@ -563,7 +576,7 @@ FROM ##tblTMRPMForBidApp tmba
 INNER JOIN ##tblBidAppMissingLanes baml ON baml.[Origin Zone Code] = tmba.[Origin Zone Code]
 AND baml.[Dest Zone Code] = tmba.[Dest Zone Code]
 WHERE tmba.LaneID IS NULL  OR tmba.LaneID <> baml.LaneID
-AND tmba.LaneStatus IS NULL
+AND tmba.LaneStatus IS NULL;
 
 /*
 FINAL CHECK
@@ -576,7 +589,7 @@ LaneStatus = 'Exists'
 FROM ##tblTMRPMForBidApp tm
 INNER JOIN USCTTDEV.dbo.tblBidAppLanes bal ON bal.ORIG_CITY_STATE = tm.[Origin Zone Code]
 AND bal.DEST_CITY_STATE = tm.[Dest Zone Code]
-WHERE tm.LaneID IS NULL OR tm.LaneID <> bal.LaneID
+WHERE tm.LaneID IS NULL OR tm.LaneID <> bal.LaneID;
 
 /*
 Delete from ##tblBidAppMissingLanes if still on table, but exists on ##tblTMRPM ForBidAp as LaneStatus 'Exists'
@@ -588,7 +601,7 @@ SELECT * FROM ##tblTMRPMFOrBidApp WHERE [Origin Zone Code] = 'NJSWEDES' AND [Des
 DELETE ##tblBidAppMissingLanes
 FROM ##tblBidAppMissingLanes baml
 INNER JOIN ##tblTMRPMForBidApp tmba ON tmba.LaneID = baml.LaneID
-WHERE tmba.LaneStatus = 'Exists'
+WHERE tmba.LaneStatus = 'Exists';
 
 /*
 Add missing lanes to USCTTDEV.dbo.tblBidAppLanes
@@ -628,7 +641,7 @@ REPLACE('2/1/'+STR(YEAR(GETDATE())),' ',''),
 '12/31/2999',
 baml.BusinessUnit
 FROM ##tblBidAppMissingLanes baml
-WHERE baml.LaneID NOT IN (SELECT LaneID FROM USCTTDEV.dbo.tblBidAppLanes)
+WHERE baml.LaneID NOT IN (SELECT LaneID FROM USCTTDEV.dbo.tblBidAppLanes);
 
 /*
 Delete where there might be a duplicate lane, preserving the oldest one
@@ -639,7 +652,7 @@ INNER JOIN (SELECT DISTINCT Lane, COUNT(*) AS COUNTa, MIN(ID) AS MinID
 FROM USCTTDEV.dbo.tblBidAppLanes
 GROUP BY Lane
 HAVING COUNT(*) <> 1) dupe ON dupe.Lane = bal.Lane
-WHERE ID <> dupe.MinID
+WHERE ID <> dupe.MinID;
 
 /*
 Delete where there might be duplicate rates, preserving the oldest one
@@ -652,7 +665,7 @@ FROM USCTTDEV.dbo.tblBidAppRates
 GROUP BY Lane, SCAC
 HAVING COUNT(*) > 1) dupe ON dupe.Lane = bar.Lane
 AND dupe.SCAC = bar.SCAC
-WHERE ID <> dupe.MinID
+WHERE ID <> dupe.MinID;
 
 /*
 Update USCTTDEV.dbo.tblBidAppLanes where Miles = 1
@@ -672,12 +685,12 @@ WHERE LANE IS NOT NULL
 GROUP BY Lane, FIXD_ITNR_DIST) miles
 WHERE Row = 1
 ) miles ON miles.Lane = bal.Lane
-WHERE bal.MILES <= 1
+WHERE bal.MILES <= 1;
 
 /*
 Append to temp changelog table
 */
-DROP TABLE IF EXISTS ##tblChangelogTemp
+DROP TABLE IF EXISTS ##tblChangelogTemp;
 CREATE TABLE ##tblChangelogTemp
 (
 LaneID						int,
@@ -692,7 +705,7 @@ UpdatedBy					nvarchar(50),
 UpdatedByName		nvarchar(50),
 UpdatedOn				datetime,
 TMEffectiveDate		datetime
-)
+);
 
 /*
 Add missing lanes to temp changelog table
@@ -701,7 +714,7 @@ SELECT * FROM ##tblChangelogTemp
 INSERT INTO ##tblChangelogTemp(LaneID, Lane, Changetype, ChangeReason, Field, NewValue, UpdatedBy, UpdatedByName, UpdatedOn)
 SELECT baml.LaneID, baml.[Origin Zone Code]+'-'+baml.[Dest Zone Code], 'Master Data', 'New Lane', 'New Lane', baml.[Origin Zone Code]+'-'+baml.[Dest Zone Code], 'SYSTEM', 'Stored Procedure', GETDATE()
 FROM ##tblBidAppMissingLanes baml
-ORDER BY baml.LaneID ASC
+ORDER BY baml.LaneID ASC;
 
 /*
 Delete from ChangelogTemp if LaneID no longer in dataset
@@ -752,7 +765,7 @@ AND tm.LaneID IS NOT NULL
 AND bal.Lane NOT LIKE '%TC%'
 AND CAST(tm.[TM Effective Date] AS DATE) >= CAST(bal.EffectiveDate AS DATE)
 --ORDER BY tm.LaneID ASC, tm.SERVICE ASC
-) missing
+) missing;
 
 /*
 Add missing rates to USCTTDEV.dbo.tblBidAppRates
@@ -796,7 +809,7 @@ LEFT JOIN USCTTDEV.dbo.tblBidAppRates bar ON bar.LaneID = bamr.LaneID
 AND bar.SCAC = bamr.Service
 WHERE bar.LaneID IS NULL
 AND bar.SCAC IS NULL
-ORDER BY bamr.LaneID ASC, bamr.Service ASC
+ORDER BY bamr.LaneID ASC, bamr.Service ASC;
 
 /*
 Add changes to temp changelog
@@ -817,7 +830,7 @@ LEFT JOIN ##tblChangelogTemp clt ON clt.LaneID = bamr.LaneID
 AND clt.SCAC = bamr.Service
 WHERE clt.LaneID IS NULL
 AND clt.SCAC IS NULL
-ORDER BY bamr.LaneID, bamr.Service ASC
+ORDER BY bamr.LaneID, bamr.Service ASC;
 
 /*
 Append rate differences into temp table
@@ -864,7 +877,7 @@ AND cl.SCAC = bar.SCAC
 WHERE MatchType <> 'MATCH'
 AND Lane NOT LIKE '%TC%'
 
-ORDER BY LaneID ASC, Service ASC
+ORDER BY LaneID ASC, Service ASC;
 
 /*
 Update USCTTDEV.dbo.tblBidAppRates with new rates
@@ -883,7 +896,7 @@ ExpirationDate = '12/31/2999'
 FROM USCTTDEV.dbo.tblBidAppRates bar
 INNER JOIN ##tblBidAppRateDifferences bard ON bard.LaneID = bar.LaneID
 AND bard.Service = bar.SCAC
-WHERE bar.Lane NOT LIKE '%TC%'
+WHERE bar.Lane NOT LIKE '%TC%';
 
 /*
 Add changes to temp changelog
@@ -905,12 +918,12 @@ LEFT JOIN ##tblChangelogTemp clt ON clt.LaneID = bard.LaneID
 AND clt.SCAC = bard.Service
 WHERE clt.LaneID IS NULL
 AND clt.SCAC IS NULL
-ORDER BY bard.LaneID, bard.Service ASC
+ORDER BY bard.LaneID, bard.Service ASC;
 
 /*
 Create Row Number on Changelog
 */
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'ID'	AND TABLE_NAME LIKE '##tblChangelogTemp') ALTER TABLE ##tblChangelogTemp ADD ID	INT NULL
+IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'ID'	AND TABLE_NAME LIKE '##tblChangelogTemp') ALTER TABLE ##tblChangelogTemp ADD ID	INT NULL;
 
 /*
 Update Row Number on Changelog, where there's a SCAC
@@ -929,7 +942,7 @@ FROM ##tblChangelogTemp clt
 AND rows.ChangeType = clt.ChangeType
 AND rows.ChangeReason = clt.ChangeReason
 AND rows.SCAC = clt.SCAC
-WHERE clt.ID IS NULL
+WHERE clt.ID IS NULL;
 
 /*
 Update Row Number on Changelog, where there's NO SCAC
@@ -953,7 +966,7 @@ FROM ##tblChangelogTemp clt
 )rows ON rows.LaneID = clt.LaneID
 AND rows.ChangeType = clt.ChangeType
 AND rows.ChangeReason = clt.ChangeReason
-WHERE clt.ID IS NULL
+WHERE clt.ID IS NULL;
 
 
 /*
@@ -966,7 +979,7 @@ DROP TABLE IF EXISTS ##tblChangelogTempFinal
 SELECT ID, LaneID, Lane, ChangeType, ChangeReason, SCAC, Field, PreviousValue, NewValue, UpdatedBy, UpdatedByName, GETDATE() AS UpdatedOn, TMEffectiveDate
 INTO ##tblChangelogTempFinal
 FROM ##tblChangelogTemp cl
-ORDER BY cl.ID ASC
+ORDER BY cl.ID ASC;
 
 /*
 Add records into USCTTDEV.dbo.tblBidAppChangelog
@@ -981,14 +994,14 @@ AND cl.ChangeReason = cltf.ChangeReason
 AND cl.Field = cltf.Field
 AND cl.NewValue = cltf.NewValue
 WHERE cl.NewValue IS NULL
-ORDER BY cltf.ID ASC
+ORDER BY cltf.ID ASC;
 
 /*
 Begin Email Processing
 */
 DECLARE @ChangelogCount INT
 SET @ChangelogCount = (SELECT COUNT(*) FROM ##tblChangelogTempFinal)
-PRINT('Change log count: '+REPLACE(STR(@ChangelogCount),' ',''))
+PRINT('Change log count: '+REPLACE(STR(@ChangelogCount),' ',''));
 
 /*
 If there's at least 1 record to send, send the email to carrier managers
@@ -1170,12 +1183,12 @@ GROUP BY ald.Lane,
 WHERE OrderType.Rank = 1) OrderType
   ON OrderType.Lane = bal.Lane
 WHERE bal.[Order Type] <> OrderType.OrderType
-OR bal.[Order Type] IS NULL
+OR bal.[Order Type] IS NULL;
 
 /*
 Drop table to ensure clean process
 */
-DROP TABLE IF EXISTS ##tblBidAppDestUpdate
+DROP TABLE IF EXISTS ##tblBidAppDestUpdate;
 
 /*
 Create temp table for updating
@@ -1219,7 +1232,7 @@ SELECT DISTINCT ald.Lane,
 AND aldLane.CityStateRank = 1
 WHERE bal.Dest <> CASE WHEN aldLane.Lane IS NULL THEN DestCityState.CityState ELSE aldLane.CityState END
 )data
-ORDER BY data.LaneID ASC
+ORDER BY data.LaneID ASC;
 
 /*
 Update USCTTDEV.dbo.tblBidAppLanes to the Dest City/State value in ##tblBidAppDestUpdate
@@ -1227,7 +1240,7 @@ Update USCTTDEV.dbo.tblBidAppLanes to the Dest City/State value in ##tblBidAppDe
 UPDATE USCTTDEV.dbo.tblBidAppLanes
 SET Dest = badu.NewValue
 FROM USCTTDEV.dbo.tblBidAppLanes bal
-INNER JOIN ##tblBidAppDestUpdate badu ON badu.LaneID = bal.LaneID
+INNER JOIN ##tblBidAppDestUpdate badu ON badu.LaneID = bal.LaneID;
 
 /*
 Update USCTTDEV.dbo.tblBidAppRates to the Dest City/State value
@@ -1235,38 +1248,48 @@ Update USCTTDEV.dbo.tblBidAppRates to the Dest City/State value
 UPDATE USCTTDEV.dbo.tblBidAppRates
 SET Dest = badu.NewValue
 FROM USCTTDEV.dbo.tblBidAppRates bar
-INNER JOIN ##tblBidAppDestUpdate badu ON badu.LaneID = bar.LaneID
+INNER JOIN ##tblBidAppDestUpdate badu ON badu.LaneID = bar.LaneID;
 
 /*
 Insert changes into changelog
 SELECT TOP 200 * FROM USCTTDEV.dbo.tblBidAppChangelog ORDER BY ID DESC
 */
-INSERT INTO USCTTDEV.dbo.tblBidAppChangelog(LaneID, Lane, ChangeReason, Field, PreviousValue, NewValue, UpdatedBy, UpdatedByName, UpdatedOn, ChangeTable)
-SELECT badu.LaneID, badu.Lane, badu.ChangeReason, badu.Field, badu.PreviousValue, badu.NewValue, badu.UpdatedBy, badu.UpdatedByName, badu.UpdatedOn, badu.ChangeTable
+INSERT INTO USCTTDEV.dbo.tblBidAppChangelog(LaneID, Lane, ChangeType, ChangeReason, Field, PreviousValue, NewValue, UpdatedBy, UpdatedByName, UpdatedOn, ChangeTable)
+SELECT badu.LaneID, badu.Lane, badu.ChangeType, badu.ChangeReason, badu.Field, badu.PreviousValue, badu.NewValue, badu.UpdatedBy, badu.UpdatedByName, badu.UpdatedOn, badu.ChangeTable
 FROM ##tblBidAppDestUpdate badu
 LEFT JOIN USCTTDEV.dbo.tblBidAppChangelog bacl ON bacl.LaneID = badu.LaneID
 AND CAST(bacl.UpdatedOn AS DATE) = CAST(badu.UpdatedOn AS DATE)
 AND bacl.NewValue = badu.NewValue
 WHERE bacl.NewValue IS NULL
-ORDER BY badu.LaneID ASC
+ORDER BY badu.LaneID ASC;
 
 /*
 Don't really need to do this, but I do it anyway #yolo
 */
-DROP TABLE IF EXISTS ##tblBidAppDestUpdate
+DROP TABLE IF EXISTS ##tblBidAppDestUpdate;
 
 /*
 Execute BidAppLanesUpdateCountryZip, which also includes ranking functions
 */
-EXEC USCTTDEV.dbo.sp_BidAppLanesUpdateCountryZip
+EXEC USCTTDEV.dbo.sp_BidAppLanesUpdateCountryZip;
 
 /*
 Execute sp_AAP to assign AAO's
 */
-EXEC USCTTDEV.dbo.sp_AAO
+EXEC USCTTDEV.dbo.sp_AAO;
 
 /*
 exec msdb.dbo.sysmail_configure_sp 'MaxFileSize','2000000'
 */
+
+DROP TABLE IF EXISTS ##tblBidAppMissingLanes,
+##tblBidAppMissingRates,
+##tblBidAppRateDifferences,
+##tblChangelogTemp,
+##tblChangelogTempFinal,
+##tblCityStateTemp,
+##tblLaneAAODetailTemp,
+##tblLaneAAOTemp,
+##tblTMRPMForBidApp;
 
 END

@@ -24,24 +24,26 @@ SELECT DISTINCT ChangeReason FROM USCTTDEV.dbo.tblBidAppChangelog
 SELECT DISTINCT Field FROM USCTTDEV.dbo.tblBidAppChangelog
 SELECT * FROM ##tblChangelogTemp
 
+SELECT * FROM USCTTDEV.dbo.tblBIdAppChangelog WHERE FIeld = 'Confirmed'
+SELECT * FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 WHERE Confirmed = 'N' AND AWARD_PCT IS NOT NULL
+
 Excel Formula
 ="SELECT '" & E2 & "' AS Lane, CAST('" & ROUND(O2,2) & "' AS NUMERIC(10,2)) AS NewValue, '" & LEFT(B2,4) & "' AS SCAC UNION ALL"
 */
 INSERT INTO ##tblChangelogTemp (LaneID,  Lane, ChangeType, ChangeReason, SCAC, Field, PreviousValue, NewValue)
 SELECT DISTINCT bar.LaneID,  
-change.Lane, 
-CASE WHEN bar.[Min Charge] IS NOT NULL THEN 'Rate Level - Flat Chrg' ELSE 'Rate Level - RPM' END,
-'Mass Update Rate',
-change.SCAC,  
-CASE WHEN bar.[Min Charge] IS NOT NULL THEN 'Min Charge' ELSE 'CUR_RPM' END, 
-CASE WHEN bar.[Min Charge] IS NOT NULL THEN bar.[Min Charge] ELSE bar.CUR_RPM END,
-Change.NewValue
-FROM (SELECT 'CAONTARI-5CA90012' AS Lane, CAST('12.15' AS NUMERIC(10,2)) AS NewValue, 'LEGS' AS SCAC UNION ALL
-SELECT 'CAONTARI-5CA92880' AS Lane, CAST('27.5' AS NUMERIC(10,2)) AS NewValue, 'LEGS' AS SCAC
-) change
-LEFT JOIN USCTTDEV.dbo.tblBidAppRatesRFP2021 bar ON bar.Lane = change.Lane
-AND bar.SCAC = change.SCAC
-ORDER BY bar.LaneID ASC
+bar.Lane, 
+'Rate Level - Mass',
+'Mass Update Confirmed',
+bar.SCAC,  
+'Confirmed',
+bar.Confirmed, 
+'Y'
+FROM USCTTDEV.dbo.tblBIdAppLanesRFP2021 bal
+INNER JOIN USCTTDEV.dbo.tblBidAppRatesRFP2021 bar ON bar.Lane = bal.Lane
+WHERE bar.AWARD_PCT IS NOT NULL
+AND bar.Confirmed = 'N'
+ORDER BY bar.LaneID ASC, bar.SCAC ASC
 
 /*
 Remove from changelog temp where the LaneID does not exist
@@ -58,8 +60,8 @@ ORDER BY MAX(UpdatedOn) DESC
 */
 UPDATE ##tblChangelogTemp
 SET 
-UpdatedBy = 'B73503',
-UpdatedByName = 'Scottie Carpenter',
+UpdatedBy = 'B40962',
+UpdatedByName = 'Stelios Chrysandreas',
 UpdatedOn = GETDATE()
 
 /*
@@ -70,8 +72,7 @@ SELECT * FROM ##tblChangelogTemp WHERE LaneID = 66 AND SCAC = 'HUBG'
 SELECT * FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 WHERE LaneID = 66 AND SCAC = 'HUBG'
 */
 UPDATE USCTTDEV.dbo.tblBidAppRatesRFP2021
-SET CUR_RPM = CASE WHEN cl.ChangeType = 'Rate Level - RPM' THEN cl.NewValue ELSE bar.CUR_RPM END,
-[Min Charge] = CASE WHEN cl.ChangeType = 'Rate Level - Flat Chrg' THEN cl.NewValue ELSE bar.[Min Charge] END
+SET Confirmed = 'Y'
 FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 bar
 INNER JOIN ##tblChangelogTemp cl ON cl.LaneID = bar.LaneID
 AND cl.SCAC = bar.SCAC

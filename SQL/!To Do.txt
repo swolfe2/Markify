@@ -1,39 +1,12 @@
 Live Load Details files > Carrier Details
 Site / SCAC / Month / Ship ID / Carr On-Time / Load Ready Time / Carr Arr Time / WMS / Best Arr Time / Carr Arrival to LRT / DC Load Start / DC Load End / DC Dwell / Time to load
 
-\\ Link to SAS file
-\\kcfiles\share\Corporate\DISTRIBUTION\Distrib\SAS Programs
+1/12/2021
+- Report by Carrier, looking at awards from the beginning of the year vs. what actually shipped
+- If the award was after 2/10, then "subsequent award"
+- If load wasn't awarded, then "non-award"
 
-Rate Type Dashboard:
-Remove LTL
-
-Broker Dashboard:
-Add BU
-Find out why the percentages aren't mapping
-
-//Remove LTL
-//Add lane awards
-
-//RFP Forecasts
-- KCP Intermill - \\Kcfiles\share\Away From Home\Logistics\Supply Chain Analysis\CTT Volume Flow for RFP\RFP 2021\HHTW Asset Loadings File Supply Chain 20200902.xlsx
-- KCP - \\Kcfiles\share\Away From Home\Logistics\Supply Chain Analysis\CTT Volume Flow for RFP\RFP 2021\Lane Volume for RFP 20200813 analysis.xlsx
-
-//ABSOLUTES!
-Redlands(CAREDLAN)(5CA92375) -> Ontario(CAONTARI)(5CA91761)
-Pittson(PAPITTST)(5PA18640) / Swedesboro(NJSWEDES)(5NJ08085) -> Shoemakersville(PASHOEMA)(5PA19555)
-
-// 
-
-//9/25
-Significant shifts to Walmart starting in Q3 2021
-Significant change to Costco
-- Migrated to end state, in midwest, migrating to full depot in Q1
-- Out of KCILROME, come to history
-
-SWITCHES!
-Fullerton (CAFULLER)(5CA92831) -> Mobile(ALMOBILE)(5AL36610)
-Redlands(CAREDLAN)(5CA92375) -> Ontario(CAONTARI)(5CA91761)
-Pittson(PAPITTST)(5PA18640) / Swedesboro(NJSWEDES)(5NJ08085) -> Shoemakersville(PASHOEMA)(5PA19555)
-Kent (WAKENT)(5WA98032) -> Dupont(WADUPONT)(5WA98327)
-
-Get RM/RF Into Separate Buckets
+1/14/2021
+- Report by Lane
+- Weekly volatility, rolled into larger time frame
+- Previous 8 Weeks + Current + Future 8 Weeks
