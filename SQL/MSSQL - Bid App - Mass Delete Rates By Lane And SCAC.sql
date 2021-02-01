@@ -19,6 +19,7 @@ UpdatedOn Datetime
 
 /*
 Add the lanes to be deleted
+="SELECT '" & B3 & "' AS Lane, '" & O3 & "' AS SCAC UNION ALL"
 */
 INSERT INTO ##tblChangelogTemp (LaneID,  Lane, SCAC, PreviousValue, Field)
 SELECT DISTINCT bar.LaneID,  

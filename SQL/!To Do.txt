@@ -1,5 +1,18 @@
-Live Load Details files > Carrier Details
-Site / SCAC / Month / Ship ID / Carr On-Time / Load Ready Time / Carr Arr Time / WMS / Best Arr Time / Carr Arrival to LRT / DC Load Start / DC Load End / DC Dwell / Time to load
+International Data
+Get unique columns
+= Table.ColumnNames ( #"Changed Type")
+
+Find columns that start with "Column"
+= List.FindText(Custom1, "Column")
+
+Remove columns that start with "Column"
+= Table.RemoveColumns(#"Changed Type", Custom2)
+
+Route Guide (Expeditors)
+- Changed #N/A formula erros
+-- Business Unit = NULL
+-- Carrier Stated Transit Time (Days) = 0
+-- Annual Container Volume = 0
 
 1/12/2021
 - Report by Carrier, looking at awards from the beginning of the year vs. what actually shipped
@@ -10,3 +23,107 @@ Site / SCAC / Month / Ship ID / Carr On-Time / Load Ready Time / Carr Arr Time /
 - Report by Lane
 - Weekly volatility, rolled into larger time frame
 - Previous 8 Weeks + Current + Future 8 Weeks
+
+SELECT DISTINCT 
+arh.Carrier,
+arh.CarrierName,
+arh.SCAC, 
+arh.SCACName,
+arh.Lane,
+arh.ORIG_CITY_STATE AS OriginZone,
+arh.Origin,
+arh.DEST_CITY_STATE AS DestZone,
+arh.Dest,
+CAST(AVG(arh.Miles) AS NUMERIC(10,2)) Miles,
+CAST(ROUND(AVG(arh.AWARD_LDS),2) AS INT) AwardLoads,
+CAST(MIN(arh.EffectiveDate) AS DATE) AS EffectiveDate,
+CAST(MAX(CASE WHEN YEAR(arh.ExpirationDate) = 2999 THEN '1/31/2021' ELSE arh.ExpirationDate END) AS DATE) AS ExpirationDate
+FROM USCTTDEV.dbo.tblAwardRatesHistorical arh
+WHERE CAST(arh.EffectiveDate AS DATE) >= '2/1/2020'
+AND arh.Carrier IS NOT NULL
+AND arh.AWARD_LDS IS NOT NULL
+GROUP BY arh.Carrier,
+arh.CarrierName,
+arh.SCAC, 
+arh.SCACName,
+arh.Lane,
+arh.ORIG_CITY_STATE,
+arh.Origin,
+arh.DEST_CITY_STATE,
+arh.Dest
+
+
+SELECT DISTINCT 
+arh.Carrier,
+arh.CarrierName,
+arh.SCAC, 
+arh.SCACName,
+arh.Lane,
+arh.ORIG_CITY_STATE AS OriginZone,
+arh.Origin,
+arh.DEST_CITY_STATE AS DestZone,
+arh.Dest,
+CAST(AVG(arh.Miles) AS NUMERIC(10,2)) Miles,
+CAST(ROUND(arh.AWARD_LDS,2) AS INT) AwardLoads,
+CAST(arh.EffectiveDate AS DATE) AS EffectiveDate,
+CAST(CASE WHEN YEAR(arh.ExpirationDate) = 2999 THEN '1/31/2021' ELSE arh.ExpirationDate END AS DATE) AS ExpirationDate,
+DATEDIFF(DAY,CAST(arh.EffectiveDate AS DATE) , CAST(CASE WHEN YEAR(arh.ExpirationDate) = 2999 THEN '1/31/2021' ELSE arh.ExpirationDate END AS DATE)) AS DateCount
+FROM USCTTDEV.dbo.tblAwardRatesHistorical arh
+WHERE CAST(arh.EffectiveDate AS DATE) >= '2/1/2020'
+AND arh.Carrier IS NOT NULL
+AND arh.AWARD_LDS IS NOT NULL
+GROUP BY arh.Carrier,
+arh.CarrierName,
+arh.SCAC, 
+arh.SCACName,
+arh.Lane,
+arh.ORIG_CITY_STATE,
+arh.Origin,
+arh.DEST_CITY_STATE,
+arh.Dest,
+arh.AWARD_LDS,
+CAST(arh.EffectiveDate AS DATE),
+CAST(CASE WHEN YEAR(arh.ExpirationDate) = 2999 THEN '1/31/2021' ELSE arh.ExpirationDate END AS DATE)
+ORDER BY arh.Carrier ASC, arh.SCAC ASC, arh.Lane ASC, CAST(arh.EffectiveDate AS DATE) ASC
+
+
+SELECT * FROM USCTTDEV.dbo.tblAwardRatesHistorical
+WHERE Lane = 'CAONTARI-5CA92551'
+AND SCAC = 'AFXN'
+ORDER BY ID ASC
+
+SELECT TOP 10 *
+FROM USCTTDEV.dbo.tblDates
+
+SELECT  da.TheDate, 
+da.TheDayName,
+CASE WHEN da.TheDayName = 'Sunday' THEN 7 ELSE da.TheDayOfWeek - 1 END AS TheDayOfWeek
+FROM USCTTDEV.dbo.tblDates da
+WHERE da.TheDate BETWEEN DATEADD(wk, -8, DATEADD(wk, DATEDIFF(wk, 7, GETDATE()), 7)) AND 
+DATEADD(wk, DATEDIFF(wk, 6, 
+CASE DATEPART(dw,GETDATE())
+WHEN 1 THEN DATEADD(d,-1,GETDATE() + 56)
+ELSE GETDATE() + 56
+END
+), 6)
+
+SELECT DISTINCT
+  ald.Lane,
+  CAST(CASE
+    WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+    WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+    ELSE ald.SHPD_DTT
+  END AS DATE) AS TheDate,
+  COUNT(DISTINCT ald.LD_LEG_ID) AS LoadCount
+FROM USCTTDEV.dbo.tblActualLoadDetail ald
+WHERE  CAST(CASE
+    WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+    WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+    ELSE ald.SHPD_DTT
+  END AS DATE) >= CAST(GETDATE() - 90 AS DATE)
+GROUP BY ald.Lane,
+         CAST(CASE
+           WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+           WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+           ELSE ald.SHPD_DTT
+         END AS date)

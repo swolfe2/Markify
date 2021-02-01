@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 12/14/2020 8:05:13 AM ******/
+/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 1/26/2021 7:59:37 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -9,8 +9,12 @@ GO
 -- =============================================
 -- Author:		<Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team>
 -- Create date: <9/30/2019>
--- Last modified: <12/14/2020>
+-- Last modified: <1/26/2021>
 -- Description:	<Executes query against Oracle, loads to temp table, then appends/updates dbo.tblActualLoadDetail>
+-- 1/26/2021 - SW - Added 1023, 1113, 2518 to Consumer BU logic, per Lynlee Robinson
+-- 1/22/2021 - SW - Removed WHERE clause from BUSegment update of Actual Load Detail
+-- 1/20/2021 - SW - Added update logic to modify new SCEF field, per Regina Black
+-- 1/15/2021 - SW - Added ''FS16'' for Canada fuel surcharge, per Lynlee Robinson
 -- 12/14/2020 -  SW - tblLanes in Oracle has disappeared, and the stored procedure has been rewritten to overcome
 -- 12/7/2020 - SW - Updated Live Load flag logic per email from Eric Mailhan, where he said that there are carriers in SAP/SE16 table ZOTNA_TS is marked as 'Y'as a live load carrier 
 -- 10/20/2020 - SW - Added 2508 and 2469 to Consumer BU logic, per Lynlee Robinson
@@ -567,7 +571,8 @@ Select * into ##tblPreRateLoadDetailsRaw from OPENQUERY(NAJDAPRD, 'SELECT
             ''FSCA'',
             ''PFSC'',
             ''RFSC'',
-            ''WCFS''
+            ''WCFS'',
+			''FS16''
         ) THEN
             ''PreRate_Fuel''
         WHEN c.chrg_cd IN (
@@ -831,7 +836,8 @@ Select * into ##tblActualRateLoadDetailsRaw from OPENQUERY(NAJDAPRD,'SELECT
             ''FSCA'',
             ''PFSC'',
             ''RFSC'',
-            ''WCFS''
+            ''WCFS'',
+			''FS16''
         ) THEN
             ''Act_Fuel''
         WHEN c.chrg_cd IN (
@@ -1218,7 +1224,10 @@ FROM
 							''2447'',
 							''2540'',
 							''2508'',
-							''2469''
+							''2469'',
+							''1023'',
+							''1113'',
+							''2518''
                         ) THEN
                             ''CONSUMER''
                         WHEN substr(last_shpg_loc_cd, 1, 4) IN (
@@ -2068,7 +2077,10 @@ FROM
 							''2447'',
 							''2540'',
 							''2508'',
-							''2469''
+							''2469'',
+							''1023'',
+							''1113'',
+							''2518''
                         ) THEN
                             ''CONSUMER''
                         WHEN substr(last_shpg_loc_cd, 1, 4) IN (
@@ -2308,7 +2320,10 @@ FROM
 							''2447'',
 							''2540'',
 							''2508'',
-							''2469''
+							''2469'',
+							''1023'',
+							''1113'',
+							''2518''
                         ) THEN
                             ''CONSUMER''
                         WHEN substr(last_shpg_loc_cd, 1, 4) IN (
@@ -3535,12 +3550,12 @@ SELECT ShipmentItem, COUNT(*) AS Count FROM USCTTDEV.dbo.tblShipmentItems GROUP 
 INSERT INTO  USCTTDEV.dbo.tblShipmentItems (AddedOn, ShipmentItem, ItemSummaryCode)
 SELECT GETDATE() AS AddedOn, 
 itm_desc,
-CASE
+LEFT(CASE
     WHEN CHARINDEX(',', itm_desc) > 0 THEN
         rtrim(left(itm_desc, CHARINDEX(',', itm_desc) - 1))
     ELSE
         null
-END AS Type
+END,15) AS Type
 FROM OPENQUERY(NAJDAPRD,'SELECT DISTINCT sir.itm_desc FROM NAJDAADM.shipment_item_r sir') data
 LEFT JOIN USCTTDEV.dbo.tblShipmentItems si ON si.ShipmentItem = data.itm_desc
 WHERE si.ShipmentItem IS NULL
@@ -3669,6 +3684,15 @@ FROM ##tblShipmentItemsAgg ) ranking ON ranking.LD_LEG_ID = sir.LD_LEG_ID
  AND ranking.weight = sir.weight
  AND COALESCE(ranking.BUSegment,'MISSING') = COALESCE(sir.BUSegment,'MISSING')
 
+ /*
+ Remove spaces in BU Segment
+ SELECT DISTINCT BUSegment FROM tblShipmentItems
+ */
+ UPDATE USCTTDEV.dbo.tblShipmentItems
+SET BUSegment = REPLACE(BUSegment, ' ', '')
+WHERE BUSegment <> 'NON WOVENS'
+AND BUSegment LIKE '% %'
+
 /*
 Update Actual Load Detail for Wadding loads
 */
@@ -3708,14 +3732,20 @@ AND BU = 'NON WOVENS'
 /*
 Update leftovers to whatever is Rank 1 on the aggregate table
 SELECT * FROM USCTTDEV.dbo.tblActualLoadDetail WHERE BUSegment IS NULL
-SELECT * FROM ##tblShipmentItemsRaw WHERE LD_LEG_ID = '515222131' ORDER BY RANK ASC
- 
 */
  UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET BUSegment =  REPLACE(rankings.BUSegment,' ','')
 FROM USCTTDEV.dbo.tblActualLoadDetail ald
 INNER JOIN (SELECT DISTINCT LD_LEG_ID, BUSegment FROM ##tblShipmentItemsRaw WHERE Rank = 1) rankings ON rankings.LD_LEG_ID = ald.LD_LEG_ID
-WHERE ald.BUSegment IS NULL
+/*WHERE ald.BUSegment IS NULL*/
+
+/*
+Remove any extra spacings
+*/
+ UPDATE USCTTDEV.dbo.tblActualLoadDetail
+SET BUSegment = REPLACE(BUSegment, ' ', '')
+WHERE BUSegment <> 'NON WOVENS'
+AND BUSegment LIKE '% %'
 
 /*
 Update Dedicated Fleet Flag
@@ -3810,6 +3840,16 @@ WHERE CONVERT(date, ald.LastUpdated) = CONVERT(date, GETDATE())
                   ELSE 'Contract'
                 END
 OR ald.RateType IS NULL)*/
+
+/*
+New 1/20/2021 - Per Regina Black
+Update SCEF flag to match what exists on USCTTDEV.dbo.tblCustomers
+*/
+UPDATE USCTTDEV.dbo.tblActualLoadDetail
+SET SCEF = cu.SCEF
+FROM USCTTDEV.dbo.tblActualLoadDetail ald
+INNER JOIN USCTTDEV.dbo.tblCustomers cu ON cu.HierarchyNum = LEFT(ald.LAST_SHPG_LOC_CD,8)
+WHERE LEFT(ald.LAST_SHPG_LOC_CD,1) = '5'
 
 /*
 Execute Bid App Add and Update
