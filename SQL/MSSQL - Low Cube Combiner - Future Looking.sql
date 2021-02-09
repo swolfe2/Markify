@@ -171,3 +171,12 @@ GROUP BY data.Lane,
 data.BU,
 data.CustomerHierarchy,
 data.TheFirstOfWeekMon
+
+/*
+Getting 2 weeks of dates, monday start dates:
+SELECT DISTINCT TheDate,
+CASE WHEN TheDate BETWEEN DATEADD(wk,DATEDIFF(wk,7,GETDATE()),0) AND DATEADD(wk,DATEDIFF(wk,7,GETDATE()),6) THEN 'Last Week'
+ELSE '2 Weeks Ago' END AS DateFlag
+FROM USCTTDEV.dbo.tblDates
+WHERE TheDate BETWEEN DATEADD(wk,DATEDIFF(wk,14,GETDATE()),0) AND DATEADD(wk,DATEDIFF(wk,7,GETDATE()),6)
+*/

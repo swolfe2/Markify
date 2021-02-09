@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 1/26/2021 7:59:37 AM ******/
+/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 2/9/2021 7:44:46 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -9,8 +9,10 @@ GO
 -- =============================================
 -- Author:		<Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team>
 -- Create date: <9/30/2019>
--- Last modified: <1/26/2021>
+-- Last modified: <2/9/2021>
 -- Description:	<Executes query against Oracle, loads to temp table, then appends/updates dbo.tblActualLoadDetail>
+-- 2/9/2021 - SW - Added 1040 to NON WOVENS BU logic, per Lynlee Robinson
+-- 2/3/2021 - SW - Added logic update award lane/carrier because there was some crappy rate stuff that happened in January after the RFP started
 -- 1/26/2021 - SW - Added 1023, 1113, 2518 to Consumer BU logic, per Lynlee Robinson
 -- 1/22/2021 - SW - Removed WHERE clause from BUSegment update of Actual Load Detail
 -- 1/20/2021 - SW - Added update logic to modify new SCEF field, per Regina Black
@@ -1306,7 +1308,8 @@ FROM
                             ''KCP''
 						WHEN substr(last_shpg_loc_cd, 1, 4) IN (
 						''1044'',
-						''1049''
+						''1049'',
+						''1040''
 						) THEN
 							''NON WOVENS''
                         ELSE
@@ -2159,7 +2162,8 @@ FROM
                             ''KCP''
 						WHEN substr(last_shpg_loc_cd, 1, 4) IN (
 						''1044'',
-						''1049''
+						''1049'',
+						''1040''
 						) THEN
 							''NON WOVENS''
                         ELSE
@@ -2402,7 +2406,8 @@ FROM
                             ''KCP''
 						WHEN substr(last_shpg_loc_cd, 1, 4) IN (
 						''1044'',
-						''1049''
+						''1049'',
+						''1040''
 						) THEN
 							''NON WOVENS''
                         ELSE
@@ -3830,7 +3835,7 @@ SET RateType =
                 ELSE 'Contract'
               END
 FROM USCTTDEV.dbo.tblActualLoadDetail ald
-WHERE CONVERT(date, ald.LastUpdated) = CONVERT(date, GETDATE())
+/*WHERE CONVERT(date, ald.LastUpdated) = CONVERT(date, GETDATE())*/
 /*AND (RateType <>
                 CASE
                   WHEN FRAN IS NOT NULL THEN 'Spot'
@@ -3850,6 +3855,124 @@ SET SCEF = cu.SCEF
 FROM USCTTDEV.dbo.tblActualLoadDetail ald
 INNER JOIN USCTTDEV.dbo.tblCustomers cu ON cu.HierarchyNum = LEFT(ald.LAST_SHPG_LOC_CD,8)
 WHERE LEFT(ald.LAST_SHPG_LOC_CD,1) = '5'
+
+/*
+Update 2/3/2021
+In mid-January, duplicate rates were added to the historic rates tables with the same effective/expiration dates
+New logic will update if the date is between the effective/expiration date OR the effective date
+This joins by lane
+*/
+UPDATE USCTTDEV.dbo.tblActualLoadDetail
+SET AwardLane = 
+
+/*
+If the date is BETWEEN effective/expiration
+*/
+CASE WHEN CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+ELSE ald.CRTD_DTT END AS DATE) BETWEEN CAST(laneaward.EffectiveDate AS DATE)  AND CAST(laneaward.ExpirationDate AS DATE) THEN 'Y'
+
+/*
+If the date IS the effective
+*/
+WHEN CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+ELSE ald.CRTD_DTT END AS DATE) = CAST(laneawarddos.EffectiveDate AS DATE)
+
+THEN 'Y'
+
+/*
+If neither, make null
+*/
+ELSE NULL END
+FROM USCTTDEV.dbo.tblActualLoadDetail ald
+
+/*
+For when the ship date is BETWEEN the effective date and expiration date
+*/
+LEFT JOIN (
+SELECT DISTINCT LaneID, Lane, ORIG_CITY_STATE, DEST_CITY_STATE, CAST(EffectiveDate AS DATE) AS EffectiveDate, CAST(ExpirationDate AS DATE) AS ExpirationDate
+FROM USCTTDEV.dbo.tblAwardRatesHistorical
+) laneaward ON laneaward.Lane = ald.Lane
+AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+ELSE ald.CRTD_DTT END AS DATE) >= laneaward.EffectiveDate AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+ELSE ald.CRTD_DTT END AS DATE) <= laneaward.ExpirationDate
+
+/*
+For when the ship date IS the effective date
+*/
+LEFT JOIN (
+SELECT DISTINCT LaneID, Lane, ORIG_CITY_STATE, DEST_CITY_STATE, CAST(EffectiveDate AS DATE) AS EffectiveDate, CAST(ExpirationDate AS DATE) AS ExpirationDate
+FROM USCTTDEV.dbo.tblAwardRatesHistorical
+) laneawarddos ON laneaward.Lane = ald.Lane
+AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+ELSE ald.CRTD_DTT END AS DATE) = CAST(laneawarddos.EffectiveDate AS DATE)
+
+WHERE CAST(ald.LastUpdated AS DATE) = CAST(GETDATE() AS DATE)
+
+
+/*
+Update 2/3/2021
+In mid-January, duplicate rates were added to the historic rates tables with the same effective/expiration dates
+New logic will update if the date is between the effective/expiration date OR the effective date
+This joins by lane and SCAC
+*/
+UPDATE USCTTDEV.dbo.tblActualLoadDetail
+SET AwardCarrier = 
+
+/*
+If the date is BETWEEN effective/expiration
+*/
+CASE WHEN CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+ELSE ald.CRTD_DTT END AS DATE) BETWEEN CAST(laneaward.EffectiveDate AS DATE)  AND CAST(laneaward.ExpirationDate AS DATE) 
+AND ald.SRVC_CD = laneaward.SCAC THEN 'Y'
+
+/*
+If the date IS the effective
+*/
+WHEN CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+ELSE ald.CRTD_DTT END AS DATE) = CAST(laneawarddos.EffectiveDate AS DATE)
+AND ald.SRVC_CD = laneawarddos.SCAC
+THEN 'Y'
+
+/*
+If neither, make null
+*/
+ELSE NULL END
+FROM USCTTDEV.dbo.tblActualLoadDetail ald
+
+/*
+For when the ship date is BETWEEN the effective date and expiration date
+*/
+LEFT JOIN (
+SELECT DISTINCT LaneID, Lane, SCAC, ORIG_CITY_STATE, DEST_CITY_STATE, CAST(EffectiveDate AS DATE) AS EffectiveDate, CAST(ExpirationDate AS DATE) AS ExpirationDate
+FROM USCTTDEV.dbo.tblAwardRatesHistorical
+) laneaward ON laneaward.Lane = ald.Lane
+AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+ELSE ald.CRTD_DTT END AS DATE) >= laneaward.EffectiveDate AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+ELSE ald.CRTD_DTT END AS DATE) <= laneaward.ExpirationDate
+AND laneaward.SCAC = ald.SRVC_CD
+
+/*
+For when the ship date IS the effective date
+*/
+LEFT JOIN (
+SELECT DISTINCT LaneID, Lane, SCAC, ORIG_CITY_STATE, DEST_CITY_STATE, CAST(EffectiveDate AS DATE) AS EffectiveDate, CAST(ExpirationDate AS DATE) AS ExpirationDate
+FROM USCTTDEV.dbo.tblAwardRatesHistorical
+) laneawarddos ON laneaward.Lane = ald.Lane
+AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+ELSE ald.CRTD_DTT END AS DATE) = CAST(laneawarddos.EffectiveDate AS DATE)
+AND laneawarddos.SCAC = ald.SRVC_CD
+
+WHERE CAST(ald.LastUpdated AS DATE) = CAST(GETDATE() AS DATE)
 
 /*
 Execute Bid App Add and Update
