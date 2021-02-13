@@ -1,18 +1,20 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_USBank]    Script Date: 2/13/2021 12:40:47 PM ******/
+/****** Object:  StoredProcedure [dbo].[sp_USBank2]    Script Date: 2/13/2021 12:40:27 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
 -- =============================================
 -- Author:		Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team
--- Create date: 2/10/2021
--- Last modified: 2/10/2021 - Noticed duplciation of ProNum, where it is sometimes null. Updated logic to only append/update if/when
+-- Create date: 3/10/2020
+-- Last modified: 2/13/2021
+-- 2/13/2021 - SW - Complete overhaul to try to handle dupes
+-- 2/10/2021 - Noticed duplciation of ProNum, where it is sometimes null. Updated logic to only append/update if/when
 -- Description:	Updates USBank charges, coming from the Python file in \\USTCA097\Stage\Database Files\USBank
 -- =============================================
 
-ALTER PROCEDURE [dbo].[sp_USBank]
+ALTER PROCEDURE [dbo].[sp_USBank2]
 
 AS
 BEGIN
@@ -26,6 +28,73 @@ What is this file doing?
 1) Adds new bank charges, by PO / Line Item, to USCTTDEV.dbo.tblUSBankCharges
 2) Updates USCTTDEV.dbo.tblUSBankCharges, by PO / Line Item
 */
+
+/*
+Just in case there are duplicate lineID's coming from USBank
+Example: SELECT * FROM ##tblUSBChargesTemp
+WHERE PONum IN ('E1M0380212','IADA856464') AND LineID = 1
+File: KC_Historical693098_2352661.txt
+
+UPDATE ##tblUSBChargesTemp SET LineNum = 1 WHERE PoNum = 'E1M0380212' AND LineNum = 2
+*/
+UPDATE ##tblUSBChargesTemp
+SET LineNum = dupes.NewLineNum
+FROM ##tblUSBChargesTemp usbct
+INNER JOIN (
+SELECT usbct.PONUM, 
+usbct.ProNum, 
+usbct.SyncadaRefNum, 
+usbct.ItemHeader, 
+usbct.LineID,
+usbct.LineItemType,
+usbct.ExpectedAmt,
+usbct.LineItemDlr,
+usbct.BookedBilledAmt,
+usbct.UnitPriceInvoice,
+usbct.AmountInvoice,
+ROW_NUMBER() OVER (PARTITION BY usbct.PONUM, usbct.ProNum, usbct.SyncadaRefNum, usbct.ItemHeader, usbct.LineID ORDER BY CAST(usbct.AmountInvoice AS NUMERIC(10,2)) DESC) AS NewLineNum
+FROM ##tblUSBChargesTemp usbct
+INNER JOIN (
+SELECT DISTINCT 
+PONum,
+PRONum,
+SyncadaRefNum,
+ItemHeader,
+LineID,
+LineNum,
+LineItemType,
+ServiceChargeCd,
+COUNT(*) AS DistinctCount
+FROM ##tblUSBChargesTemp
+WHERE PONum IS NOT NULL
+/*AND PONum = '16533227'*/
+GROUP BY 
+PONum,
+PRONum,
+SyncadaRefNum,
+ItemHeader,
+LineID,
+LineNum,
+LineItemType,
+ServiceChargeCd
+HAVING COUNT(*) <> 1
+) dupes ON dupes.PONum = usbct.PONum
+AND dupes.ProNum = usbct.ProNum
+AND dupes.SyncadaRefNum = usbct.SyncadaRefNum
+AND dupes.ItemHeader = usbct.ItemHeader
+AND dupes.LineID = usbct.LineID
+AND dupes.LineNum = usbct.LineNum
+) dupes ON dupes.PONum = usbct.PONum
+AND dupes.ProNum = usbct.ProNum
+AND dupes.SyncadaRefNum = usbct.SyncadaRefNum
+AND dupes.ItemHeader = usbct.ItemHeader
+AND dupes.LineID = usbct.LineID
+AND dupes.LineItemType = usbct.LineItemType
+AND dupes.ExpectedAmt = usbct.ExpectedAmt
+AND dupes.LineItemDlr = usbct.LineItemDlr
+AND dupes.BookedBilledAmt = usbct.BookedBilledAmt
+AND dupes.UnitPriceInvoice = usbct.UnitPriceInvoice
+AND dupes.AmountInvoice = usbct.AmountInvoice
 
 /*
 Update equipment types if something's wrong
@@ -148,7 +217,6 @@ AddedOn
 ,AmountPO
 ,TotalShipmentMileage
 )
-
 /*
 Append where the ProNum IS NOT NULL
 */
@@ -240,16 +308,202 @@ LEFT JOIN USCTTDEV.dbo.tblUSBankCharges usbc ON usbc.PONum = usbct.PONum
 AND usbc.LineID = usbct.LineID
 AND usbc.LineNum = usbct.LineNum
 AND usbc.PRONum = usbct.ProNum
+AND usbc.SyncadaRefNum = usbct.SyncadaRefNum
 WHERE usbc.PONum IS NULL
 AND usbc.LineID IS NULL
 AND usbc.LineNum IS NULL
 AND usbc.ProNum IS NULL
 AND usbct.ProNum IS NOT NULL
-ORDER BY usbct.[File] ASC, usbct.PONum ASC, usbct.ProNum ASC, usbct.LineID ASC, usbct.LineNum ASC
+AND usbc.SyncadaRefNum IS NULL
+AND usbct.PONum IS NOT NULL
+ORDER BY usbct.[File] ASC, usbct.PONum ASC, usbct.ProNum ASC, usbct.SyncadaRefNum ASC, usbct.LineID ASC, usbct.LineNum ASC
+
+/*
+Update USBank table to match details from temp, where ProNum IS NOT NULL
+*/
+UPDATE USCTTDEV.dbo.tblUSBankCharges
+SET UpdatedOn = @now
+,UpdatedFromFile = usbct.[file]
+,ExchangeDesc = usbct.ExchangeDesc
+,CycleStartDate = usbct.CycleStartDate
+,CycleEndDate = usbct.CycleEndDate
+,ExchangePurpose = usbct.ExchangePurpose
+,CurrencyCode = usbct.CurrencyCode
+,[File] = usbct.[File]
+/*,SyncadaRefNum = usbct.SyncadaRefNum*/
+,DocumentType = usbct.DocumentType
+,FinancialStatusDate = usbct.FinancialStatusDate
+,ProcessingModel = usbct.ProcessingModel
+,Terms = usbct.Terms
+,InboundOutbound = usbct.InboundOutbound
+,ShipmentMode = usbct.ShipmentMode
+,PONum = usbct.PONum
+,PODate = usbct.PODate
+,PRONum = usbct.PRONum
+,SellerOrderNum = usbct.SellerOrderNum
+,CarrInvoiceDate = usbct.CarrInvoiceDate
+,eBillID = usbct.eBillID
+,TransactionCreateDate = usbct.TransactionCreateDate
+,SellerOrgName = usbct.SellerOrgName
+,SellerIDCode = usbct.SellerIDCode
+,BuyerOrgName = usbct.BuyerOrgName
+,BuyerID = usbct.BuyerID
+,EquipmentType = usbct.EquipmentType
+,MoveType = usbct.MoveType
+,SpotBid = usbct.SpotBid
+,ShipFromAddress1 = usbct.ShipFromAddress1
+,ShipFromAddress2 = usbct.ShipFromAddress2
+,ShipFromCity = usbct.ShipFromCity
+,ShipFromState = usbct.ShipFromState
+,ShipFromPostalCd = usbct.ShipFromPostalCd
+,ShipFromCountry = usbct.ShipFromCountry
+,ShipToName = usbct.ShipToName
+,ShipToAddress1 = usbct.ShipToAddress1
+,ShipToAddress2 = usbct.ShipToAddress2
+,ShipToCity = usbct.ShipToCity
+,ShipToState = usbct.ShipToState
+,ShipToPostalCd = usbct.ShipToPostalCd
+,ShipToCountry = usbct.ShipToCountry
+,VoucherID = usbct.VoucherID
+,Container1Type = usbct.Container1Type
+,BillToAccountNum = usbct.BillToAccountNum
+,USBillToAmount = usbct.USBillToAmount
+/*,ItemHeader = usbct.ItemHeader
+,LineID = usbct.LineID
+,LineNum = usbct.LineNum
+,LineItemType = usbct.LineItemType*/
+,GLCd = usbct.GLCd
+,ExpectedAmt = usbct.ExpectedAmt
+,LineItemDlr = usbct.LineItemDlr
+,CreditDebitFlag = usbct.CreditDebitFlag
+,BookedExpectAmt = usbct.BookedExpectAmt
+,BookedExpectFlag = usbct.BookedExpectFlag
+,BookedBilledAmt = usbct.BookedBilledAmt
+,BookedBilledFlag  = usbct.BookedBilledFlag
+,BuyerPOTCN = usbct.BuyerPOTCN
+,ServiceChargeCd = usbct.ServiceChargeCd
+,CommodityCd = usbct.CommodityCd
+,ProductClass = usbct.ProductClass
+,BilledRatedAsQty = usbct.BilledRatedAsQty
+,BilledRatedAsUOM = usbct.BilledRatedAsUOM
+,ActualWeight = usbct.ActualWeight
+,ActualWeightUOM = usbct.ActualWeightUOM
+,Volume = usbct.Volume
+,VolumeUOM = usbct.VolumeUOM
+,LandingQty = CAST(usbct.LandingQty AS NUMERIC(18,2))
+,PackingFormCd = usbct.PackingFormCd
+,LineItemUnitPrice = usbct.LineItemUnitPrice
+,LineItemExtendedPrice = usbct.LineItemExtendedPrice
+,BilledUnitOfMeasure = usbct.BilledUnitOfMeasure
+,UnitPriceInvoice = usbct.UnitPriceInvoice
+,QuantityInvoice = CAST(usbct.QuantityInvoice AS NUMERIC(18,2))
+,AmountInvoice = usbct.AmountInvoice
+,UnitPricePO = usbct.UnitPricePO
+,AmountPO = usbct.AmountPO
+,TotalShipmentMileage = usbct.TotalShipmentMileage
+
+FROM ##tblUSBChargesTemp usbct
+INNER JOIN USCTTDEV.dbo.tblUSBankCharges usbc ON usbc.PONum = usbct.PONum
+AND usbc.LineID = usbct.LineID
+AND usbc.LineNum = usbct.LineNum
+AND usbc.ProNum = usbct.ProNum
+AND usbc.SyncadaRefNum = usbct.SyncadaRefNum
+WHERE usbct.ProNum IS NOT NULL
+AND usbct.PONum IS NOT NULL
+
+/*
+Delete where ProNum IS NOT NULL
+*/
+DELETE FROM ##tblUSBChargesTemp
+WHERE ProNum IS NOT NULL
 
 /*
 Append where the ProNum is null
 */
+INSERT INTO USCTTDEV.dbo.tblUSBankCharges (
+AddedOn
+,AddedFromFile
+,UpdatedOn
+,UpdatedFromFile
+,ExchangeDesc
+,CycleStartDate
+,CycleEndDate
+,ExchangePurpose
+,CurrencyCode
+,[File]
+,SyncadaRefNum
+,DocumentType
+,FinancialStatusDate
+,ProcessingModel
+,Terms
+,InboundOutbound
+,ShipmentMode
+,PONum
+,PODate
+,PRONum
+,SellerOrderNum
+,CarrInvoiceDate
+,eBillID
+,TransactionCreateDate
+,SellerOrgName
+,SellerIDCode
+,BuyerOrgName
+,BuyerID
+,EquipmentType
+,MoveType
+,SpotBid
+,ShipFromAddress1
+,ShipFromAddress2
+,ShipFromCity
+,ShipFromState
+,ShipFromPostalCd
+,ShipFromCountry
+,ShipToName
+,ShipToAddress1
+,ShipToAddress2
+,ShipToCity
+,ShipToState
+,ShipToPostalCd
+,ShipToCountry
+,VoucherID
+,Container1Type
+,BillToAccountNum
+,USBillToAmount
+,ItemHeader
+,LineID
+,LineNum
+,LineItemType
+,GLCd
+,ExpectedAmt
+,LineItemDlr
+,CreditDebitFlag
+,BookedExpectAmt
+,BookedExpectFlag
+,BookedBilledAmt
+,BookedBilledFlag
+,BuyerPOTCN
+,ServiceChargeCd
+,CommodityCd
+,ProductClass
+,BilledRatedAsQty
+,BilledRatedAsUOM
+,ActualWeight
+,ActualWeightUOM
+,Volume
+,VolumeUOM
+,LandingQty
+,PackingFormCd
+,LineItemUnitPrice
+,LineItemExtendedPrice
+,BilledUnitOfMeasure
+,UnitPriceInvoice
+,QuantityInvoice
+,AmountInvoice
+,UnitPricePO
+,AmountPO
+,TotalShipmentMileage
+)
+
 SELECT DISTINCT
 @now
 ,usbct.[File]
@@ -337,104 +591,16 @@ FROM ##tblUSBChargesTemp usbct
 LEFT JOIN USCTTDEV.dbo.tblUSBankCharges usbc ON usbc.PONum = usbct.PONum
 AND usbc.LineID = usbct.LineID
 AND usbc.LineNum = usbct.LineNum
+AND usbc.SyncadaRefNum = usbct.SyncadaRefNum
 /*AND usbc.PRONum = usbct.ProNum*/
 WHERE usbc.PONum IS NULL
 AND usbc.LineID IS NULL
 AND usbc.LineNum IS NULL
+AND usbc.SyncadaRefNum IS NULL
 /*AND usbc.ProNum IS NULL*/
 AND usbct.ProNum IS NULL
-ORDER BY usbct.[File] ASC, usbct.PONum ASC, usbct.ProNum ASC, usbct.LineID ASC, usbct.LineNum ASC
-
-/*
-Update USBank table to match details from temp, where ProNum IS NOT NULL
-*/
-UPDATE USCTTDEV.dbo.tblUSBankCharges
-SET UpdatedOn = @now
-,UpdatedFromFile = usbct.[file]
-,ExchangeDesc = usbct.ExchangeDesc
-,CycleStartDate = usbct.CycleStartDate
-,CycleEndDate = usbct.CycleEndDate
-,ExchangePurpose = usbct.ExchangePurpose
-,CurrencyCode = usbct.CurrencyCode
-,[File] = usbct.[File]
-,SyncadaRefNum = usbct.SyncadaRefNum
-,DocumentType = usbct.DocumentType
-,FinancialStatusDate = usbct.FinancialStatusDate
-,ProcessingModel = usbct.ProcessingModel
-,Terms = usbct.Terms
-,InboundOutbound = usbct.InboundOutbound
-,ShipmentMode = usbct.ShipmentMode
-,PONum = usbct.PONum
-,PODate = usbct.PODate
-,PRONum = usbct.PRONum
-,SellerOrderNum = usbct.SellerOrderNum
-,CarrInvoiceDate = usbct.CarrInvoiceDate
-,eBillID = usbct.eBillID
-,TransactionCreateDate = usbct.TransactionCreateDate
-,SellerOrgName = usbct.SellerOrgName
-,SellerIDCode = usbct.SellerIDCode
-,BuyerOrgName = usbct.BuyerOrgName
-,BuyerID = usbct.BuyerID
-,EquipmentType = usbct.EquipmentType
-,MoveType = usbct.MoveType
-,SpotBid = usbct.SpotBid
-,ShipFromAddress1 = usbct.ShipFromAddress1
-,ShipFromAddress2 = usbct.ShipFromAddress2
-,ShipFromCity = usbct.ShipFromCity
-,ShipFromState = usbct.ShipFromState
-,ShipFromPostalCd = usbct.ShipFromPostalCd
-,ShipFromCountry = usbct.ShipFromCountry
-,ShipToName = usbct.ShipToName
-,ShipToAddress1 = usbct.ShipToAddress1
-,ShipToAddress2 = usbct.ShipToAddress2
-,ShipToCity = usbct.ShipToCity
-,ShipToState = usbct.ShipToState
-,ShipToPostalCd = usbct.ShipToPostalCd
-,ShipToCountry = usbct.ShipToCountry
-,VoucherID = usbct.VoucherID
-,Container1Type = usbct.Container1Type
-,BillToAccountNum = usbct.BillToAccountNum
-,USBillToAmount = usbct.USBillToAmount
-,ItemHeader = usbct.ItemHeader
-,LineID = usbct.LineID
-,LineNum = usbct.LineNum
-,LineItemType = usbct.LineItemType
-,GLCd = usbct.GLCd
-,ExpectedAmt = usbct.ExpectedAmt
-,LineItemDlr = usbct.LineItemDlr
-,CreditDebitFlag = usbct.CreditDebitFlag
-,BookedExpectAmt = usbct.BookedExpectAmt
-,BookedExpectFlag = usbct.BookedExpectFlag
-,BookedBilledAmt = usbct.BookedBilledAmt
-,BookedBilledFlag  = usbct.BookedBilledFlag
-,BuyerPOTCN = usbct.BuyerPOTCN
-,ServiceChargeCd = usbct.ServiceChargeCd
-,CommodityCd = usbct.CommodityCd
-,ProductClass = usbct.ProductClass
-,BilledRatedAsQty = usbct.BilledRatedAsQty
-,BilledRatedAsUOM = usbct.BilledRatedAsUOM
-,ActualWeight = usbct.ActualWeight
-,ActualWeightUOM = usbct.ActualWeightUOM
-,Volume = usbct.Volume
-,VolumeUOM = usbct.VolumeUOM
-,LandingQty = CAST(usbct.LandingQty AS NUMERIC(18,2))
-,PackingFormCd = usbct.PackingFormCd
-,LineItemUnitPrice = usbct.LineItemUnitPrice
-,LineItemExtendedPrice = usbct.LineItemExtendedPrice
-,BilledUnitOfMeasure = usbct.BilledUnitOfMeasure
-,UnitPriceInvoice = usbct.UnitPriceInvoice
-,QuantityInvoice = CAST(usbct.QuantityInvoice AS NUMERIC(18,2))
-,AmountInvoice = usbct.AmountInvoice
-,UnitPricePO = usbct.UnitPricePO
-,AmountPO = usbct.AmountPO
-,TotalShipmentMileage = usbct.TotalShipmentMileage
-
-FROM ##tblUSBChargesTemp usbct
-INNER JOIN USCTTDEV.dbo.tblUSBankCharges usbc ON usbc.PONum = usbct.PONum
-AND usbc.LineID = usbct.LineID
-AND usbc.LineNum = usbct.LineNum
-AND usbc.ProNum = usbct.ProNum
-WHERE usbct.ProNum IS NOT NULL
+AND usbct.PONum IS NOT NULL
+ORDER BY usbct.[File] ASC, usbct.PONum ASC, usbct.ProNum ASC, usbct.SyncadaRefNum ASC, usbct.LineID ASC, usbct.LineNum ASC
 
 /*
 Update USBank table to match details from temp, where ProNum IS NULL
@@ -448,7 +614,7 @@ SET UpdatedOn = @now
 ,ExchangePurpose = usbct.ExchangePurpose
 ,CurrencyCode = usbct.CurrencyCode
 ,[File] = usbct.[File]
-,SyncadaRefNum = usbct.SyncadaRefNum
+/*,SyncadaRefNum = usbct.SyncadaRefNum*/
 ,DocumentType = usbct.DocumentType
 ,FinancialStatusDate = usbct.FinancialStatusDate
 ,ProcessingModel = usbct.ProcessingModel
@@ -486,10 +652,10 @@ SET UpdatedOn = @now
 ,Container1Type = usbct.Container1Type
 ,BillToAccountNum = usbct.BillToAccountNum
 ,USBillToAmount = usbct.USBillToAmount
-,ItemHeader = usbct.ItemHeader
+/*,ItemHeader = usbct.ItemHeader
 ,LineID = usbct.LineID
 ,LineNum = usbct.LineNum
-,LineItemType = usbct.LineItemType
+,LineItemType = usbct.LineItemType*/
 ,GLCd = usbct.GLCd
 ,ExpectedAmt = usbct.ExpectedAmt
 ,LineItemDlr = usbct.LineItemDlr
@@ -524,8 +690,301 @@ FROM ##tblUSBChargesTemp usbct
 INNER JOIN USCTTDEV.dbo.tblUSBankCharges usbc ON usbc.PONum = usbct.PONum
 AND usbc.LineID = usbct.LineID
 AND usbc.LineNum = usbct.LineNum
+AND usbc.SyncadaRefNum = usbct.SyncadaRefNum
 /*AND usbc.ProNum = usbct.ProNum*/
 WHERE usbct.ProNum IS NULL
+AND usbct.PONum IS NOT NULL
+
+
+/*
+Delete where ProNum IS NOT NULL
+*/
+DELETE FROM ##tblUSBChargesTemp
+WHERE PONum IS NOT NULL
+
+/*
+Append where the ProNum is null
+*/
+INSERT INTO USCTTDEV.dbo.tblUSBankCharges (
+AddedOn
+,AddedFromFile
+,UpdatedOn
+,UpdatedFromFile
+,ExchangeDesc
+,CycleStartDate
+,CycleEndDate
+,ExchangePurpose
+,CurrencyCode
+,[File]
+,SyncadaRefNum
+,DocumentType
+,FinancialStatusDate
+,ProcessingModel
+,Terms
+,InboundOutbound
+,ShipmentMode
+,PONum
+,PODate
+,PRONum
+,SellerOrderNum
+,CarrInvoiceDate
+,eBillID
+,TransactionCreateDate
+,SellerOrgName
+,SellerIDCode
+,BuyerOrgName
+,BuyerID
+,EquipmentType
+,MoveType
+,SpotBid
+,ShipFromAddress1
+,ShipFromAddress2
+,ShipFromCity
+,ShipFromState
+,ShipFromPostalCd
+,ShipFromCountry
+,ShipToName
+,ShipToAddress1
+,ShipToAddress2
+,ShipToCity
+,ShipToState
+,ShipToPostalCd
+,ShipToCountry
+,VoucherID
+,Container1Type
+,BillToAccountNum
+,USBillToAmount
+,ItemHeader
+,LineID
+,LineNum
+,LineItemType
+,GLCd
+,ExpectedAmt
+,LineItemDlr
+,CreditDebitFlag
+,BookedExpectAmt
+,BookedExpectFlag
+,BookedBilledAmt
+,BookedBilledFlag
+,BuyerPOTCN
+,ServiceChargeCd
+,CommodityCd
+,ProductClass
+,BilledRatedAsQty
+,BilledRatedAsUOM
+,ActualWeight
+,ActualWeightUOM
+,Volume
+,VolumeUOM
+,LandingQty
+,PackingFormCd
+,LineItemUnitPrice
+,LineItemExtendedPrice
+,BilledUnitOfMeasure
+,UnitPriceInvoice
+,QuantityInvoice
+,AmountInvoice
+,UnitPricePO
+,AmountPO
+,TotalShipmentMileage
+)
+
+SELECT DISTINCT
+@now
+,usbct.[File]
+,@now
+,usbct.[File]
+,usbct.ExchangeDesc
+,usbct.CycleStartDate
+,usbct.CycleEndDate
+,usbct.ExchangePurpose
+,usbct.CurrencyCode
+,usbct.[File]
+,usbct.SyncadaRefNum
+,usbct.DocumentType
+,usbct.FinancialStatusDate
+,usbct.ProcessingModel
+,usbct.Terms
+,usbct.InboundOutbound
+,usbct.ShipmentMode
+,usbct.PONum
+,usbct.PODate
+,usbct.PRONum
+,usbct.SellerOrderNum
+,usbct.CarrInvoiceDate
+,usbct.eBillID
+,usbct.TransactionCreateDate
+,usbct.SellerOrgName
+,usbct.SellerIDCode
+,usbct.BuyerOrgName
+,usbct.BuyerID
+,usbct.EquipmentType
+,usbct.MoveType
+,usbct.SpotBid
+,usbct.ShipFromAddress1
+,usbct.ShipFromAddress2
+,usbct.ShipFromCity
+,usbct.ShipFromState
+,usbct.ShipFromPostalCd
+,usbct.ShipFromCountry
+,usbct.ShipToName
+,usbct.ShipToAddress1
+,usbct.ShipToAddress2
+,usbct.ShipToCity
+,usbct.ShipToState
+,usbct.ShipToPostalCd
+,usbct.ShipToCountry
+,usbct.VoucherID
+,usbct.Container1Type
+,usbct.BillToAccountNum
+,usbct.USBillToAmount
+,usbct.ItemHeader
+,usbct.LineID
+,usbct.LineNum
+,usbct.LineItemType
+,usbct.GLCd
+,usbct.ExpectedAmt
+,usbct.LineItemDlr
+,usbct.CreditDebitFlag
+,usbct.BookedExpectAmt
+,usbct.BookedExpectFlag
+,usbct.BookedBilledAmt
+,usbct.BookedBilledFlag
+,usbct.BuyerPOTCN
+,usbct.ServiceChargeCd
+,usbct.CommodityCd
+,usbct.ProductClass
+,usbct.BilledRatedAsQty
+,usbct.BilledRatedAsUOM
+,usbct.ActualWeight
+,usbct.ActualWeightUOM
+,usbct.Volume
+,usbct.VolumeUOM
+,CAST(usbct.LandingQty AS NUMERIC(18,2))
+,usbct.PackingFormCd
+,usbct.LineItemUnitPrice
+,usbct.LineItemExtendedPrice
+,usbct.BilledUnitOfMeasure
+,usbct.UnitPriceInvoice
+,CAST(usbct.QuantityInvoice AS NUMERIC(18,2))
+,usbct.AmountInvoice
+,usbct.UnitPricePO
+,usbct.AmountPO
+,usbct.TotalShipmentMileage
+
+FROM ##tblUSBChargesTemp usbct
+LEFT JOIN USCTTDEV.dbo.tblUSBankCharges usbc ON /*usbc.PONum = usbct.PONum
+AND*/ usbc.LineID = usbct.LineID
+AND usbc.LineNum = usbct.LineNum
+AND usbc.SyncadaRefNum = usbct.SyncadaRefNum
+/*AND usbc.PRONum = usbct.ProNum*/
+WHERE /*usbc.PONum IS NULL
+AND */usbc.LineID IS NULL
+AND usbc.LineNum IS NULL
+AND usbc.SyncadaRefNum IS NULL
+/*AND usbc.ProNum IS NULL
+AND usbct.ProNum IS NULL
+AND usbct.PONum IS NOT NULL*/
+ORDER BY usbct.[File] ASC, usbct.PONum ASC, usbct.ProNum ASC, usbct.SyncadaRefNum ASC, usbct.LineID ASC, usbct.LineNum ASC
+
+/*
+Update USBank table to match details from temp, where ProNum IS NULL
+*/
+UPDATE USCTTDEV.dbo.tblUSBankCharges
+SET UpdatedOn = @now
+,UpdatedFromFile = usbct.[file]
+,ExchangeDesc = usbct.ExchangeDesc
+,CycleStartDate = usbct.CycleStartDate
+,CycleEndDate = usbct.CycleEndDate
+,ExchangePurpose = usbct.ExchangePurpose
+,CurrencyCode = usbct.CurrencyCode
+,[File] = usbct.[File]
+/*,SyncadaRefNum = usbct.SyncadaRefNum*/
+,DocumentType = usbct.DocumentType
+,FinancialStatusDate = usbct.FinancialStatusDate
+,ProcessingModel = usbct.ProcessingModel
+,Terms = usbct.Terms
+,InboundOutbound = usbct.InboundOutbound
+,ShipmentMode = usbct.ShipmentMode
+,PONum = usbct.PONum
+,PODate = usbct.PODate
+,PRONum = usbct.PRONum
+,SellerOrderNum = usbct.SellerOrderNum
+,CarrInvoiceDate = usbct.CarrInvoiceDate
+,eBillID = usbct.eBillID
+,TransactionCreateDate = usbct.TransactionCreateDate
+,SellerOrgName = usbct.SellerOrgName
+,SellerIDCode = usbct.SellerIDCode
+,BuyerOrgName = usbct.BuyerOrgName
+,BuyerID = usbct.BuyerID
+,EquipmentType = usbct.EquipmentType
+,MoveType = usbct.MoveType
+,SpotBid = usbct.SpotBid
+,ShipFromAddress1 = usbct.ShipFromAddress1
+,ShipFromAddress2 = usbct.ShipFromAddress2
+,ShipFromCity = usbct.ShipFromCity
+,ShipFromState = usbct.ShipFromState
+,ShipFromPostalCd = usbct.ShipFromPostalCd
+,ShipFromCountry = usbct.ShipFromCountry
+,ShipToName = usbct.ShipToName
+,ShipToAddress1 = usbct.ShipToAddress1
+,ShipToAddress2 = usbct.ShipToAddress2
+,ShipToCity = usbct.ShipToCity
+,ShipToState = usbct.ShipToState
+,ShipToPostalCd = usbct.ShipToPostalCd
+,ShipToCountry = usbct.ShipToCountry
+,VoucherID = usbct.VoucherID
+,Container1Type = usbct.Container1Type
+,BillToAccountNum = usbct.BillToAccountNum
+,USBillToAmount = usbct.USBillToAmount
+/*,ItemHeader = usbct.ItemHeader
+,LineID = usbct.LineID
+,LineNum = usbct.LineNum
+,LineItemType = usbct.LineItemType*/
+,GLCd = usbct.GLCd
+,ExpectedAmt = usbct.ExpectedAmt
+,LineItemDlr = usbct.LineItemDlr
+,CreditDebitFlag = usbct.CreditDebitFlag
+,BookedExpectAmt = usbct.BookedExpectAmt
+,BookedExpectFlag = usbct.BookedExpectFlag
+,BookedBilledAmt = usbct.BookedBilledAmt
+,BookedBilledFlag  = usbct.BookedBilledFlag
+,BuyerPOTCN = usbct.BuyerPOTCN
+,ServiceChargeCd = usbct.ServiceChargeCd
+,CommodityCd = usbct.CommodityCd
+,ProductClass = usbct.ProductClass
+,BilledRatedAsQty = usbct.BilledRatedAsQty
+,BilledRatedAsUOM = usbct.BilledRatedAsUOM
+,ActualWeight = usbct.ActualWeight
+,ActualWeightUOM = usbct.ActualWeightUOM
+,Volume = usbct.Volume
+,VolumeUOM = usbct.VolumeUOM
+,LandingQty = CAST(usbct.LandingQty AS NUMERIC(18,2))
+,PackingFormCd = usbct.PackingFormCd
+,LineItemUnitPrice = usbct.LineItemUnitPrice
+,LineItemExtendedPrice = usbct.LineItemExtendedPrice
+,BilledUnitOfMeasure = usbct.BilledUnitOfMeasure
+,UnitPriceInvoice = usbct.UnitPriceInvoice
+,QuantityInvoice = CAST(usbct.QuantityInvoice AS NUMERIC(18,2))
+,AmountInvoice = usbct.AmountInvoice
+,UnitPricePO = usbct.UnitPricePO
+,AmountPO = usbct.AmountPO
+,TotalShipmentMileage = usbct.TotalShipmentMileage
+
+FROM ##tblUSBChargesTemp usbct
+INNER JOIN USCTTDEV.dbo.tblUSBankCharges usbc ON /*usbc.PONum = usbct.PONum
+AND*/ usbc.LineID = usbct.LineID
+AND usbc.LineNum = usbct.LineNum
+AND usbc.SyncadaRefNum = usbct.SyncadaRefNum
+/*AND usbc.ProNum = usbct.ProNum*/
+WHERE usbc.PONum IS NULL
+AND usbc.ProNum IS NULL
+
+/*
+Delete where ProNum IS NOT NULL
+*/
+DELETE FROM ##tblUSBChargesTemp
+WHERE SyncadaRefNum IS NOT NULL
 
 /*
 Get rid of any stupid .0's that exist
@@ -543,8 +1002,7 @@ CASE WHEN usb.LineItemType = 'Freight' THEN 'Freight'
 ELSE usbc.Description END
 FROM USCTTDEV.dbo.tblUSBankCharges usb
 LEFT JOIN USCTTDEV.dbo.tblUSBServiceChargeCodes usbc ON usbc.Code = usb.ServiceChargeCd
-WHERE CAST(usb.UpdatedOn AS DATE) = CAST(GETDATE() AS DATE)
-OR usb.ChargeDescription IS NULL
+WHERE usb.ChargeDescription IS NULL
 
 /*
 Get duplicates
