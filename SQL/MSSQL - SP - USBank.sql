@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_USBank2]    Script Date: 2/13/2021 12:40:27 PM ******/
+/****** Object:  StoredProcedure [dbo].[sp_USBank]    Script Date: 2/16/2021 8:49:04 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -14,7 +14,7 @@ GO
 -- Description:	Updates USBank charges, coming from the Python file in \\USTCA097\Stage\Database Files\USBank
 -- =============================================
 
-ALTER PROCEDURE [dbo].[sp_USBank2]
+ALTER PROCEDURE [dbo].[sp_USBank]
 
 AS
 BEGIN
@@ -94,6 +94,70 @@ AND dupes.ExpectedAmt = usbct.ExpectedAmt
 AND dupes.LineItemDlr = usbct.LineItemDlr
 AND dupes.BookedBilledAmt = usbct.BookedBilledAmt
 AND dupes.UnitPriceInvoice = usbct.UnitPriceInvoice
+AND dupes.AmountInvoice = usbct.AmountInvoice
+
+/*
+Just in case there are duplicate lineID's coming from USBank
+Example: SELECT * FROM ##tblUSBChargesTemp
+WHERE PONum IN ('9002637860')
+AND LineID = 2
+File: 2021-02-13_10-19-05.116-USA_.KCNAUSD_Paid_USD_2502693_20210213.txt
+
+UPDATE ##tblUSBChargesTemp SET LineNum = 1 WHERE PoNum = 'E1M0380212' AND LineNum = 2
+*/
+UPDATE ##tblUSBChargesTemp
+SET LineNum = dupes.NewLineNum
+FROM ##tblUSBChargesTemp usbct
+INNER JOIN (
+SELECT usbct.PONUM, 
+usbct.ProNum, 
+usbct.SyncadaRefNum, 
+usbct.ItemHeader, 
+usbct.LineID,
+usbct.LineItemType,
+usbct.ExpectedAmt,
+usbct.LineItemDlr,
+usbct.BookedBilledAmt,
+usbct.UnitPriceInvoice,
+usbct.AmountInvoice,
+ROW_NUMBER() OVER (PARTITION BY usbct.PONUM, usbct.ProNum, usbct.SyncadaRefNum, usbct.ItemHeader, usbct.LineID ORDER BY CAST(usbct.AmountInvoice AS NUMERIC(10,2)) DESC) AS NewLineNum
+FROM ##tblUSBChargesTemp usbct
+INNER JOIN (
+SELECT DISTINCT 
+PONum,
+PRONum,
+SyncadaRefNum,
+ItemHeader,
+LineID,
+LineNum,
+COUNT(*) AS DistinctCount
+FROM ##tblUSBChargesTemp
+WHERE PONum IS NOT NULL
+/*AND PONum = '16533227'*/
+GROUP BY 
+PONum,
+PRONum,
+SyncadaRefNum,
+ItemHeader,
+LineID,
+LineNum
+HAVING COUNT(*) <> 1
+) dupes ON dupes.PONum = usbct.PONum
+AND dupes.ProNum = usbct.ProNum
+AND dupes.SyncadaRefNum = usbct.SyncadaRefNum
+AND dupes.ItemHeader = usbct.ItemHeader
+AND dupes.LineID = usbct.LineID
+AND dupes.LineNum = usbct.LineNum
+) dupes ON dupes.PONum = usbct.PONum
+AND dupes.ProNum = usbct.ProNum
+AND dupes.SyncadaRefNum = usbct.SyncadaRefNum
+AND dupes.ItemHeader = usbct.ItemHeader
+AND dupes.LineID = usbct.LineID
+AND dupes.LineItemType = usbct.LineItemType
+--AND dupes.ExpectedAmt = usbct.ExpectedAmt
+AND dupes.LineItemDlr = usbct.LineItemDlr
+--AND dupes.BookedBilledAmt = usbct.BookedBilledAmt
+--AND dupes.UnitPriceInvoice = usbct.UnitPriceInvoice
 AND dupes.AmountInvoice = usbct.AmountInvoice
 
 /*
@@ -1005,21 +1069,144 @@ LEFT JOIN USCTTDEV.dbo.tblUSBServiceChargeCodes usbc ON usbc.Code = usb.ServiceC
 WHERE usb.ChargeDescription IS NULL
 
 /*
-Get duplicates
+SELECT * FROM ##tblUSBChargesTemp
+WHERE PONum = '16655260' AND LineID = 2
 
-SELECT * FROM USCTTDEV.dbo.tblUSBankCharges usbc
+SELECT * FROM ##tblUSBChargesTemp
+WHERE PONum IN ('4300619098','IADA856464') AND LineID = 1
+
+SELECT * FROM USCTTDEV.dbo.tblUSBankCharges
+WHERE PONum IN ('16798771') 
+AND SyncadaRefNum = '1514216790'
+AND LineID = 1
+
+SELECT * FROM ##tblUSBChargesTemp
+WHERE PONum IN (
+'16798771',
+'518577198',
+'520628424',
+'520928388',
+'520543526',
+'520548613',
+'9002637860'
+)
+AND SyncadaRefNum = '1444226825'
+AND LineID = 1
+
+SELECT * FROM USCTTDEV.dbo.tblUSBankCharges
+WHERE PONum IN ('9002637860') 
+AND SyncadaRefNum = '1513428126'
+AND LineID = 1
+
+SELECT DISTINCT 
+PONum,
+PRONum,
+SyncadaRefNum,
+ItemHeader,
+LineID,
+LineNum,
+LineItemType,
+--LineItemDlr,
+ServiceChargeCd,
+Max(ID) AS MInID, 
+COUNT(*) AS DistinctCount
+FROM USCTTDEV.dbo.tblUSBankCharges
+WHERE PONum IS NOT NULL
+/*AND PONum = '16533227'*/
+GROUP BY 
+PONum,
+PRONum,
+SyncadaRefNum,
+ItemHeader,
+LineID,
+LineNum,
+LineItemType,
+--LineItemDlr,
+ServiceChargeCd
+HAVING COUNT(*) <> 1
+
+SELECT DISTINCT 
+PONum,
+PRONum,
+SyncadaRefNum,
+ItemHeader,
+LineID,
+LineNum,
+LineItemType,
+--LineItemDlr,
+ServiceChargeCd,
+Max(ID) AS MInID, 
+COUNT(*) AS DistinctCount
+FROM USCTTDEV.dbo.tblUSBankCharges2
+WHERE PONum IS NOT NULL
+/*AND PONum = '16533227'*/
+GROUP BY 
+PONum,
+PRONum,
+SyncadaRefNum,
+ItemHeader,
+LineID,
+LineNum,
+LineItemType,
+--LineItemDlr,
+ServiceChargeCd
+HAVING COUNT(*) <> 1
+
+SELECT DISTINCT 
+usbct.PONUM, 
+usbct.ProNum, 
+usbct.SyncadaRefNum, 
+usbct.ItemHeader, 
+usbct.LineID,
+usbct.LineItemType,
+usbct.ExpectedAmt,
+usbct.LineItemDlr,
+usbct.BookedBilledAmt,
+usbct.UnitPriceInvoice,
+usbct.AmountInvoice,
+ROW_NUMBER() OVER (PARTITION BY usbct.PONUM, usbct.ProNum, usbct.SyncadaRefNum, usbct.ItemHeader, usbct.LineID ORDER BY CAST(usbct.AmountInvoice AS NUMERIC(10,2)) DESC) AS NewLineNum
+FROM USCTTDEV.dbo.tblUSBankCharges2 usbct
 INNER JOIN (
-	SELECT DISTINCT PONum, 
-		LineNum, 
-		PRONum,
-		COUNT(*) AS COUNT 
-	FROM USCTTDEV.dbo.tblUSBankCharges
-	GROUP BY PONum, LineNum, PRONum
-	HAVING COUNT(*) > 1
-) dupes ON dupes.PONum = usbc.PONum
-AND dupes.LineNum = usbc.LineNum
-AND dupes.PRONum = usbc.PRONum
-ORDER BY usbc.PONum ASC, usbc.LineNum ASC 
+SELECT DISTINCT 
+PONum,
+PRONum,
+SyncadaRefNum,
+ItemHeader,
+LineID,
+LineNum,
+LineItemType,
+ServiceChargeCd,
+COUNT(*) AS DistinctCount
+FROM USCTTDEV.dbo.tblUSBankCharges2
+WHERE PONum IS NOT NULL
+/*AND PONum = '16533227'*/
+GROUP BY 
+PONum,
+PRONum,
+SyncadaRefNum,
+ItemHeader,
+LineID,
+LineNum,
+LineItemType,
+ServiceChargeCd
+HAVING COUNT(*) <> 1
+) dupes ON dupes.PONum = usbct.PONum
+AND dupes.ProNum = usbct.ProNum
+AND dupes.SyncadaRefNum = usbct.SyncadaRefNum
+AND dupes.ItemHeader = usbct.ItemHeader
+AND dupes.LineID = usbct.LineID
+AND dupes.LineNum = usbct.LineNum
+
+UPDATE USCTTDEV.dbo.tblUSBankCharges2
+SET LineNum = '2'
+WHERE ID = '7454116'
+
+DELETE FROM USCTTDEV.dbo.tblUSBankCharges
+WHERE AddedFromFile IN ('2021-02-13_10-19-05.116-USA_.KCNAUSD_Paid_USD_2502693_20210213.txt',
+'2021-01-22_10-19-04.591-USA_.KCNAUSD_Paid_USD_2491340_20210122.txt',
+'2020-12-12_10-19-08.690-USA_.KCNAUSD_Paid_USD_2466888_20201212.txt'
+)
+
 */
 
 
