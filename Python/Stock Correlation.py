@@ -5,8 +5,8 @@ from datetime import datetime
 import matplotlib.pyplot as plt 
 import seaborn
 
-start = datetime(2021, 3, 1)
-symbols_list = ['SOS', 'RIOT', 'MARA', 'ETH-USD', 'BTC-USD', 'DOGE-USD']#array to store prices
+start = datetime(2021, 4, 1)
+symbols_list = ['SOS', 'RIOT', 'MARA', 'EBON', 'ETH-USD', 'BTC-USD', 'DOGE-USD']#array to store prices
 symbols=[]
 
 #array to store prices

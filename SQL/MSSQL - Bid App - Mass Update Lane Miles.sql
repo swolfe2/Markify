@@ -1,9 +1,10 @@
 /*
 Create temp table
+DROP TABLE ##tblChangelogTemp
 */
 CREATE TABLE ##tblChangelogTemp(
 LaneID NVARCHAR(20),
-Lane NVARCHAR(20),
+Lane NVARCHAR(30),
 ChangeType NVARCHAR(20),
 ChangeReason NVARCHAR(50),
 SCAC NVARCHAR(10),
@@ -17,17 +18,22 @@ UpdatedOn Datetime
 
 /*
 Insert lanes into Temp Table
+="SELECT " & A2 & " AS LaneID, " & P2 &" AS Miles UNION ALL"
 */
-INSERT INTO ##tblChangelogTemp (LaneID, SCAC, Lane, PreviousValue)
-SELECT bar.LaneID, bar.SCAC, bar.Lane, bar.AWARD_PCT FROM USCTTDEV.dbo.tblBidAppRates bar
+INSERT INTO ##tblChangelogTemp (LaneID, Lane, PreviousValue, NewValue)
+SELECT bal.LaneID, bal.Lane, CAST(bal.Miles AS NUMERIC(10,2)), CAST(miles.Miles AS NUMERIC(10,2)) FROM USCTTDEV.dbo.tblBidAppLanes bal
 INNER JOIN (
-SELECT 'CURAMOSA-5WI54956' AS Lane UNION ALL
-SELECT 'CURAMOSA-5CA92374' AS Lane UNION ALL
-SELECT 'AGSANFRA-5IL60446' AS Lane UNION ALL
-SELECT 'AGAGUASC-5IL60446' AS Lane UNION ALL
-SELECT 'AGSANFRA-5TX75236' AS Lane) remove ON remove.Lane = bar.Lane
-WHERE bar.AWARD_PCT IS NOT NULL
-ORDER BY bar.LaneID ASC, bar.SCAC ASC
+SELECT 1660 AS LaneID, 1 AS Miles UNION ALL
+SELECT 2251 AS LaneID, 1 AS Miles
+) miles ON miles.LaneID = bal.LaneID
+AND miles.Miles <> bal.MILES
+ORDER BY bal.LaneID ASC
+
+/*
+Delete where New Value = Previous Value
+*/
+DELETE FROM ##tblChangelogTemp
+WHERE PreviousValue = NewValue
 
 /*
 Update rate information on changelog table
@@ -37,23 +43,20 @@ GROUP BY UpdatedBy, UpdatedByName
 ORDER BY MAX(UpdatedOn) DESC
 */
 UPDATE ##tblChangelogTemp
-SET ChangeType = 'Rate Level',
-ChangeReason = 'Mass Update Award Percent',
-Field = 'AWARD_PCT',
-NewValue = '0',
-UpdatedBy = 'B40962',
-UpdatedByName = 'Stelios Chrysandreas',
+SET ChangeType = 'Master Data',
+ChangeReason = 'Mass Update Lane Miles',
+Field = 'Miles',
+UpdatedBy = 'B73503',
+UpdatedByName = 'Scottie Carpenter',
 UpdatedOn = GETDATE()
 
 /*
 Update Bid App Rates table to remove award loads/pct
 */
-UPDATE USCTTDEV.dbo.tblBidAppRates
-SET AWARD_LDS = NULL,
-AWARD_PCT = NULL
-FROM USCTTDEV.dbo.tblBidAppRates bar
-INNER JOIN ##tblChangelogTemp clt ON clt.LaneID = bar.LaneID
-AND clt.SCAC = bar.SCAC
+UPDATE USCTTDEV.dbo.tblBidAppLanes
+SET Miles = clt.NewValue
+FROM USCTTDEV.dbo.tblBidAppLanes bal
+INNER JOIN ##tblChangelogTemp clt ON clt.LaneID = bal.LaneID
 
 /*
 View table just before appending!
@@ -79,10 +82,10 @@ clt.UpdatedOn,
 'tblBidAppRates'
 FROM ##tblChangelogTemp clt
 LEFT JOIN USCTTDEV.dbo.tblBIdAppChangelog cl ON clt.LaneID = cl.LaneID
-AND cl.SCAC = clt.SCAC
+AND cl.ChangeType = clt.ChangeType
+AND cl.ChangeReason = clt.ChangeReason
 AND CAST(cl.UpdatedOn AS DATE) = CAST(clt.UpdatedOn AS DATE)
 WHERE cl.LaneID IS NULL
-AND cl.SCAC IS NULL
 ORDER BY CAST(clt.LaneID AS INT) ASC, clt.SCAC ASC
 
 /*

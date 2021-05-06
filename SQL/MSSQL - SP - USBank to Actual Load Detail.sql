@@ -12,7 +12,7 @@ GO
 -- Description:	Updates USCTTDEV.dbo.tblActualLoadDetail Act_* fields with updated totals from USCTTDEV.dbo.tblUSBankCharges
 -- =============================================
 
-CREATE PROCEDURE [dbo].[sp_USBankToActualLoadDetail]
+ALTER PROCEDURE [dbo].[sp_USBankToActualLoadDetail]
 
 AS
 BEGIN
@@ -30,7 +30,24 @@ DROP TABLE IF EXISTS ##tblUSBankChargeDetail,
 /*
 Create temp table of charge etails, for each line number
 SELECT TOP 10 * FROM ##tblUSBankChargeDetail WHERE PONum = '517587437'
-SELECT * FROM USCTTDEV.dbo.tblUsbankCharges WHERE PONum = '517587437' 
+SELECT DISTINCT AddedFromFile,
+PONum AS LD_LEG_ID,
+LineID,
+LineNum
+LineItemType,
+LineItemDlr,
+AmountInvoice
+ChargeDescription
+FROM USCTTDEV.dbo.tblUsbankCharges WHERE PONum = '517724984' 
+
+SELECT DISTINCT PONum,
+LineID,
+LineNum,
+Charge,
+ChargeDescription,
+Type
+FROM ##tblUSBankChargeDetail WHERE PONum = '517724984' 
+ORDER BY LineID ASC, LineNum ASC
 */
 SELECT * INTO ##tblUSBankChargeDetail
 FROM (SELECT usb.PONum,
@@ -68,7 +85,7 @@ ORDER BY usb.PONum ASC, usb.SyncadaRefNum ASC, usb.ItemHeader ASC, usb.LineID AS
 /*
 Declare Variables
 
-SELECT TOP 10 * FROM ##tblUSBankChargePivot
+SELECT * FROM ##tblUSBankChargePivot WHERE LD_LEG_ID = '517724984'
 SELECT DISTINCT LD_LEG_ID, COUNT(*) AS COUNT FROM ##tblUSBankChargePivot GROUP BY LD_LEG_ID HAVING COUNT(*) > 1
 DROP TABLE IF EXISTS ##tblUSBankChargePivot
 
@@ -245,7 +262,7 @@ COALESCE(Act_AccessorialFinal,0)
 
 /*
 Set Final Match Flag
-SELECT * FROM ##tblUSBankChargePivot
+SELECT * FROM ##tblUSBankChargePivot WHERE USBMatchesALD = 'Yes' AND Act_ZUSB > 0
 */
 UPDATE ##tblUSBankChargePivot
 SET Matches = CASE WHEN FinalCharges = TotalALDCharges THEN 'Yes' ELSE 'No' END
@@ -254,6 +271,9 @@ SET Matches = CASE WHEN FinalCharges = TotalALDCharges THEN 'Yes' ELSE 'No' END
 Update Actual Load Detail to final USB Charges
 SELECT * INTO ##tblActualLoadDetail FROM USCTTDEV.dbo.tblActualLoadDetail
 DROP TABLE ##tblActualLoadDetail
+SELECT * FROM ##tblUSBankChargePivot WHERE Act_ZUSBFinal IS NULL AND Act_ZUSB IS NOT NULL
+
+SELECT * FROM USCTTDEV.dbo.tblActualLoadDetail WHERE LD_LEG_ID = '517632451'
 */
 UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET Act_Accessorials = usbcp.Act_AccessorialFinal,

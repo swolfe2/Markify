@@ -27,7 +27,7 @@ remove.Lane,
 remove.SCAC, 
 CASE WHEN bar.[Min Charge] IS NOT NULL THEN bar.[Min Charge] ELSE bar.CUR_RPM END AS PreviousValue,
 CASE WHEN bar.[Min Charge] IS NOT NULL THEN 'Min Charge' ELSE 'CUR_RPM' END AS Field
-FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 bar
+FROM USCTTDEV.dbo.tblBidAppRates bar
 INNER JOIN (SELECT 'ALFAIRHO-5AL36610' AS Lane, 'SWOA' AS SCAC UNION ALL
 SELECT 'KCILROME-SKIN-5IL60586' AS Lane, 'KNBK' AS SCAC 
 ) remove ON remove.Lane = bar.Lane
@@ -36,6 +36,10 @@ ORDER BY bar.LaneID ASC
 
 /*
 Update Lane Level Deletions text
+SELECT DISTINCT UpdatedBy, UpdatedByName, MAX(UpdatedOn) AS MaxUpdated
+FROM USCTTDEV.dbo.tblBidAppChangelog
+GROUP BY UpdatedBy, UpdatedByName
+ORDER BY MAX(UpdatedOn) DESC
 */
 UPDATE ##tblChangelogTemp
 SET ChangeType = 'Rate Level',
@@ -52,10 +56,10 @@ ORDER BY CAST(LaneID AS INT) ASC, SCAC ASC
 
 /*
 Delete from Bid App Rates
-SELECT * INTO ##tblBidAppRates2021Tempy2 FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 
+SELECT * INTO ##tblBidAppRates2021Tempy2 FROM USCTTDEV.dbo.tblBidAppRates 
 */
-DELETE USCTTDEV.dbo.tblBidAppRatesRFP2021
-FROM  USCTTDEV.dbo.tblBidAppRatesRFP2021 bar
+DELETE USCTTDEV.dbo.tblBidAppRates
+FROM  USCTTDEV.dbo.tblBidAppRates bar
 INNER JOIN (SELECT DISTINCT LaneID, SCAC FROM  ##tblChangelogTemp) clt ON clt.LaneID = bar.LaneID
 AND clt.SCAC = bar.SCAC
 
@@ -75,7 +79,7 @@ clt.NewValue,
 clt.UpdatedBy,
 clt.UpdatedByName,
 clt.UpdatedOn,
-'tblBidAppRatesRFP2021'
+'tblBidAppRates'
 FROM ##tblChangelogTemp clt
 LEFT JOIN USCTTDEV.dbo.tblBIdAppChangelog cl ON clt.LaneID = cl.LaneID
 AND cl.SCAC = clt.SCAC

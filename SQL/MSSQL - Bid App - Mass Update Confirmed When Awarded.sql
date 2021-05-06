@@ -25,7 +25,7 @@ SELECT DISTINCT Field FROM USCTTDEV.dbo.tblBidAppChangelog
 SELECT * FROM ##tblChangelogTemp
 
 SELECT * FROM USCTTDEV.dbo.tblBIdAppChangelog WHERE FIeld = 'Confirmed'
-SELECT * FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 WHERE Confirmed = 'N' AND AWARD_PCT IS NOT NULL
+SELECT * FROM USCTTDEV.dbo.tblBidAppRates WHERE Confirmed = 'N' AND AWARD_PCT IS NOT NULL
 
 Excel Formula
 ="SELECT '" & E2 & "' AS Lane, CAST('" & ROUND(O2,2) & "' AS NUMERIC(10,2)) AS NewValue, '" & LEFT(B2,4) & "' AS SCAC UNION ALL"
@@ -39,8 +39,8 @@ bar.SCAC,
 'Confirmed',
 bar.Confirmed, 
 'Y'
-FROM USCTTDEV.dbo.tblBIdAppLanesRFP2021 bal
-INNER JOIN USCTTDEV.dbo.tblBidAppRatesRFP2021 bar ON bar.Lane = bal.Lane
+FROM USCTTDEV.dbo.tblBIdAppLanes bal
+INNER JOIN USCTTDEV.dbo.tblBidAppRates bar ON bar.Lane = bal.Lane
 WHERE bar.AWARD_PCT IS NOT NULL
 AND bar.Confirmed = 'N'
 ORDER BY bar.LaneID ASC, bar.SCAC ASC
@@ -67,13 +67,13 @@ UpdatedOn = GETDATE()
 /*
 Update Bid App Rates with new rate info
 SELECT * FROM ##tblChangelogTemp ORDER BY CAST(LaneID AS INT) ASC
-SELECT * INTO ##tblBidAppRatesTemp FROM USCTTDEV.dbo.tblBidAppRatesRFP2021
+SELECT * INTO ##tblBidAppRatesTemp FROM USCTTDEV.dbo.tblBidAppRates
 SELECT * FROM ##tblChangelogTemp WHERE LaneID = 66 AND SCAC = 'HUBG'
-SELECT * FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 WHERE LaneID = 66 AND SCAC = 'HUBG'
+SELECT * FROM USCTTDEV.dbo.tblBidAppRates WHERE LaneID = 66 AND SCAC = 'HUBG'
 */
-UPDATE USCTTDEV.dbo.tblBidAppRatesRFP2021
+UPDATE USCTTDEV.dbo.tblBidAppRates
 SET Confirmed = 'Y'
-FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 bar
+FROM USCTTDEV.dbo.tblBidAppRates bar
 INNER JOIN ##tblChangelogTemp cl ON cl.LaneID = bar.LaneID
 AND cl.SCAC = bar.SCAC
 
@@ -93,7 +93,7 @@ clt.NewValue,
 clt.UpdatedBy,
 clt.UpdatedByName,
 clt.UpdatedOn,
-'tblBidAppRatesRFP2021'
+'tblBidAppRates'
 FROM ##tblChangelogTemp clt
 LEFT JOIN USCTTDEV.dbo.tblBIdAppChangelog cl ON clt.LaneID = cl.LaneID
 AND cl.SCAC = clt.SCAC

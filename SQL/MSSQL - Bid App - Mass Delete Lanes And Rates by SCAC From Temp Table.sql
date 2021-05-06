@@ -32,13 +32,13 @@ bar.Lane,
 bar.SCAC, 
 CASE WHEN bar.[Min Charge] IS NOT NULL THEN 'Min Charge' ELSE 'CUR_RPM' END,
 CASE WHEN bar.[Min Charge] IS NOT NULL THEN bar.[Min Charge] ELSE bar.CUR_RPM END
-FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 bar
+FROM USCTTDEV.dbo.tblBidAppRates bar
 WHERE bar.SCAC = @SCAC
 ORDER BY bar.LaneID ASC, bar.SCAC ASC
 
 /*
 Insert awards that will be deleted
-SELECT * FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 bar WHERE SCAC = 'TPGH' AND bar.AWARD_PCT IS NOT NULL
+SELECT * FROM USCTTDEV.dbo.tblBidAppRates bar WHERE SCAC = 'TPGH' AND bar.AWARD_PCT IS NOT NULL
 */
 INSERT INTO ##tblChangelogTemp (LaneID, Lane, ChangeType, ChangeReason, SCAC, Field, PreviousValue)
 SELECT bar.LaneID,
@@ -48,7 +48,7 @@ bar.Lane,
 bar.SCAC, 
 'AWARD_PCT',
 bar.AWARD_PCT
-FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 bar
+FROM USCTTDEV.dbo.tblBidAppRates bar
 WHERE bar.SCAC = @SCAC
 AND bar.AWARD_PCT IS NOT NULL
 ORDER BY bar.LaneID ASC, bar.SCAC ASC
@@ -56,7 +56,11 @@ ORDER BY bar.LaneID ASC, bar.SCAC ASC
 /*
 Final Changelog Updates
 SELECT * FROM ##tblChangelogTemp WHERE Field <> 'AWARD_PCT'
-SELECT * INTO ##tblBidAppRatesRFPTempy FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 
+SELECT * INTO ##tblBidAppRatesRFPTempy FROM USCTTDEV.dbo.tblBidAppRates 
+SELECT DISTINCT UpdatedBy, UpdatedByName, MAX(UpdatedOn) AS MaxUpdated
+FROM USCTTDEV.dbo.tblBidAppChangelog
+GROUP BY UpdatedBy, UpdatedByName
+ORDER BY MAX(UpdatedOn) DESC
 */
 UPDATE ##tblChangelogTemp
 SET
@@ -73,8 +77,8 @@ ORDER BY CAST(LaneID AS INT) ASC, SCAC ASC
 /*
 Delete from Bid App Rates
 */
-DELETE USCTTDEV.dbo.tblBidAppRatesRFP2021
-FROM  USCTTDEV.dbo.tblBidAppRatesRFP2021 bar
+DELETE USCTTDEV.dbo.tblBidAppRates
+FROM  USCTTDEV.dbo.tblBidAppRates bar
 INNER JOIN (SELECT DISTINCT LaneID, SCAC FROM  ##tblChangelogTemp) clt ON clt.LaneID = bar.LaneID
 AND clt.SCAC = bar.SCAC
 
@@ -94,7 +98,7 @@ clt.NewValue,
 clt.UpdatedBy,
 clt.UpdatedByName,
 clt.UpdatedOn,
-CASE WHEN clt.ChangeReason LIKE '%Lane%' THEN 'tblBidAppLanesRFP2021' ELSE 'tblBidAppRatesRFP2021' END
+CASE WHEN clt.ChangeReason LIKE '%Lane%' THEN 'tblBidAppLanes' ELSE 'tblBidAppRates' END
 FROM ##tblChangelogTemp clt
 LEFT JOIN USCTTDEV.dbo.tblBIdAppChangelog cl ON clt.LaneID = cl.LaneID
 AND cl.SCAC = clt.SCAC

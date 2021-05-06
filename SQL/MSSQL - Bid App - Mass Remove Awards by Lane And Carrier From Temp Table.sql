@@ -33,7 +33,7 @@ FROM
 (
 SELECT 'GAMCDONO-5GA30062' AS Lane, 'BRJF' AS SCAC UNION ALL
 SELECT 'SCDUNCAN-5SC29842' AS Lane, 'BRJF' AS SCAC ) remove 
-LEFT JOIN USCTTDEV.dbo.tblBidAppRatesRFP2021 bar ON bar.Lane = remove.Lane
+LEFT JOIN USCTTDEV.dbo.tblBidAppRates bar ON bar.Lane = remove.Lane
 AND bar.SCAC = remove.SCAC
 ORDER BY bar.LaneID ASC, bar.SCAC ASC
 
@@ -47,17 +47,19 @@ DELETE FROM ##tblChangelogTemp WHERE PreviousValue IS NULL
 /*
 Update Bid App Rates table to remove award loads/pct
 */
-UPDATE USCTTDEV.dbo.tblBidAppRatesRFP2021
+UPDATE USCTTDEV.dbo.tblBidAppRates
 SET AWARD_LDS = NULL,
 AWARD_PCT = NULL
-FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 bar
+FROM USCTTDEV.dbo.tblBidAppRates bar
 INNER JOIN ##tblChangelogTemp clt ON clt.LaneID = bar.LaneID
 AND clt.SCAC = bar.SCAC
 
 /*
 View table just before appending!
-
-SELECT DISTINCT UpdatedBy, UpdatedByName, MAX(UpdatedOn) AS MaxUpdated FROM USCTTDEV.dbo.tblBidAppChangelog GROUP BY UpdatedBy, UpdatedByName ORDER BY MaxUpdated DESC
+SELECT DISTINCT UpdatedBy, UpdatedByName, MAX(UpdatedOn) AS MaxUpdated
+FROM USCTTDEV.dbo.tblBidAppChangelog
+GROUP BY UpdatedBy, UpdatedByName
+ORDER BY MAX(UpdatedOn) DESC
 */
 
 UPDATE ##tblChangelogTemp
@@ -82,7 +84,7 @@ clt.NewValue,
 clt.UpdatedBy,
 clt.UpdatedByName,
 clt.UpdatedOn,
-'tblBidAppRatesRFP2021'
+'tblBidAppRates'
 FROM ##tblChangelogTemp clt
 LEFT JOIN USCTTDEV.dbo.tblBIdAppChangelog cl ON clt.LaneID = cl.LaneID
 AND cl.SCAC = clt.SCAC

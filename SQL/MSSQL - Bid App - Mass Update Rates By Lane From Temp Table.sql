@@ -39,7 +39,7 @@ Change.NewValue
 FROM (SELECT 'CAONTARI-5CA90012' AS Lane, CAST('12.15' AS NUMERIC(10,2)) AS NewValue, 'LEGS' AS SCAC UNION ALL
 SELECT 'CAONTARI-5CA92880' AS Lane, CAST('27.5' AS NUMERIC(10,2)) AS NewValue, 'LEGS' AS SCAC
 ) change
-LEFT JOIN USCTTDEV.dbo.tblBidAppRatesRFP2021 bar ON bar.Lane = change.Lane
+LEFT JOIN USCTTDEV.dbo.tblBidAppRates bar ON bar.Lane = change.Lane
 AND bar.SCAC = change.SCAC
 ORDER BY bar.LaneID ASC
 
@@ -65,14 +65,14 @@ UpdatedOn = GETDATE()
 /*
 Update Bid App Rates with new rate info
 SELECT * FROM ##tblChangelogTemp ORDER BY CAST(LaneID AS INT) ASC
-SELECT * INTO ##tblBidAppRatesTemp FROM USCTTDEV.dbo.tblBidAppRatesRFP2021
+SELECT * INTO ##tblBidAppRatesTemp FROM USCTTDEV.dbo.tblBidAppRates
 SELECT * FROM ##tblChangelogTemp WHERE LaneID = 66 AND SCAC = 'HUBG'
-SELECT * FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 WHERE LaneID = 66 AND SCAC = 'HUBG'
+SELECT * FROM USCTTDEV.dbo.tblBidAppRates WHERE LaneID = 66 AND SCAC = 'HUBG'
 */
-UPDATE USCTTDEV.dbo.tblBidAppRatesRFP2021
+UPDATE USCTTDEV.dbo.tblBidAppRates
 SET CUR_RPM = CASE WHEN cl.ChangeType = 'Rate Level - RPM' THEN cl.NewValue ELSE bar.CUR_RPM END,
 [Min Charge] = CASE WHEN cl.ChangeType = 'Rate Level - Flat Chrg' THEN cl.NewValue ELSE bar.[Min Charge] END
-FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 bar
+FROM USCTTDEV.dbo.tblBidAppRates bar
 INNER JOIN ##tblChangelogTemp cl ON cl.LaneID = bar.LaneID
 AND cl.SCAC = bar.SCAC
 
@@ -92,7 +92,7 @@ clt.NewValue,
 clt.UpdatedBy,
 clt.UpdatedByName,
 clt.UpdatedOn,
-'tblBidAppRatesRFP2021'
+'tblBidAppRates'
 FROM ##tblChangelogTemp clt
 LEFT JOIN USCTTDEV.dbo.tblBIdAppChangelog cl ON clt.LaneID = cl.LaneID
 AND cl.SCAC = clt.SCAC

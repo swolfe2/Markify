@@ -21,7 +21,7 @@ UpdatedOn Datetime
 Add the lanes to be deleted
 */
 INSERT INTO ##tblChangelogTemp (LaneID,  Lane)
-SELECT DISTINCT bar.LaneID,  bar.Lane FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 bar
+SELECT DISTINCT bar.LaneID,  bar.Lane FROM USCTTDEV.dbo.tblBidAppRates bar
 INNER JOIN (SELECT 'GAMCDONO-5CA92374' AS LANE UNION ALL
 SELECT 'ILDESPLA-5CA92374' AS LANE UNION ALL
 SELECT 'KCILROME-NOF-5CA92374' AS LANE UNION ALL
@@ -58,7 +58,7 @@ bar.Lane,
 bar.SCAC, 
 CASE WHEN bar.[Min Charge] IS NOT NULL THEN 'MIn Charge' ELSE 'CUR_RPM' END,
 CASE WHEN bar.[Min Charge] IS NOT NULL THEN bar.[Min Charge] ELSE bar.CUR_RPM END
-FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 bar
+FROM USCTTDEV.dbo.tblBidAppRates bar
 INNER JOIN ##tblChangelogTemp clt ON clt.Lane = bar.Lane
 ORDER BY bar.LaneID ASC, bar.SCAC ASC
 
@@ -67,6 +67,10 @@ DELETE FROM ##tblChangelogTemp WHERE UpdatedOn IS NULL
 
 /*
 Update UpdatedBy/Name/On by LaneID
+SELECT DISTINCT UpdatedBy, UpdatedByName, MAX(UpdatedOn) AS MaxUpdated
+FROM USCTTDEV.dbo.tblBidAppChangelog
+GROUP BY UpdatedBy, UpdatedByName
+ORDER BY MAX(UpdatedOn) DESC
 */
 UPDATE clt
 SET UpdatedBy = cltOne.UpdatedBy,
@@ -85,15 +89,15 @@ ORDER BY LaneID ASC, SCAC ASC
 /*
 Delete from Bid App Lanes
 */
-DELETE USCTTDEV.dbo.tblBidAppLanesRFP2021
-FROM  USCTTDEV.dbo.tblBidAppLanesRFP2021 bal
+DELETE USCTTDEV.dbo.tblBidAppLanes
+FROM  USCTTDEV.dbo.tblBidAppLanes bal
 INNER JOIN (SELECT DISTINCT LaneID FROM  ##tblChangelogTemp) clt ON clt.LaneID = bal.LaneID
 
 /*
 Delete from Bid App Rates
 */
-DELETE USCTTDEV.dbo.tblBidAppRatesRFP2021
-FROM  USCTTDEV.dbo.tblBidAppRatesRFP2021 bar
+DELETE USCTTDEV.dbo.tblBidAppRates
+FROM  USCTTDEV.dbo.tblBidAppRates bar
 INNER JOIN (SELECT DISTINCT LaneID FROM  ##tblChangelogTemp) clt ON clt.LaneID = bar.LaneID
 
 /*
@@ -112,7 +116,7 @@ clt.NewValue,
 clt.UpdatedBy,
 clt.UpdatedByName,
 clt.UpdatedOn,
-CASE WHEN clt.ChangeReason LIKE '%Lane%' THEN 'tblBidAppLanesRFP2021' ELSE 'tblBidAppRatesRFP2021' END
+CASE WHEN clt.ChangeReason LIKE '%Lane%' THEN 'tblBidAppLanes' ELSE 'tblBidAppRates' END
 FROM ##tblChangelogTemp clt
 LEFT JOIN USCTTDEV.dbo.tblBIdAppChangelog cl ON clt.LaneID = cl.LaneID
 AND cl.SCAC = clt.SCAC

@@ -62,7 +62,7 @@ SELECT 'OKJENKS-5GA30906' AS LANE, CAST('60' AS INT) AS NewValue UNION ALL
 SELECT 'UTOGDEN-5GA30253' AS LANE, CAST('52' AS INT) AS NewValue UNION ALL
 SELECT 'TXPARIS-5AR72032' AS LANE, CAST('216' AS INT) AS NewValue
 ) change
-LEFT JOIN USCTTDEV.dbo.tblBidAppLanesRFP2021 bal ON bal.Lane = change.Lane
+LEFT JOIN USCTTDEV.dbo.tblBidAppLanes bal ON bal.Lane = change.Lane
 ORDER BY bal.LaneID ASC
 
 /*
@@ -87,14 +87,14 @@ UpdatedOn = GETDATE()
 /*
 Update Bid App Rates with new rate info
 SELECT * FROM ##tblChangelogTemp
-SELECT * INTO ##tblBidAppRatesTemp FROM USCTTDEV.dbo.tblBidAppRatesRFP2021
+SELECT * INTO ##tblBidAppRatesTemp FROM USCTTDEV.dbo.tblBidAppRates
 SELECT * FROM ##tblChangelogTemp WHERE LaneID = 66 AND SCAC = 'HUBG'
-SELECT * FROM USCTTDEV.dbo.tblBidAppRatesRFP2021 WHERE LaneID = 66 AND SCAC = 'HUBG'
-SELECT * INTO ##tblBidAppLanesTempy FROM USCTTDEV.dbo.tblBidAppLanesRFP2021
+SELECT * FROM USCTTDEV.dbo.tblBidAppRates WHERE LaneID = 66 AND SCAC = 'HUBG'
+SELECT * INTO ##tblBidAppLanesTempy FROM USCTTDEV.dbo.tblBidAppLanes
 */
-UPDATE USCTTDEV.dbo.tblBidAppLanesRFP2021
+UPDATE USCTTDEV.dbo.tblBidAppLanes
 SET UPDATED_LOADS = cl.NewValue
-FROM USCTTDEV.dbo.tblBidAppLanesRFP2021 bal
+FROM USCTTDEV.dbo.tblBidAppLanes bal
 INNER JOIN ##tblChangelogTemp cl ON cl.LaneID = bal.LaneID
 
 /*
@@ -113,7 +113,7 @@ clt.NewValue,
 clt.UpdatedBy,
 clt.UpdatedByName,
 clt.UpdatedOn,
-'tblBidAppLanesRFP2021'
+'tblBidAppLanes'
 FROM ##tblChangelogTemp clt
 LEFT JOIN USCTTDEV.dbo.tblBIdAppChangelog cl ON clt.LaneID = cl.LaneID
 AND cl.Field = clt.Field

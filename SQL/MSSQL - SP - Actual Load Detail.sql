@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 2/9/2021 7:44:46 AM ******/
+/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 3/25/2021 11:24:24 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -9,8 +9,11 @@ GO
 -- =============================================
 -- Author:		<Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team>
 -- Create date: <9/30/2019>
--- Last modified: <2/9/2021>
+-- Last modified: <3/25/2021>
 -- Description:	<Executes query against Oracle, loads to temp table, then appends/updates dbo.tblActualLoadDetail>
+-- 3/25/2021 - SW - Added secondary catch for Rate Type, in case it went through the eAuction process. Note: It didn't change anything, but it might in the future. Also, added stored procedure to take USBank charge detail to ALD and reallocate buckets.
+-- 3/1/2021 - SW - Updated region logic to also include the BU before assigning
+-- 2/26/2021 - SW - Updated to add HJBM to Spot per MS Teams message from Jeff Perrot
 -- 2/9/2021 - SW - Added 1040 to NON WOVENS BU logic, per Lynlee Robinson
 -- 2/3/2021 - SW - Added logic update award lane/carrier because there was some crappy rate stuff that happened in January after the RFP started
 -- 1/26/2021 - SW - Added 1023, 1113, 2518 to Consumer BU logic, per Lynlee Robinson
@@ -1062,29 +1065,6 @@ ELSE NULL
 END
 
 /*
-Drop column from ##tblActualLoadDetailsALD if it exists
-If it doesn't exist, then add it to the table
-*/
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS CarrierManager
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS Region
-ALTER TABLE ##tblActualLoadDetailsALD ADD CarrierManager NVARCHAR(50)
-ALTER TABLE ##tblActualLoadDetailsALD ADD Region NVARCHAR(10)
-
-/*
-Update Carrier Manager. If Inbound, use the destination state else use the origin state
-*/
-UPDATE ##tblactualloaddetailsald 
-SET    carriermanager = RA.carriermanager, 
-       region = RA.region 
-FROM   ##tblactualloaddetailsald 
-       LEFT JOIN uscttdev.dbo.tblregionalassignments RA 
-              ON RA.stateabbv = CASE 
-                                  WHEN ordertype LIKE ( '%INBOUND%' ) THEN 
-                                  last_sta_cd 
-                                  ELSE frst_sta_cd 
-                                END 
-
-/*
 Get volume for each LD_LEG_ID, and set business units based off of volume share
 */
 
@@ -1447,7 +1427,40 @@ WHERE SHIPMODE = 'TRUCK'
 AND EQMT_TYP = '53IM'
 AND SHIP_CONDITION = 'IM'
 
+/*
+Drop column from ##tblActualLoadDetailsALD if it exists
+If it doesn't exist, then add it to the table
+*/
+ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS CarrierManager
+ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS Region
+ALTER TABLE ##tblActualLoadDetailsALD ADD CarrierManager NVARCHAR(50)
+ALTER TABLE ##tblActualLoadDetailsALD ADD Region NVARCHAR(10)
 
+/*
+Update Carrier Manager. If Inbound, use the destination state else use the origin state
+*/
+UPDATE ##tblactualloaddetailsald 
+SET    carriermanager = RA.carriermanager, 
+       region = RA.region 
+FROM   ##tblactualloaddetailsald 
+       LEFT JOIN uscttdev.dbo.tblregionalassignments RA 
+              ON RA.stateabbv = CASE 
+                                  WHEN ordertype LIKE ( '%INBOUND%' ) and BU <> 'NON WOVENS' THEN
+                                  last_sta_cd 
+                                  ELSE frst_sta_cd 
+                                END 
+
+UPDATE USCTTDEV.dbo.tblActualLoadDetail 
+SET    carriermanager = RA.carriermanager, 
+       region = RA.region 
+FROM   USCTTDEV.dbo.tblActualLoadDetail 
+       LEFT JOIN uscttdev.dbo.tblregionalassignments RA 
+              ON RA.stateabbv = CASE 
+                                  WHEN ordertype LIKE ( '%INBOUND%' ) and BU <> 'NON WOVENS' THEN
+                                  last_sta_cd 
+                                  ELSE frst_sta_cd 
+                                END 
+								
 /*
 ,
 YEAR = DATEPART(yyyy, CASE WHEN SHPD_DTT IS NULL THEN STRD_DTT ELSE SHPD_DTT END),
@@ -3163,6 +3176,13 @@ WHERE ald.LD_LEG_ID IS NULL
 ORDER BY LD_LEG_ID ASC
 
 /*
+Execute USB to ALD Stored Procedure
+3/25/2021
+*/
+EXEC USCTTDEV.dbo.sp_USBankToActualLoadDetail
+
+
+/*
 Update Actual Load Details with new city names, when there's something weird
 */
 UPDATE USCTTDEV.dbo.tblActualLoadDetail
@@ -3820,12 +3840,14 @@ AND ald.FRAN IS NULL
 
 /*
 Update Rate Type
+Updated to add HJBM to Spot per MS Teams message from Jeff Perrot 2/26/21
 Logic in email from Jeff Perrot on 5/29/2020
 10/8/2020 - Updated to include Repo, per Lynlee Robinson
 */
 UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET RateType =
               CASE
+			  WHEN SRVC_CD = 'HJBM' THEN 'Spot'
                 WHEN FRAN IS NOT NULL THEN 'Spot'
                 WHEN Act_ZSPT IS NOT NULL AND
                   Act_ZSPT <> 0 THEN 'Spot'
@@ -3845,6 +3867,96 @@ FROM USCTTDEV.dbo.tblActualLoadDetail ald
                   ELSE 'Contract'
                 END
 OR ald.RateType IS NULL)*/
+
+/*
+Update RateType to "Spot' if it went on eAuction process and is still marked as contract
+3/25/2021 - Added
+*/
+UPDATE USCTTDEV.dbo.tblActualLoadDetail
+SET RateType = 'Spot'
+FROM USCTTDEV.dbo.tblActualLoadDetail ald
+INNER JOIN (
+SELECT * FROM OPENQUERY(NAJDAPRD,'SELECT DISTINCT fablt.BID_LOAD_ID,
+fablt.EXTL_LOAD_ID AS LD_LEG_ID,
+bids.TotalBids As BidCount,
+bids.TotalBidders As EligibleToBidCount,
+CASE WHEN bids.TotalBids = 0 THEN ''No Participation''
+WHEN awards.BID_LOAD_ID IS NULL THEN ''Not Awarded''
+WHEN awards.BID_LOAD_ID IS NOT NULL THEN ''Awarded''
+END AS FinalLoadParticipation,
+awards.TotalBid AS WinningBid,
+awards.CARR_CD AS WinningCarrier,
+awards.SRVC_CD AS WinningService
+FROM najdafa.tm_frht_auction_bid_ld_t fablt
+
+/*
+This query contains all of the details about awarded loads
+*/
+LEFT JOIN (
+SELECT DISTINCT facbt.BID_LOAD_ID, 
+fablt.EXTL_LOAD_ID AS LD_LEG_ID,
+facbt.BID_RESPONSE_ENU,
+facbt.RATE_ADJ_AMT_DLR,
+facbt.RATE_ADJ_AWARD_AMT_DLR,
+facbt.CONTRACT_AMT_DLR,
+CASE WHEN facbt.RATE_ADJ_AWARD_AMT_DLR IS NULL THEN facbt.RATE_ADJ_AMT_DLR ELSE facbt.RATE_ADJ_AWARD_AMT_DLR END + facbt.CONTRACT_AMT_DLR AS TotalBid,
+facbt.CARR_CD,
+facbt.SRVC_CD,
+Options.TotalBidders
+FROM najdafa.tm_frht_auction_car_bid_t facbt
+INNER JOIN najdafa.tm_frht_auction_bid_ld_t fablt ON fablt.bid_load_id = facbt.bid_load_id
+LEFT JOIN (SELECT DISTINCT facbt.BID_LOAD_ID, COUNT(*) AS TotalBidders
+FROM najdafa.tm_frht_auction_car_bid_t facbt
+WHERE facbt.BID_RESPONSE_ENU IS NOT NULL
+GROUP BY facbt.BID_LOAD_ID) Options ON Options.BID_LOAD_ID = facbt.BID_LOAD_ID
+WHERE facbt.BID_RESPONSE_ENU = ''LOAD_AWARDED''
+)awards ON awards.bid_load_id = fablt.BID_LOAD_ID
+AND awards.LD_LEG_ID = fablt.EXTL_LOAD_ID
+
+/*
+This query contains the total bid/participation count
+*/
+LEFT JOIN(
+SELECT DISTINCT facbt.BID_LOAD_ID, 
+COUNT(*) AS TotalBidders,
+SUM(CASE WHEN facbt.RATE_ADJ_AMT_DLR IS NOT NULL THEN 1
+WHEN facbt.RATE_ADJ_AWARD_AMT_DLR IS NOT NULL THEN 1
+ELSE 0 END) AS TotalBids
+FROM najdafa.tm_frht_auction_car_bid_t facbt
+GROUP BY facbt.BID_LOAD_ID
+ORDER BY facbt.BID_LOAD_ID ASC
+) bids ON bids.bid_load_id = fablt.BID_LOAD_ID
+
+/*
+Only use the most recent BID_LOAD_ID details
+*/
+INNER JOIN (
+SELECT MAX (fablt.BID_LOAD_ID) AS MaxID,
+fablt.EXTL_LOAD_ID AS LD_LEG_ID
+FROM najdafa.tm_frht_auction_bid_ld_t fablt
+GROUP BY fablt.EXTL_LOAD_ID
+) maxID ON maxID.MaxID = fablt.BID_LOAD_ID
+
+WHERE fablt.AUCTION_ENTRY_DTT >= ''2020-03-01''
+
+GROUP BY 
+fablt.BID_LOAD_ID,
+fablt.EXTL_LOAD_ID,
+CASE WHEN awards.BID_LOAD_ID IS NOT NULL THEN awards.TotalBidders END,
+bids.TotalBids,
+bids.TotalBidders,
+CASE WHEN bids.TotalBids = 0 THEN ''No Participation''
+WHEN awards.BID_LOAD_ID IS NULL THEN ''Not Awarded''
+WHEN awards.BID_LOAD_ID IS NOT NULL THEN ''Awarded''
+END,
+awards.TotalBid,
+awards.CARR_CD,
+awards.SRVC_CD')FinalStatus
+WHERE FinalStatus.FinalLoadParticipation = 'Awarded'
+) eAuction ON eAuction.LD_LEG_ID = ald.LD_LEG_ID
+AND eAuction.WinningCarrier = ald.CARR_CD
+AND eAuction.WinningService = ald.SRVC_CD
+WHERE ald.RateType <> 'Spot'
 
 /*
 New 1/20/2021 - Per Regina Black

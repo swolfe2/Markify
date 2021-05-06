@@ -127,3 +127,11 @@ GROUP BY ald.Lane,
            WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
            ELSE ald.SHPD_DTT
          END AS date)
+
+
+
+{=INDEX(qryServiceCode[Tariff ID],MATCH(1,(D2=qryJDATariffs[@[Tariff ID]])*(F2=qryJDATariffs[@[Origin Zone Code]])*(G2=qryJDATariffs[@[Dest Zone Code]]),0))}
+
+=INDEX(qryServiceCode[Tariff ID],MATCH(1,(D2=B5:B11)*(F2=C5:C11)*(G2=D5:D11),0))
+
+=INDEX(qryServiceCode[Tariff ID],MATCH(1,INDEX((D2=qryJDATariffs[@[Tariff ID]])*(F2=qryJDATariffs[@[Origin Zone Code]])*(G2=qryJDATariffs[@[Dest Zone Code]]),0,1),0))
