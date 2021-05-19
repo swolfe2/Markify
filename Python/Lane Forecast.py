@@ -35,27 +35,6 @@ from datetime import datetime
 import time
 from shutil import copyfile, move
 
-#Set starting directory
-startDir = r'\\USTCA097\Stage\Database Files\Lane Forecast Analysis'
-
-#Set directory which has files
-fileDir = r'\\kcfiles\share\Corporate\DISTRIBUTION\Dist Analysis\Projects\2019 Projects\Outbound Lane tool\v2021'
-
-#Loop through all files, and if the forecast file that was modified in the last 24 hours, copy to the Files to Process folder;
-for filename in os.listdir(fileDir):
-    now = datetime.today()
-    if filename.endswith('.xlsx') and "LANE FCST ACTUAL" in filename.upper():
-        filepath = fileDir +'\\'+ filename
-        modDate = datetime.fromtimestamp(os.path.getmtime(filepath))
-        hoursOld = (now - modDate).total_seconds() / 3600
-        if hoursOld < 24 and os.path.getsize(filepath) > 0:
-                destfilepath = startDir +'\\'+ filename
-                copyfile(filepath, destfilepath)
-        else: exit()
-
-#Reset file name now that we're going on
-filename = "Lane Fcst Actual.xlsx"
-
 # Open connection to MSSQL Server
 tempdb_params = quote_plus( "Driver={ODBC Driver 17 for SQL Server};"
                             "Server=USTCAS98.KCC.COM;Database=TEMPDB;"
@@ -84,6 +63,37 @@ USCTTDEV_params = quote_plus("Driver={ODBC Driver 17 for SQL Server};"
 USCTTDEV_conn_string = f"mssql+pyodbc:///?odbc_connect={USCTTDEV_params}"
 USCTTDEV = sa.create_engine(USCTTDEV_conn_string)
 USCTTDEVConn = USCTTDEV.connect()
+
+#Runs stored procedure on MSSQL server to append new data to main table, and update existing rows
+def sp_MSSQL_LaneForecastAccuracy():
+    sqlSPString = ("EXEC USCTTDEV.dbo.sp_LaneForecastAccuracy")
+    # cleans the previous head insert
+    with tembdb_connection.cursor() as cursor:
+        cursor.execute(str(sqlSPString))
+        tembdb_connection.commit()
+
+#Set starting directory
+startDir = r'\\USTCA097\Stage\Database Files\Lane Forecast Analysis'
+
+#Set directory which has files
+fileDir = r'\\kcfiles\share\Corporate\DISTRIBUTION\Dist Analysis\Projects\2019 Projects\Outbound Lane tool\v2021'
+
+#Loop through all files, and if the forecast file that was modified in the last 24 hours, copy to the Files to Process folder;
+for filename in os.listdir(fileDir):
+    now = datetime.today()
+    if filename.endswith('.xlsx') and "LANE FCST ACTUAL" in filename.upper():
+        filepath = fileDir +'\\'+ filename
+        modDate = datetime.fromtimestamp(os.path.getmtime(filepath))
+        hoursOld = (now - modDate).total_seconds() / 3600
+        if hoursOld < 24 and os.path.getsize(filepath) > 0:
+                destfilepath = startDir +'\\'+ filename
+                copyfile(filepath, destfilepath)
+        else: 
+            sp_MSSQL_LaneForecastAccuracy()
+            exit()            
+
+#Reset file name now that we're going on
+filename = "Lane Fcst Actual.xlsx"
 
 #Update the single temp table value to null where they are certain values
 def cleanMSSQL():
@@ -262,6 +272,9 @@ addMSSQLColumns()
 
 #Run Stored Procedure to append new lanes, and update existing ones
 sp_MSSQL()
+
+#Run stored procedure for Lane Forecast Accuracy
+sp_MSSQL_LaneForecastAccuracy()
 
 # Disconnect from production MSSQL Server, and drop connection
 USCTTDEVConn.invalidate()

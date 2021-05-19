@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_HistoricLaneAwards]    Script Date: 1/17/2020 11:51:48 AM ******/
+/****** Object:  StoredProcedure [dbo].[sp_HistoricLaneAwards]    Script Date: 5/18/2021 1:47:22 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -8,7 +8,9 @@ GO
 -- =============================================
 -- Author:		Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team
 -- Create date: 10/4/2019
--- Last modified: 1/16/2020
+-- Last modified: 5/18/2021
+-- 5/18/2021 - SW - Added update logic to update the ExpirationDate in case there was some kind of append error
+-- 3/22/2021 - SW - Added a OR clause to the insert of new lanes for when the lane already exists, but the expiration date is before today's date
 -- 1/16/2020 - SW - Made an oopsie on the lane; was updating the DEST_CITY_STATE to the ORIG_CITY_STATE; fixed!
 -- Description:	Append historic rate award changes to dbo.tblHistoricAwards
 -- =============================================
@@ -34,6 +36,31 @@ What is this thing doing?
 */
 
 /*
+Update null strings to whatever matches in Actual Load Detail, if something matches
+Only use which ZIP has the most loads
+*/
+
+UPDATE USCTTDEV.dbo.tblBidAppLanes
+SET OriginZip = zips.Zip
+FROM USCTTDEV.dbo.tblBidAppLanes bal
+INNER JOIN (
+SELECT Origin, 
+ZIP,
+LoadCount,
+Rank
+FROM(
+SELECT DISTINCT ald.FRST_CTY_NAME + ', ' +   ald.FRST_STA_CD AS Origin, 
+CASE WHEN ald.FRST_CTRY_CD = 'USA' THEN LEFT(ald.FRST_PSTL_CD,5) ELSE ald.FRST_PSTL_CD END AS Zip,
+COUNT(*) AS LoadCount,
+ROW_NUMBER() OVER (PARTITION BY ald.FRST_CTY_NAME + ', ' +   ald.FRST_STA_CD ORDER BY COUNT(*) DESC) Rank
+FROM USCTTDEV.dbo.tblActualLoadDetail ald
+GROUP BY ald.FRST_CTY_NAME + ', ' +   ald.FRST_STA_CD,
+CASE WHEN ald.FRST_CTRY_CD = 'USA' THEN LEFT(ald.FRST_PSTL_CD,5) ELSE ald.FRST_PSTL_CD END
+) data
+WHERE data.Rank = 1) zips ON zips.Origin = bal.Origin
+WHERE bal.OriginZip IS NULL
+
+/*
 Drop all temp tables, and ensure a clean process
 */
 DROP 
@@ -42,6 +69,7 @@ DROP
   
 /*
 Create temp table with basic info from USCTTDEV.dbo.tblBidAppLanes
+SELECT * FROM ##tblBidAppLanesTemp
 */
 SELECT 
   * INTO ##tblBidAppLanesTemp  FROM 
@@ -106,6 +134,7 @@ DROP
   
 /*
 Create temp table for weighted RPM
+SELECT DISTINCT bar.Lane FROM USCTTDEV.dbo.tblBidAppRates bar WHERE bar.AWARD_PCT > 0
 */
 SELECT 
   * INTO ##tblBidAppLanesRatesTemp  FROM 
@@ -149,6 +178,21 @@ SET
 FROM 
   ##tblBidAppLanesTemp balt
   INNER JOIN ##tblBidAppLanesRatesTemp balrt on balrt.laneid = balt.laneid
+
+/*
+Update any potential nulls
+*/
+  UPDATE 
+	USCTTDEV.dbo.tblAwardLanesHistorical
+	SET WeightedRPM = balt.WeightedRPM,
+	AwardCarrierCount = balt.AwardCarrierCount,
+	AwardPercent = balt.AwardPercent 
+FROM USCTTDEV.dbo.tblAwardLanesHistorical alh
+INNER JOIN ##tblBidAPpLanesTemp balt ON balt.Lane = alh.Lane
+AND balt.EffectiveDate = alh.EffectiveDate
+AND balt.ExpirationDate = alh.ExpirationDate
+WHERE alh.WeightedRPM IS NULL
+AND balt.WeightedRPM IS NOT NULL
   
 /*
 Set variabless
@@ -168,8 +212,11 @@ Set
 
 /*
 If the Lane / Effective Date / Weighted RPM combination doesn't match what's on the temp table, then mark the expiration date as 1 day before today's date
-Select * from ##tblBidAppLanesTemp where LaneID = 2
+Select * from ##tblBidAppLanesTemp where LaneID = 97
 Select * from ##tblBIdAppLanesRatesTemp
+SELECT * FROM USCTTDEV.dbo.tblAwardLanesHistorical WHERE LaneID = 97
+DELETE FROM USCTTDEV.dbo.tblAwardLanesHistorical WHERE ID = 23545
+UPDATE USCTTDEV.dbo.tblAwardLanesHistorical SET ExpirationDate = '2999-12-31 00:00:00.000', UPDATED_LOADS = 2 WHERE ID = 97
 */
 UPDATE 
   USCTTDEV.dbo.tblAwardLanesHistorical 
@@ -194,7 +241,8 @@ FROM
   ) max on max.Laneid = balt.laneid
   and max.MaxID = alh.ID 
 WHERE 
-  bart.WeightedRPM <> alh.WeightedRPM 
+  bart.WeightedRPM <> alh.WeightedRPM
+  OR balt.UPDATED_LOADS <> alh.UPDATED_LOADS
   AND alh.ExpirationDate > GETDATE() 
 
 /*
@@ -293,6 +341,9 @@ FROM
   and max.MaxID = alh.ID 
 WHERE 
   alh.WeightedRPM <> bart.WeightedRPM 
+  OR alh.WeightedRPM IS NULL
+  OR alh.UPDATED_LOADS <> balt.UPDATED_LOADS
+  OR CAST(alh.ExpirationDate AS DATE) < CAST(GETDATE() AS DATE)
 ORDER BY 
   balt.LaneID ASC 
 
@@ -307,6 +358,12 @@ Select * FROM
 WHERE 
   bart.lane is null 
   AND alh.ExpirationDate > 10/24/2019
+
+  SELECT * FROM 
+  USCTTDEV.dbo.tblAwardLanesHistorical alh 
+  LEFT JOIN ##tblBidAppLanesRatesTemp bart on bart.laneid = alh.laneid
+ WHERE   bart.lane is null
+  AND alh.AwardPercent is not null
 */
 
 UPDATE 
@@ -350,6 +407,27 @@ SET
 	LastUpdated = @Now
 FROM USCTTDEV.dbo.tblAwardLanesHistorical alh
 INNER JOIN ##tblBidAppLanesTemp bal ON bal.MaxID = alh.ID AND bal.LaneID = alh.LaneID
+
+/*
+Update Expiration Date to what it should be in case there was some kind of error when it appended
+*/
+UPDATE USCTTDEV.dbo.tblAwardLanesHistorical
+SET ExpirationDate = updateDate.UpdatedEffectiveDate
+FROM USCTTDEV.dbo.tblAwardLanesHistorical arh
+INNER JOIN (
+SELECT updateEff.Lane,
+updateEff.EffectiveDate,
+updateEff.UpdatedEffectiveDate
+FROM (
+SELECT DISTINCT alh.Lane,
+alh.EffectiveDate,
+LEAD(EffectiveDate,1,0) OVER (PARTITION BY alh.Lane ORDER BY alh.EffectiveDate ASC) - 1 AS UpdatedEffectiveDate
+FROM USCTTDEV.dbo.tblAwardLanesHistorical alh
+WHERE alh.ExpirationDate = '12/31/2999'
+/*AND Lane = 'ALTHEODO-5WI53110'*/) updateEff
+WHERE updateEff.UpdatedEffectiveDate >= '1/1/2020'
+) updateDate ON updateDate.Lane = arh.Lane
+AND updateDate.EffectiveDate = arh.EffectiveDate
 
 /*
 delete from USCTTDEV.dbo.tblAwardLanesHistorical
