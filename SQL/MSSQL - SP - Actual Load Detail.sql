@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 3/25/2021 11:24:24 AM ******/
+/****** Object:  StoredProcedure [dbo].[sp_ActualLoadDetail]    Script Date: 6/2/2021 8:51:37 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -9,8 +9,11 @@ GO
 -- =============================================
 -- Author:		<Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team>
 -- Create date: <9/30/2019>
--- Last modified: <3/25/2021>
+-- Last modified: <6/2/2021>
 -- Description:	<Executes query against Oracle, loads to temp table, then appends/updates dbo.tblActualLoadDetail>
+-- 6/2/2021 - SW - Added update query for a handful of loads where a rate was 100x higher than what it should have been
+-- 5/4/2021 - SW - Added 2542, 2293, 2514 to CONSUMER BU logic, per Lynlee Robinson
+-- 4/23/2021 - SW - Added Repo codes back to Linehaul bucket per Jeff Perrot email. Also removed Repo costs from TotalCost buckets.
 -- 3/25/2021 - SW - Added secondary catch for Rate Type, in case it went through the eAuction process. Note: It didn't change anything, but it might in the future. Also, added stored procedure to take USBank charge detail to ALD and reallocate buckets.
 -- 3/1/2021 - SW - Updated region logic to also include the BU before assigning
 -- 2/26/2021 - SW - Updated to add HJBM to Spot per MS Teams message from Jeff Perrot
@@ -509,7 +512,9 @@ Select * into ##tblPreRateLoadDetailsRaw from OPENQUERY(NAJDAPRD, 'SELECT
             ''ZNFD'',
             ''ZWND'',
             ''ZJBH'',
-            ''ZSPT''
+            ''ZSPT'',
+			''ZREP'',
+            ''ZDHM''
         ) THEN
             ''PreRate_Linehaul''
         WHEN l.srvc_cd NOT IN (
@@ -552,7 +557,9 @@ Select * into ##tblPreRateLoadDetailsRaw from OPENQUERY(NAJDAPRD, 'SELECT
             ''ZNFD'',
             ''ZWND'',
             ''ZJBH'',
-            ''ZSPT''
+            ''ZSPT'',
+			''ZREP'',
+            ''ZDHM''
         ) THEN
             ''PreRate_Linehaul''
         WHEN c.chrg_cd IN (
@@ -774,7 +781,9 @@ Select * into ##tblActualRateLoadDetailsRaw from OPENQUERY(NAJDAPRD,'SELECT
             ''ZNFD'',
             ''ZWND'',
             ''ZJBH'',
-            ''ZSPT''
+            ''ZSPT'',
+			''ZREP'',
+            ''ZDHM''
         ) THEN
             ''Act_Linehaul''
         WHEN l.srvc_cd NOT IN (
@@ -817,7 +826,9 @@ Select * into ##tblActualRateLoadDetailsRaw from OPENQUERY(NAJDAPRD,'SELECT
             ''ZNFD'',
             ''ZWND'',
             ''ZJBH'',
-            ''ZSPT''
+            ''ZSPT'',
+			''ZREP'',
+            ''ZDHM''
         ) THEN
             ''Act_Linehaul''
         WHEN c.chrg_cd IN (
@@ -1209,7 +1220,10 @@ FROM
 							''2469'',
 							''1023'',
 							''1113'',
-							''2518''
+							''2518'',
+							''2542'',
+							''2293'',
+							''2514''
                         ) THEN
                             ''CONSUMER''
                         WHEN substr(last_shpg_loc_cd, 1, 4) IN (
@@ -2096,7 +2110,10 @@ FROM
 							''2469'',
 							''1023'',
 							''1113'',
-							''2518''
+							''2518'',
+							''2542'',
+							''2293'',
+							''2514''
                         ) THEN
                             ''CONSUMER''
                         WHEN substr(last_shpg_loc_cd, 1, 4) IN (
@@ -2340,7 +2357,10 @@ FROM
 							''2469'',
 							''1023'',
 							''1113'',
-							''2518''
+							''2518'',
+							''2542'',
+							''2293'',
+							''2514''
                         ) THEN
                             ''CONSUMER''
                         WHEN substr(last_shpg_loc_cd, 1, 4) IN (
@@ -2663,6 +2683,8 @@ If there are actuals costs, the use Actuals
 Else if there are PreRate costs, use PreRate
 Else use the higher of PreRate or Actuals (should be $1500 for JB Hunt stuff)
 SELECT * FROM ##tblActualLoadDetailsALD WHERE PreRateCharge <> 'YES' AND ActualRateCharge <> 'YES' 
+
+Update 4/23/2021 per Jeff Perrot - Adding Repo back into Linehaul means removing that bucket from Total Cost
 */
 UPDATE ##tblActualLoadDetailsALD
 SET TotalCost = 
@@ -2670,25 +2692,39 @@ CASE WHEN ActualRateCharge = 'Yes' THEN
 ISNULL(CONVERT(NUMERIC(18,2),Act_Linehaul),0)
 +ISNULL(CONVERT(NUMERIC(18,2),Act_Accessorials),0)
 +ISNULL(CONVERT(NUMERIC(18,2),Act_Fuel),0)
-+ISNULL(CONVERT(NUMERIC(18,2),Act_Repo),0)
+/*+ISNULL(CONVERT(NUMERIC(18,2),Act_Repo),0)*/
 +ISNULL(CONVERT(NUMERIC(18,2),Act_ZUSB),0)
 
 WHEN PreRateCharge = 'Yes' THEN
 ISNULL(CONVERT(NUMERIC(18,2),PreRate_Linehaul),0)
 +ISNULL(CONVERT(NUMERIC(18,2),PreRate_Accessorials),0)
 +ISNULL(CONVERT(NUMERIC(18,2),PreRate_Fuel),0)
-+ISNULL(CONVERT(NUMERIC(18,2),PreRate_Repo),0)
+/*+ISNULL(CONVERT(NUMERIC(18,2),PreRate_Repo),0)*/
 +ISNULL(CONVERT(NUMERIC(18,2),PreRate_ZUSB),0)
 
 ELSE
 CASE WHEN ISNULL(CONVERT(NUMERIC(18,2),PreRate_Linehaul),0) > ISNULL(CONVERT(NUMERIC(18,2),Act_Linehaul),0) THEN ISNULL(CONVERT(NUMERIC(18,2),PreRate_Linehaul),0) ELSE ISNULL(CONVERT(NUMERIC(18,2),Act_Linehaul),0) END
 +CASE WHEN ISNULL(CONVERT(NUMERIC(18,2),PreRate_Accessorials),0) > ISNULL(CONVERT(NUMERIC(18,2),Act_Accessorials),0) THEN ISNULL(CONVERT(NUMERIC(18,2),PreRate_Accessorials),0) ELSE ISNULL(CONVERT(NUMERIC(18,2),Act_Accessorials),0) END
 +CASE WHEN ISNULL(CONVERT(NUMERIC(18,2),PreRate_Fuel),0) > ISNULL(CONVERT(NUMERIC(18,2),Act_Fuel),0) THEN ISNULL(CONVERT(NUMERIC(18,2),PreRate_Fuel),0) ELSE ISNULL(CONVERT(NUMERIC(18,2),Act_Fuel),0) END
-+CASE WHEN ISNULL(CONVERT(NUMERIC(18,2),PreRate_Repo),0) > ISNULL(CONVERT(NUMERIC(18,2),Act_Repo),0) THEN ISNULL(CONVERT(NUMERIC(18,2),PreRate_Repo),0) ELSE ISNULL(CONVERT(NUMERIC(18,2),Act_Repo),0) END
+/*+CASE WHEN ISNULL(CONVERT(NUMERIC(18,2),PreRate_Repo),0) > ISNULL(CONVERT(NUMERIC(18,2),Act_Repo),0) THEN ISNULL(CONVERT(NUMERIC(18,2),PreRate_Repo),0) ELSE ISNULL(CONVERT(NUMERIC(18,2),Act_Repo),0) END*/
 +CASE WHEN ISNULL(CONVERT(NUMERIC(18,2),PreRate_ZUSB),0) > ISNULL(CONVERT(NUMERIC(18,2),Act_ZUSB),0) THEN ISNULL(CONVERT(NUMERIC(18,2),PreRate_ZUSB),0) ELSE ISNULL(CONVERT(NUMERIC(18,2),Act_ZUSB),0) END
 
 END
 FROM ##tblActualLoadDetailsALD
+
+/*
+6/2/2021 -  Manually update linehaul costs due to carrier manager accidentally putting costs in that were 100x higher
+SELECT ald.LD_LEG_ID, ald.PreRate_Linehaul, ald.Act_Linehaul, ald.Act_Accessorials, ald.Act_Fuel, ald.Act_ZUSB, ald.ACTL_CHGD_AMT_DLR, ald.TotalCost FROM ##tblActualLoadDetailsALD ald
+WHERE LD_LEG_ID IN ('521800692','521800702','521800714','521800716','521800721','521805740','521805741')
+*/
+UPDATE ##tblActualLoadDetailsALD
+SET PreRate_Linehaul = ROUND(2.7 * [FIXD_ITNR_DIST],2),
+Act_Linehaul = ROUND(2.7 * [FIXD_ITNR_DIST],2),
+TotalCost = ROUND(2.7 * [FIXD_ITNR_DIST],2) + COALESCE(Act_Accessorials,0) + COALESCE(Act_Fuel,0),
+ACTL_CHGD_AMT_DLR = ROUND(2.7 * [FIXD_ITNR_DIST],2) + COALESCE(Act_Accessorials,0) + COALESCE(Act_Fuel,0)
+WHERE LD_LEG_ID IN ('521800692','521800702','521800714','521800716','521800721','521805740','521805741')
+AND Act_Linehaul > 10000
+AND Act_ZUSB IS NULL
 
 /*
 Now that we've got total cost, let's split out by the difference business units
@@ -3176,11 +3212,19 @@ WHERE ald.LD_LEG_ID IS NULL
 ORDER BY LD_LEG_ID ASC
 
 /*
+Update 4/23/2021 per email from Jeff Perrot
+Add Act_Repo back to linehaul costs should they not already be in there
+*/
+UPDATE USCTTDEV.dbo.tblActualLoadDetail 
+SET Act_Linehaul = Act_Linehaul + COALESCE(Act_Repo,0)
+WHERE Act_Linehaul <> Act_Linehaul + COALESCE(Act_Repo,0)
+AND TotalCost <> (COALESCE(Act_Accessorials,0) + COALESCE(Act_Fuel,0) + COALESCE(Act_Linehaul,0) + COALESCE(Act_ZUSB,0))
+
+/*
 Execute USB to ALD Stored Procedure
 3/25/2021
 */
 EXEC USCTTDEV.dbo.sp_USBankToActualLoadDetail
-
 
 /*
 Update Actual Load Details with new city names, when there's something weird
@@ -4118,7 +4162,7 @@ DROP TABLE IF EXISTS
 SELECT LD_LEG_ID, BU, CONSUMERVolume, KCPVolume, NonWovenVolume, UnknownVolume, BUCount FROM ##tblActualLoadDetailsALD WHERE BUCount >1
 select * FROM ##tblActualLoadDetailsALD WHERE UNKNOWNVOLUME IS NOT NULL
 SELECT * FROM USCTTDEV.dbo.tblActualLoadDetail ORDER BY ID ASC
-	SELECT * FROM ##tblBUWeightRaw WHERE LD_LEG_ID = 517072170
+SELECT * FROM ##tblBUWeightRaw WHERE LD_LEG_ID = 517072170
 SELECT * FROM ##tblActualBusinessUnits WHERE LD_LEG_ID = 517072170
 SELECT * FROM ##tblBUWeightPivot WHERE LD_LEG_ID = 517072170
 SELECT * FROM ##tblActualLoadDetailsALD WHERE LD_LEG_ID = 517072170

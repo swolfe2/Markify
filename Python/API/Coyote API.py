@@ -17,7 +17,7 @@ Production:
 client_ID = 'KCUSBANK'
 
 # Set run type; "Production" will use production creds / anything else will use sandbox
-runType = 'Sandbox'
+runType = 'Production'
 
 def creds():
     if runType == 'Production':
@@ -58,26 +58,26 @@ api_endpoint = credsDict.get("token_endpoint").replace('/connect/token', '/api/v
 payload = json.dumps({
     'equipmentTypeId': 'V',
     'origin': {
-        'cityName': 'Chicago',
-        'stateCode': 'IL',
+        'cityName': 'Ogden',
+        'stateCode': 'UT',
         'countryCode': 'US',
-        'postalCode': '60647'
+        'postalCode': '84404-7802'
     },
     'destination': {
-        'cityName': 'Madison',
-        'stateCode': 'WI',
+        'cityName': 'Carson City',
+        'stateCode': 'NV',
         'countryCode': 'US',
-        'postalCode': '53703'
+        'postalCode': '89705-6853'
     },
-    'pickUpDateUTC': '2020-08-07T12:41:03.6402864Z', #MUST BE A FUTURE DATE!
+    'pickUpDateUTC': '2021-06-04T18:53:00', #MUST BE A FUTURE DATE!
     'minTemperature': None,
     'maxTemperature': None,
-    'weight': 100,
+    'weight': 27856.5051,
     'commodity': 'Sample Commodity',
     'equipmentLength': 53,
     'isHazmat': False,
     'isDropTrailer': False,
-    'customerShipmentId': '123456789'
+    'customerShipmentId': '521822641'
 })
 
 # Get data reply from API

@@ -50,14 +50,14 @@ def getToken():
 token = getToken()
 
 payload = json.dumps({
-        "shipmentId": "123456",
+        "shipmentId": "521822641",
         "shipperId": "KCNAUSD",
         "truckTypes": [
             "DRY_VAN"
         ],
         "hazmat": False,
-        "totalMiles": 654,
-        "weightLbs": 4599,
+        "totalMiles": 588,
+        "weightLbs": 27857,
         "notes": "",
         "stops": [
             # Pickup Info
@@ -66,16 +66,16 @@ payload = json.dumps({
             "notes": "",
             "address": {
                 "country": "USA",
-                "city": "BEECH ISLAND",                
-                "postalCode": "29842",
-                "state": "SC",
-                "addressOne": "246 OLD JACKSON HWY",
-                "full": "246 OLD JACKSON HWY, BEECH ISLAND, SC, 29842"
+                "city": "OGDEN",                
+                "postalCode": "844047802",
+                "state": "UT",
+                "addressOne": "2010 N RULON WHITE BLVD",
+                "full": "2010 N RULON WHITE BLVD, OGDEN, UT, 844047802"
             },
             "timezone": "EST",
             "stopType": "PICKUP",
-            "startTime": "2020-11-06T13:12:06.556Z",
-            "endTime": "2020-11-06T13:12:06.556Z"
+            "startTime": "2021-06-06T18:53:00.556Z",
+            "endTime": "2021-06-06T18:53:00.556Z"
             },
 
             # Stop 1 info
@@ -84,16 +84,16 @@ payload = json.dumps({
             "notes": "string",
             "address": {
                 "country": "USA",
-                "city": "NEENAH",                
-                "postalCode": "549564068",
-                "state": "WI",
-                "addressOne": "2001 MARATHON AVE",
-                "full": "2001 MARATHON AVE, NEENAH, WI, 549564068"
+                "city": "CARSON CITY",                
+                "postalCode": "897056853",
+                "state": "NV",
+                "addressOne": "700 OLD CLEAR CREEK RD",
+                "full": "700 OLD CLEAR CREEK RD, CARSON CITY, NV, 897056853"
             },
             "timezone": "EST",
             "stopType": "DROPOFF",
-            "startTime": "2020-11-07T19:12:06.556Z",
-            "endTime": "2020-11-07T19:12:06.556Z"
+            "startTime": "2021-06-08T08:34:00.556Z",
+            "endTime": "2021-06-08T08:34:00.556Z"
             }
         ]
     })

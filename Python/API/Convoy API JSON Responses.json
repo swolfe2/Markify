@@ -1,0 +1,194 @@
+{
+    "spotQuoteId": 6335201,
+    "customerShipmentId": "521826774",
+    "origin": {
+      "cityName": "Charlotte",
+      "stateCode": "NC",
+      "countryCode": "US",
+      "postalCode": "28256"
+    },
+    "destination": {
+      "cityName": "Loudon",
+      "stateCode": "TN",
+      "countryCode": "US",
+      "postalCode": "37774-6315"
+    },
+    "equipmentTypeId": 1,
+    "pickUpDateUTC": "2021-06-04T07:00:00Z",
+    "validUntilUtc": "2021-06-02T23:20:39.9126705Z",
+    "totalRate": 1490.97,
+    "rateLineItems": [
+      {
+        "rateCode": "FR",
+        "description": "Flat Rate",
+        "unitRate": 1405.82,
+        "units": 1.0,
+        "totalRate": 1405.82,
+        "currency": "USD"
+      },
+      {
+        "rateCode": "405",
+        "description": "Fuel Surcharge",
+        "unitRate": 0.32,
+        "units": 263.3,
+        "totalRate": 85.15,
+        "currency": "USD"
+      }
+    ]
+  }
+
+  {
+    "spotQuoteId": 6335318,
+    "customerShipmentId": "521827732",
+    "origin": {
+      "cityName": "McDonough",
+      "stateCode": "GA",
+      "countryCode": "US",
+      "postalCode": "30253-3006"
+    },
+    "destination": {
+      "cityName": "Romeoville",
+      "stateCode": "IL",
+      "countryCode": "US",
+      "postalCode": "60446-4502"
+    },
+    "equipmentTypeId": 1,
+    "pickUpDateUTC": "2021-06-04T09:30:00Z",
+    "validUntilUtc": "2021-06-02T23:25:27.2744136Z",
+    "totalRate": 2585.57,
+    "rateLineItems": [
+      {
+        "rateCode": "FR",
+        "description": "Flat Rate",
+        "unitRate": 2335.55,
+        "units": 1.0,
+        "totalRate": 2335.55,
+        "currency": "USD"
+      },
+      {
+        "rateCode": "405",
+        "description": "Fuel Surcharge",
+        "unitRate": 0.32,
+        "units": 773.1,
+        "totalRate": 250.02,
+        "currency": "USD"
+      }
+    ]
+  }
+
+  {
+    "spotQuoteId": 6335358,
+    "customerShipmentId": "521819518",
+    "origin": {
+      "cityName": "McDonough",
+      "stateCode": "GA",
+      "countryCode": "US",
+      "postalCode": "30253-3006"
+    },
+    "destination": {
+      "cityName": "Henrico",
+      "stateCode": "VA",
+      "countryCode": "US",
+      "postalCode": "23231-5410"
+    },
+    "equipmentTypeId": 1,
+    "pickUpDateUTC": "2021-06-04T14:30:00Z",
+    "validUntilUtc": "2021-06-02T23:26:59.79777Z",
+    "totalRate": 2583.84,
+    "rateLineItems": [
+      {
+        "rateCode": "FR",
+        "description": "Flat Rate",
+        "unitRate": 2400.99,
+        "units": 1.0,
+        "totalRate": 2400.99,
+        "currency": "USD"
+      },
+      {
+        "rateCode": "405",
+        "description": "Fuel Surcharge",
+        "unitRate": 0.32,
+        "units": 565.4,
+        "totalRate": 182.85,
+        "currency": "USD"
+      }
+    ]
+  }
+
+  {
+    "spotQuoteId": 6335374,
+    "customerShipmentId": "521832132",
+    "origin": {
+      "cityName": "Marion",
+      "stateCode": "AR",
+      "countryCode": "US",
+      "postalCode": "72364-2827"
+    },
+    "destination": {
+      "cityName": "Romeoville",
+      "stateCode": "IL",
+      "countryCode": "US",
+      "postalCode": "60446-4501"
+    },
+    "equipmentTypeId": 1,
+    "pickUpDateUTC": "2021-06-04T14:30:00Z",
+    "validUntilUtc": "2021-06-02T23:28:22.4530436Z",
+    "totalRate": 2104.9,
+    "rateLineItems": [
+      {
+        "rateCode": "FR",
+        "description": "Flat Rate",
+        "unitRate": 1940.42,
+        "units": 1.0,
+        "totalRate": 1940.42,
+        "currency": "USD"
+      },
+      {
+        "rateCode": "405",
+        "description": "Fuel Surcharge",
+        "unitRate": 0.32,
+        "units": 508.6,
+        "totalRate": 164.48,
+        "currency": "USD"
+      }
+    ]
+  }
+
+  {
+    "spotQuoteId": 6335385,
+    "customerShipmentId": "521822641",
+    "origin": {
+      "cityName": "Ogden",
+      "stateCode": "UT",
+      "countryCode": "US",
+      "postalCode": "84404-7802"
+    },
+    "destination": {
+      "cityName": "Carson City",
+      "stateCode": "NV",
+      "countryCode": "US",
+      "postalCode": "89705-6853"
+    },
+    "equipmentTypeId": 1,
+    "pickUpDateUTC": "2021-06-04T18:53:00Z",
+    "validUntilUtc": "2021-06-02T23:29:49.5557312Z",
+    "totalRate": 1846.58,
+    "rateLineItems": [
+      {
+        "rateCode": "FR",
+        "description": "Flat Rate",
+        "unitRate": 1662.14,
+        "units": 1.0,
+        "totalRate": 1662.14,
+        "currency": "USD"
+      },
+      {
+        "rateCode": "405",
+        "description": "Fuel Surcharge",
+        "unitRate": 0.32,
+        "units": 570.3,
+        "totalRate": 184.44,
+        "currency": "USD"
+      }
+    ]
+  }

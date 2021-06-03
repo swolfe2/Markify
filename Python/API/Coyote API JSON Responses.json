@@ -1,0 +1,49 @@
+{
+    "bidCents": 138300,
+    "id": "2ac12f00-79ea-45b4-bb99-277169ff1c80",
+    "decisionExpiration": "2021-06-03T18:41:50.350Z",
+    "reason": {
+      "category": "RATE_RETURNED",
+      "message": "Bid provided"
+    }
+  }
+
+{
+    "bidCents": 224600,
+    "id": "dfd161d2-3026-4532-8c44-f39fd46a772b",
+    "decisionExpiration": "2021-06-03T18:46:02.810Z",
+    "reason": {
+      "category": "RATE_RETURNED",
+      "message": "Bid provided"
+    }
+  }
+
+{
+    "bidCents": 238300,
+    "id": "ed373f16-1c89-46c0-ad5b-3af059a5fa1d",
+    "decisionExpiration": "2021-06-03T18:48:45.569Z",
+    "reason": {
+      "category": "RATE_RETURNED",
+      "message": "Bid provided"
+    }
+  }
+
+{
+    "bidCents": 200400,
+    "id": "27f40b70-2f9a-4e23-a448-913e4ffab2be",
+    "decisionExpiration": "2021-06-03T18:52:10.695Z",
+    "reason": {
+      "category": "RATE_RETURNED",
+      "message": "Bid provided"
+    }
+  }
+
+  {
+    "bidCents": 158200,
+    "id": "00446d32-a9e9-451d-a834-c3eeaac37ab3",
+    "decisionExpiration": "2021-06-03T18:55:09.704Z",
+    "reason": {
+      "category": "RATE_RETURNED",
+      "message": "Bid provided"
+    }
+  }
