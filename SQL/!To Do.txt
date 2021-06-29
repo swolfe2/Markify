@@ -135,3 +135,17 @@ GROUP BY ald.Lane,
 =INDEX(qryServiceCode[Tariff ID],MATCH(1,(D2=B5:B11)*(F2=C5:C11)*(G2=D5:D11),0))
 
 =INDEX(qryServiceCode[Tariff ID],MATCH(1,INDEX((D2=qryJDATariffs[@[Tariff ID]])*(F2=qryJDATariffs[@[Origin Zone Code]])*(G2=qryJDATariffs[@[Dest Zone Code]]),0,1),0))
+
+Bearer then space; then auth token
+
+e8c3fa81-733c-4bbd-9dac-3d2cb4c37d06
+
+Use the Authorization Code Grant
+
+	5e1fddad-1b36-4dcd-9515-4784b542787d
+
+https://account-d.docusign.com/oauth/auth?response_type=code&scope=signature&client_id=e8c3fa81-733c-4bbd-9dac-3d2cb4c37d06&redirect_uri=https://kimberlyclark.sharepoint.com/Teams/A286/Rates/ContractsPricing/default.aspx
+
+https://account-d.docusign.com/oauth/auth?response_type=code&scope=signature&client_id=5e1fddad-1b36-4dcd-9515-4784b542787d&redirect_uri=https://kimberlyclark.sharepoint.com/Teams/A286/Rates/ContractsPricing/default.aspx
+
+eyJ0eXAiOiJNVCIsImFsZyI6IlJTMjU2Iiwia2lkIjoiNjgxODVmZjEtNGU1MS00Y2U5LWFmMWMtNjg5ODEyMjAzMzE3In0.AQoAAAABAAYABwAABqO6SS_ZSAgAAJIpAkov2UgCAPIWlrY59z5BpmOPtO358TsVAAEAAAAYAAEAAAAFAAAADQAkAAAANWUxZmRkYWQtMWIzNi00ZGNkLTk1MTUtNDc4NGI1NDI3ODdkIgAkAAAANWUxZmRkYWQtMWIzNi00ZGNkLTk1MTUtNDc4NGI1NDI3ODdkNwCrZaQnVIXaRqNoTZ1x1Aw3MAAAyRNaSS_ZSA.oPY25Dw1ZgyLcBqA8w85TabdXAf9GGOCNhVy2vwP6EOnEKLKNJZBrNsvp1e5leQmCWHbzwlUrvevJOVIjJPnZLfdATHnWZLsS3gmnaflEov-Ml_7Wh5wXUL4EsUTHvs4nJcPdLToKd0yg1Rrv64EAhc3K9TX7tkEi7QJ7gMHIxSxjg2heHHBBT9BL6KR2qw48wqeVR-FS_vN9xxWf5lnm-5ZbqIbyZNoi4sI8bn7UHCeZNkF1Cevcx0ywo7lG7z_7xevhjNguJfwxdQemtrfpqTARW9Ys7nOUgsn3limklbaYppxVlgWS0w3jCi3YHmkF_OROLFQ5SaoZ-wb2-nYjQ

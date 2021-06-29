@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_USBank]    Script Date: 2/16/2021 8:49:04 AM ******/
+/****** Object:  StoredProcedure [dbo].[sp_USBank]    Script Date: 6/10/2021 9:08:18 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON

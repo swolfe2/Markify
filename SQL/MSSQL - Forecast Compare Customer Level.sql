@@ -1,0 +1,56 @@
+SELECT DISTINCT
+SnapshotWeek,
+SendingWeek,
+LAST_SHPG_LOC_CD,
+Type,
+SUM(FCSTTL) AS TotalForecastedLoads
+FROM USCTTDEV.dbo.tblLaneForecastWeekly 
+WHERE Lane = 'TNLOUDON-5PA19555'
+AND SendingWeek = CAST(DATEADD(dd, DATEPART(DW,GETDATE())*-1+2, GETDATE()) AS DATE)
+GROUP BY SnapshotWeek,
+SendingWeek,
+FRST_SHPG_LOC_CD,
+LAST_SHPG_LOC_CD,
+Type
+ORDER BY SnapshotWeek DESC, SendingWeek DESC
+
+SELECT CAST(DATEADD(dd, DATEPART(DW,GETDATE())*-1+2, GETDATE()) AS DATE)
+
+SELECT TOP 10 * FROM USCTTDEV.dbo.tblActualLoadDetail
+
+SELECT DISTINCT
+act.TheFirstOfWeekMon,
+act.LAST_SHPG_LOC_CD,
+act.CustomerHierarchy,
+SUM(act.ActTotalLoadCount) AS ActTotalLoadCount,
+SUM(act.ActNonLTLLoadCount) AS ActNonLTLLoadCount,
+SUM(act.ActIMLoadCount) AS ActIMLoadCount,
+SUM(act.ActTLLoadCount) AS ActTLLoadCount
+FROM (
+		SELECT DISTINCT 
+		da.TheFirstOfWeekMon,
+		CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+		WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+		ELSE ald.SHPD_DTT END AS DATE) AS Date,
+		CASE WHEN ald.LAST_SHPG_LOC_CD LIKE '5%' THEN LEFT(ald.LAST_SHPG_LOC_CD,8) ELSE ald.LAST_SHPG_LOC_CD END AS LAST_SHPG_LOC_CD,
+		ald.CustomerHierarchy,
+		COUNT(DISTINCT ald.LD_LEG_ID) AS ActTotalLoadCount,
+		SUM(CASE WHEN ald.EQMT_TYP <> 'LTL' THEN 1 ELSE 0 END) AS ActNonLTLLoadCount,
+		SUM(CASE WHEN ald.EQMT_TYP = '53IM' THEN 1 ELSE 0 END) AS ActIMLoadCount,
+		SUM(CASE WHEN ald.EQMT_TYP NOT IN ('LTL','53IM') THEN 1 ELSE 0 END) AS ActTLLoadCount
+		FROM USCTTDEV.dbo.tblActualLoadDetail ald
+		INNER JOIN USCTTDEV.dbo.tblDates da ON da.TheDate = CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+		WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+		ELSE ald.SHPD_DTT END AS DATE)
+		WHERE da.TheFirstOfWeekMon = CAST(DATEADD(dd, DATEPART(DW,GETDATE())*-1+2, GETDATE()) AS DATE)
+		GROUP BY da.TheFirstOfWeekMon,
+		CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+		WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+		ELSE ald.SHPD_DTT END AS DATE),
+		CASE WHEN ald.LAST_SHPG_LOC_CD LIKE '5%' THEN LEFT(ald.LAST_SHPG_LOC_CD,8) ELSE ald.LAST_SHPG_LOC_CD END,
+		ald.CustomerHierarchy
+) act
+GROUP BY act.TheFirstOfWeekMon,
+act.LAST_SHPG_LOC_CD,
+act.CustomerHierarchy
+ORDER BY act.TheFirstOfWeekMon ASC
