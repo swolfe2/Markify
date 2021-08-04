@@ -2,7 +2,7 @@
     "plsql-language.connections": [],
     "plsql-language.connection.activeInfos": "",
     "python.linting.pylintEnabled": true,
-    "python.pythonPath": "C:\\ProgramData\\Anaconda3\\python.exe",
+    "python.pythonPath": "C:\\Program Files\\Python37\\python.exe",
     "python.testing.pytestArgs": [
         "Python"
     ],
@@ -17,5 +17,5 @@
         "*test.py"
     ],
     "python.testing.promptToConfigure": false,
-    "jupyter.jupyterServerType": "local"
+    "jupyter.jupyterServerType": "local",
 }

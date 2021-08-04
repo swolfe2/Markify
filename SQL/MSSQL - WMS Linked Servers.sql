@@ -1,38 +1,15 @@
-WITH SASTemp AS (
-SELECT 'BEECH' as [SASDSN], 'UST2AS42' AS [Server], 'WMS_WFM_USBI_BEECH' AS [DefaultDatabase] UNION ALL
-SELECT 'MODC' as [SASDSN], 'UST2AS42' AS [Server], 'WMS_WFM_CAMO_MIL' AS [DefaultDatabase] UNION ALL
-SELECT 'NMC' as [SASDSN], 'UST2AS42' AS [Server], 'WMS_WFM_USNM_NMC' AS [DefaultDatabase] UNION ALL
-/*SELECT 'TORONTO' as [SASDSN], 'UST2AS42' AS [Server], 'WMS_WFM_CL1' AS [DefaultDatabase] UNION ALL*/ /*Per Sarah H 9/10/2020, no longer needed*/
-SELECT 'JENKS' as [SASDSN], 'UST2AS43' AS [Server], 'WMS_WFM_USOK_JNKS' AS [DefaultDatabase] UNION ALL
-SELECT 'MIDSOURTH' as [SASDSN], 'UST2AS43' AS [Server], 'WMS_WFM_CL2' AS [DefaultDatabase] UNION ALL
-SELECT 'MOBILE' as [SASDSN], 'UST2AS43' AS [Server], 'WMS_WFM_USMO_MOB' AS [DefaultDatabase] UNION ALL
-SELECT 'FULLERTON' as [SASDSN], 'UST2AS44' AS [Server], 'WMS_WFM_USFU_FUL' AS [DefaultDatabase] UNION ALL
-SELECT 'LADC' as [SASDSN], 'UST2AS44' AS [Server], 'WMS_WFM_USOL_LADC' AS [DefaultDatabase] UNION ALL
-SELECT 'NWDC' as [SASDSN], 'UST2AS44' AS [Server], 'WMS_WFM_USWW_NWDC' AS [DefaultDatabase] UNION ALL
-SELECT 'OGDEN' as [SASDSN], 'UST2AS44' AS [Server], 'WMS_WFM_USOG_OGD' AS [DefaultDatabase] UNION ALL
-SELECT 'PNDC' as [SASDSN], 'UST2AS44' AS [Server], 'WMS_WFM_CL3' AS [DefaultDatabase] UNION ALL
-SELECT 'SWDC' as [SASDSN], 'UST2AS44' AS [Server], 'WMS_WFM_USLA' AS [DefaultDatabase] UNION ALL
-SELECT 'CHESTER' as [SASDSN], 'UST2AS45' AS [Server], 'WMS_WFM_USCE_CHE' AS [DefaultDatabase] UNION ALL
-SELECT 'ERDC' as [SASDSN], 'UST2AS45' AS [Server], 'WMS_WFM_USPT' AS [DefaultDatabase] UNION ALL
-SELECT 'MAUMELLE' as [SASDSN], 'UST2AS46' AS [Server], 'WMS_WFM_USMM_MAU' AS [DefaultDatabase] UNION ALL
-SELECT 'SDDC' as [SASDSN], 'UST2AS46' AS [Server], 'WMS_WFM_USSD_SDDC' AS [DefaultDatabase] UNION ALL
-SELECT 'SRDC' as [SASDSN], 'UST2AS46' AS [Server], 'WMS_WFM_USAG' AS [DefaultDatabase] UNION ALL
-SELECT 'RBW' as [SASDSN], 'UST2AS86' AS [Server], 'WMS2019_CL1' AS [DefaultDatabase] UNION ALL
-SELECT 'NCDC' as [SASDSN], 'USTWAS08' AS [Server], 'WMS_WFM_USCH_NCDC' AS [DefaultDatabase] UNION ALL
-SELECT 'NCOF' as [SASDSN], 'USTWAS08' AS [Server], 'WMS_WFM_USCH_NCOF' AS [DefaultDatabase] UNION ALL
-SELECT 'NCSF' as [SASDSN], 'USTWAS08' AS [Server], 'WMS_WFM_CL6' AS [DefaultDatabase] UNION ALL
-SELECT 'PARIS' as [SASDSN], 'USTWAS08' AS [Server], 'WMS_WFM_USPA_PARIS' AS [DefaultDatabase] UNION ALL
-SELECT 'NEDC' as [SASDSN], 'UST2AS45' AS [Server], 'WMS_WFM_USPW_SMDC' AS [DefaultDatabase])
-SELECT * FROM SASTEmp
+import
+/*NCDC	USTWAS08	 WMS_WFM_USCH_NCDC.*/
 
-   /*NCDC	USTWAS08	 WMS_WFM_USCH_NCDC.*/
-
-   DECLARE @server NVARCHAR(20),
+DECLARE @server NVARCHAR(20),
    @database NVARCHAR(20)
 
-   SET @server = 'USTWAS08'
-   
-   SELECT * FROM OPENQUERY(USTWAS08, 'select distinct car_move.car_move_id car_move_id,
+SET @server = 'USTWAS08'
+
+SELECT
+  *
+FROM
+  OPENQUERY(USTWAS08, 'select distinct car_move.car_move_id car_move_id,
         trlr.trlr_id,
         trlr.trlr_num,
         trlr.yard_loc,
