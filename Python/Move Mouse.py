@@ -9,7 +9,7 @@ w, h = list(pyautogui.size())[0], list(pyautogui.size())[1]
 timeStart = "08:00:00"
 
 # Set End Time
-timeEnd = "13:46:00"
+timeEnd = "18:00:00"
 
 # Set sleep second integer
 sleep_seconds = 20
