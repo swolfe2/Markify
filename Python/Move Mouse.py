@@ -14,6 +14,9 @@ timeEnd = "18:00:00"
 # Set sleep second integer
 sleep_seconds = 20
 
+# Set number of pixels to move
+pixel_move = 1
+
 # Start number of moves counter
 num_moves = 0
 
@@ -41,8 +44,13 @@ try:
 
         # Get current position
         x, y = list(pyautogui.position())[0], list(pyautogui.position())[1]
+
+        # Set whether we're going left or right on the screen. Positive = right, negative = left
+        if x == 1 or x == w - 1:
+            pixel_move = pixel_move * -1
+
         # Move mouse 1 pixel to right every X number of seconds
-        pyautogui.moveTo(x + 1, y)
+        pyautogui.moveTo(x + pixel_move, y)
         num_moves += 1
         print(
             "Moved "
