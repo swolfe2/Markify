@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_LoadLevelData]    Script Date: 8/4/2021 9:38:40 AM ******/
+/****** Object:  StoredProcedure [dbo].[sp_LoadLevelData]    Script Date: 8/4/2021 10:28:11 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -464,15 +464,19 @@ AND final.[Dest Plant] = '2031'
 AND final.Lane = 'SCGRANIT-5CT06776'*/
         )
 
+    /*
+Final query output from stored procedure
+*/
     SELECT
         DISTINCT
         final.[Ship Plant] AS FromLocationID,
         final.[Dest Plant] AS ToLocationID,
         final.[Shipping Condition] AS ModelID,
         final.PreferenceMarker AS CarrierID,
-        0 AS MinimumLoadPerDay,
+        0 AS MinimumsLoadsPerDay,
         CAST(CASE WHEN final.Type = 'Missing in Actuals' THEN @DefaultCapacity ELSE CEILING((ROUND(final.WeeklyBaseCapacity / 7,1))) END AS INT) AS MaximumLoadsPerDay,
-        CASE WHEN final.Type = 'Missing in Actuals' THEN @DefaultLoadCost ELSE final.AvgActLinehaul END AS RatePerLoad
+        CASE WHEN final.Type = 'Missing in Actuals' THEN @DefaultLoadCost ELSE final.AvgActLinehaul END AS RatePerLoad,
+        GETUTCDATE() AS CurrentUTCDateTime
     FROM
         final
     ORDER BY FromLocationID ASC, ToLocationID ASC, ModelID ASC, CarrierID ASC
