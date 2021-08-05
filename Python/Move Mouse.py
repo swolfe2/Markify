@@ -60,6 +60,8 @@ try:
         )
 
         time.sleep(sleep_seconds)
+
+
 # Pressing CTRL+C will stop script
 except KeyboardInterrupt:
     pass
