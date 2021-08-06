@@ -1,10 +1,10 @@
 import os
-import pandas as pd
-import requests
-from shutil import copyfile
-from win32com import client
-import win32com.client as win32
 import base64
+import requests
+import pandas as pd
+import win32com.client as win32
+import app.ds_config as config
+import app.docusign.utils as utils
 from docusign_esign import (
     ApiClient,
     EnvelopesApi,
@@ -16,8 +16,8 @@ from docusign_esign import (
     Tabs,
     Recipients,
 )
-import app.ds_config as config
-import app.docusign.utils as utils
+from shutil import copyfile, move
+from win32com import client
 
 # Main global variables used in the rest of the file
 def globalVariables():
@@ -30,7 +30,7 @@ def globalVariables():
     pendingDir = (
         "C:\\Users\\"
         + userid
-        + "\\Kimberly-Clark\\Rates and Pricing - Agreements\\Addendums-Pending"
+        + "\\Kimberly-Clark\\Rates and Pricing - Agreements\\Addendums-Pending\\"
     )
 
     # Set finished directory
@@ -38,7 +38,7 @@ def globalVariables():
     sentDir = (
         "C:\\Users\\"
         + userid
-        + "\\Kimberly-Clark\\Rates and Pricing - Agreements\\Addendums-Sent"
+        + "\\Kimberly-Clark\\Rates and Pricing - Agreements\\Addendums-Sent\\"
     )
 
     # Set the run type of the script
@@ -53,7 +53,7 @@ def convertXLSXtoPDF():
     # Loop through all addendum files, and convert them to .pdf
     for filename in os.listdir(pendingDir):
         if filename.endswith(".xlsx"):
-            filepath = pendingDir + "\\" + filename
+            filepath = pendingDir + filename
             pdfpath = filepath.replace(".xlsx", ".pdf")
             if not os.path.isfile(pdfpath):
 
@@ -100,7 +100,7 @@ def missingEmail(carrier, filepath):
     No carrier email address was found for carrier """
         + carrier
         + """, and no Docusign envelope could be created.
-    Please add this carrier asap to the <a href="https://kimberlyclark.sharepoint.com/Teams/A286/Rates/ContractsPricing/Shared%20Documents/Docusign%20Emails.xlsx">Docusign Emails File</a>. <br><br>
+    Please add this carrier asap to the <a href="https://kimberlyclark.sharepoint.com/:x:/t/A286/Rates/ContractsPricing/EU5lSxD-mFBOvOW1VMrZIKUBxN5LvEjksFCudHnUcy0qiQ?e=I5H6ZK">Docusign Emails File</a>. <br><br>
     The attached files have been removed from the <a href="https://kimberlyclark.sharepoint.com/Sites/A120/ratesandpricing/Document/Addendums-Pending/">Addendums-Pending Folder on Sharepoint</a>. <br><br>
     <b><span style="background-color: #FFFF00">This addendum will need to be manually processed through Docusign.</span></b><br><br>
     Thanks, <br><br>
@@ -137,9 +137,62 @@ def killOutlook():
         os.kill(p.ProcessId, 9)
 
 
+def addendumsNotMoved():
+    # If there are still addendums in the folder, send an email to NARate._Trans@kcc.com that something's wrong.
+    # All files should have been moved to the carrier's Addendums-Sent folder
+    print(
+        "Looking through Addendums-Pending folder. There should be NO files in here at all. If there are any, going to send an email."
+    )
+
+    # Intialize counter
+    i = 0
+    for filename in os.listdir(pendingDir):
+        if filename.endswith(".pdf"):
+            i += 1
+
+    if i >= 1:
+        if i == 1:
+            fileString = "file"
+            itthey = "it has"
+        else:
+            fileString = "files"
+            itthey = "they have"
+
+        print("Leftover addendums found. Sending alert email.")
+        outlook = win32.Dispatch("outlook.application")
+        mail = outlook.CreateItem(0)
+        mail.To = "Steve.Wolfe@kcc.com"
+        mail.SendUsingAccount = "strategyandanalysis.ctt@kcc.com"
+        mail.SentOnBehalfOfName = "strategyandanalysis.ctt@kcc.com"
+        mail.Subject = "Rate Loading: Docusign Addendums Still Pending"
+        # mail.Body="Message body"
+        mail.HTMLBody = (
+            """Hello, <br><br>
+        An error appears to have happend during the Docusign Addendum process. <br><br>
+        There are still """
+            + str(i)
+            + """ .pdf files in the <a href="https://kimberlyclark.sharepoint.com/Sites/A120/ratesandpricing/Document/Addendums-Pending/">Addendums-Pending Folder on Sharepoint</a>. <br><br>
+        <b><span style="background-color: #FFFF00">Please ensure that these files have NOT been processed through Docusign ASAP!</span></b><br><br>
+        You can find the carrier's current email listing by going to the <a href="https://kimberlyclark.sharepoint.com/:x:/t/A286/Rates/ContractsPricing/EU5lSxD-mFBOvOW1VMrZIKUBxN5LvEjksFCudHnUcy0qiQ?e=I5H6ZK">Docusign Emails File on Sharepoint</a>. <br><br> 
+        If """
+            + itthey
+            + """ already been processed through Docusign, please move the .pdf copy of the """
+            + fileString
+            + """ to the carriers's individual folder in the <a href="https://kimberlyclark.sharepoint.com/Sites/A120/ratesandpricing/Document/Addendums-Sent/">Addendums-Sent Folder on Sharepoint</a>,
+        and delete the .xlsx """
+            + fileString
+            + """.<br><br>
+        Thanks, <br><br>
+        -Strategy & Analysis
+        """
+        )
+
+        mail.Send()
+
+
 # Process each .pdf file
 def processAddendums():
-    def make_envelope(args):
+    def makeAndSendEnvelope(args):
         """
         Creates envelope
         Document 1: PDF Version of Addendum that was previously made
@@ -422,8 +475,7 @@ def processAddendums():
 
         # Send the envelope with arguements
         sendEnvelope(env)
-
-        return env
+        # return env
 
     def sendEnvelope(args):
         """
@@ -446,6 +498,31 @@ def processAddendums():
         envelope_id = results.envelope_id
         return {"envelope_id": envelope_id}
 
+    def moveFileToSentFolder(pdfFile, carrier):
+        # This will preserve the .pdf file by moving it to the carrier's completed folder, and will delete the .xlsx copy
+        print(
+            "Starting to move .pdf addendum for "
+            + carrier
+            + " to their Addendums-Sent folder"
+        )
+
+        # If, for some reason, there is no folder for the carrier in Addendums-Sent, create it
+        if not os.path.isdir(sentDir + carrier):
+            print(
+                carrier
+                + "'s folder does not exist in Addendums-Sent. Creating folder for Carrier."
+            )
+            os.makedirs(sentDir + carrier)
+
+        # Move the .pdf file
+        print("Moving file now Addendums-Pending to Addendums-Sent for " + carrier)
+        move(pendingDir + pdfFile, sentDir + "\\" + carrier)
+
+        # Delete the .xlsx file
+        if os.path.exists(pendingDir + pdfFile.replace(".pdf", ".xlsx")):
+            print("Deleting Excel copy of addendum from Addendums-Pending")
+            os.remove(pendingDir + pdfFile.replace(".pdf", ".xlsx"))
+
     # Begin processing addendums
     for filename in os.listdir(pendingDir):
         if filename.endswith(".pdf"):
@@ -454,7 +531,7 @@ def processAddendums():
             docusignDetails = {}
             docusignDetails["processType"] = processType
 
-            filepath = pendingDir + "\\" + filename
+            filepath = pendingDir + filename
             docusignDetails["filepath"] = filepath
 
             # Get text character positions in file name for parsing
@@ -539,10 +616,10 @@ def processAddendums():
             docusignDetails["ccCount"] = ccListCount
 
             # Create the docusign envelope
-            make_envelope(docusignDetails)
+            makeAndSendEnvelope(docusignDetails)
 
-            # Send the envelope with arguements
-            sendEnvelope(make_envelope)
+            # Move the .pdf copy to the Addendums-Sent folder for the carrier, and delete the Excel copy
+            moveFileToSentFolder(filename, carrier)
 
 
 # Get token for Docusign API
@@ -602,5 +679,8 @@ getDocusignAPIToken()
 
 # Process each .pdf file, and send through docusign then archive
 processAddendums()
+
+# Check to make sure Addendums-Pend
+addendumsNotMoved()
 
 print("Done")

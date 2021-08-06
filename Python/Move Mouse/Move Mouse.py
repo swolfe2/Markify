@@ -24,7 +24,9 @@ num_moves = 0
 def isNowInTimePeriod(startTime, endTime, nowTime, num_moves):
     if not (nowTime >= startTime and nowTime <= endTime):
         print(
-            "Time to go! We ran a total of "
+            "Sold work today! "
+            + "\n"
+            + "We ran a total of "
             + str(num_moves)
             + " times, which covered you for "
             + str(round(int(num_moves) * int(sleep_seconds) / 60, 2))
@@ -34,6 +36,25 @@ def isNowInTimePeriod(startTime, endTime, nowTime, num_moves):
         exit()
 
 
+# Refresh console every second, counting down the number of seconds left until next
+def waiting(sleep_seconds):
+    sleep_second_counter = 0
+    while sleep_second_counter <= sleep_seconds:
+        sleep_seconds_left = sleep_seconds - sleep_second_counter
+        print(
+            "Moved "
+            + str(num_moves)
+            + " times to keep you safe! "
+            + "Next mouse movement happening in "
+            + str(sleep_seconds_left)
+            + " seconds. "
+            + "Press Ctrl+C to stop script. ",
+            end="\r",
+        )
+        sleep_second_counter += 1
+        time.sleep(1)
+
+
 # Loop until CTRL+C is pushed
 try:
     while True:
@@ -41,6 +62,9 @@ try:
         isNowInTimePeriod(
             timeStart, timeEnd, datetime.now().strftime("%H:%M:%S"), num_moves
         )
+
+        # Wait the right number of seconds, displaying a countdown message for every second
+        waiting(sleep_seconds)
 
         # Get current position
         x, y = list(pyautogui.position())[0], list(pyautogui.position())[1]
@@ -52,14 +76,6 @@ try:
         # Move mouse 1 pixel to right every X number of seconds
         pyautogui.moveTo(x + pixel_move, y)
         num_moves += 1
-        print(
-            "Moved "
-            + str(num_moves)
-            + " times to keep you safe! Press Ctrl+C to stop script. ",
-            end="\r",
-        )
-
-        time.sleep(sleep_seconds)
 
 
 # Pressing CTRL+C will stop script

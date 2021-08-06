@@ -1,0 +1,1 @@
+"C:\Program Files\Python37\Python.exe" "C:\Users\U15405\Desktop\Code\Python\Move Mouse\Move Mouse.py"
