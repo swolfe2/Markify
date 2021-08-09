@@ -16,7 +16,7 @@ from docusign_esign import (
     Tabs,
     Recipients,
 )
-from shutil import copyfile, move
+from shutil import move
 from win32com import client
 
 # Main global variables used in the rest of the file
