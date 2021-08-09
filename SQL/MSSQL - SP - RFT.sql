@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_RFT]    Script Date: 7/14/2020 11:11:04 AM ******/
+/****** Object:  StoredProcedure [dbo].[sp_RFT]    Script Date: 8/9/2021 3:55:29 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -9,7 +9,8 @@ GO
 -- =============================================
 -- Author:		Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team
 -- Create date: 12/6/2019
--- Last modified: 7/14/2020
+-- Last modified: 8/9/2021
+-- 8/9/2021 - SW - Added update query to ensure that the TotalLoadCount and ProcessCount values are correct, since Tableau is going to be used to count total failures
 -- 7/14/2020 - SW - Commented out LTL/PKG exclusions per John Crumpton
 -- 2/21/2020 - SW - Pretty large functionality changes. Now bringing in all shipments in the last 2 calendar years that aren't cancelled. Also, completely started new table from scratch,
 and am only going to bring in the last stop details of the load.
@@ -23,11 +24,11 @@ ALTER PROCEDURE [dbo].[sp_RFT]
 
 AS
 BEGIN
-	-- SET NOCOUNT ON added to prevent extra result sets from
-	-- interfering with SELECT statements.
-	SET NOCOUNT ON;
+    -- SET NOCOUNT ON added to prevent extra result sets from
+    -- interfering with SELECT statements.
+    SET NOCOUNT ON;
 
-/*
+    /*
 What is this file doing?
 
 1) Get selected manually touched types from Oracle, by UserID, into ##tblManuallyTouchedDetails
@@ -46,10 +47,10 @@ TODO:
 
 */
 
-/*
+    /*
 Delete Temp tables, if exists
 */
-DROP TABLE IF EXISTS 
+    DROP TABLE IF EXISTS 
 ##tblManuallyTouchedDetails,
 ##tblManuallyTouchedAggregate,
 --##tblSuggestedAppointments, -- Per meeting with John Crumpton on 11/26, do not need. Commenting out!
@@ -63,14 +64,15 @@ DROP TABLE IF EXISTS
 ##tblManuallyTouchedPivot, -- Dynamically pivoted counts of each reason by Load number
 ##tblManuallyTouchedHighLevel, -- High level count of load numbers, and count of times processed
 ##tblCAPSManuallyReviewed, -- CAPS Manually Reviewed
-##tblManuallyTouchedPivotFinal -- Final Pivot Table
+##tblManuallyTouchedPivotFinal
+    -- Final Pivot Table
 
-/*
+    /*
 Declare query variable, since query is more than 8,000 characters
 */
-DECLARE @myQuery VARCHAR(MAX)
+    DECLARE @myQuery VARCHAR(MAX)
 
-/*
+    /*
 Get unique manually touched details for loads
 SELECT * FROM ##tblManuallyTouchedDetails WHERE LOADNUMBER = '518207369'
 
@@ -84,7 +86,11 @@ WHERE LOADNUMBER = '518207369'
 GROUP BY LOADNUMBER, Reason, Ordinal
 
 */
-SELECT * INTO ##tblManuallyTouchedDetails FROM OPENQUERY(NAJDABAP,'SELECT DISTINCT
+    SELECT
+        *
+    INTO ##tblManuallyTouchedDetails
+    FROM
+        OPENQUERY(NAJDABAP,'SELECT DISTINCT
 	IA_DIST_LOADS.LOAD_ID as LoadNumber, 
 	Count(distinct IA_DIST_LOADS.EVENT_LOG_DT) as LoadCount,    
     CASE WHEN IA_EXCEPTION_CODE.EXCEPTION_CODE=''ACPD'' THEN ''MANUALLY ACCEPTED''
@@ -172,20 +178,26 @@ GROUP BY
 ORDER BY 
 	IA_DIST_LOADS.LOAD_ID, Ordinal, IA_DIST_LOADS.EVENT_LOG_DT')
 
-/*
+    /*
 Create Aggregate by LoadNumber / Reason / Ordinal from Detail table
 SELECT * FROM ##tblManuallyTouchedDetails ORDER BY LoadNumber, Ordinal, EventDate
 SELECT * FROM ##tblManuallyTouchedAggregate ORDER BY LoadNumber, Ordinal
 SELECT DISTINCT REASON FROM ##tblManuallyTouchedAggregate
 */
-DROP TABLE IF EXISTS ##tblManuallyTouchedAggregate
-SELECT DISTINCT LoadNumber, SUM(LoadCount) as TimesTouched, Reason, Ordinal 
-INTO ##tblManuallyTouchedAggregate
-FROM ##tblManuallyTouchedDetails
-GROUP BY LoadNumber, Reason, Ordinal
-ORDER BY LoadNumber, Ordinal
+    DROP TABLE IF EXISTS ##tblManuallyTouchedAggregate
+    SELECT
+        DISTINCT
+        LoadNumber,
+        SUM(LoadCount) AS TimesTouched,
+        Reason,
+        Ordinal
+    INTO ##tblManuallyTouchedAggregate
+    FROM
+        ##tblManuallyTouchedDetails
+    GROUP BY LoadNumber, Reason, Ordinal
+    ORDER BY LoadNumber, Ordinal
 
-/*
+    /*
 Get suggested appointment statuses
 Per meeting with John Crumpton on 11/26, do not need. Commenting out!
 
@@ -245,7 +257,7 @@ ORDER BY
     load_number')
 */
 
-/*
+    /*
 Pull confirm pick appointments
 Per meeting with John Crumpton on 11/26, do not need. Commenting out!
 
@@ -299,13 +311,17 @@ ORDER BY
     load_number')
 */
 
-/*
+    /*
 Pull Individual LD_LEG_ID details
 
 SELECT * FROM ##tblLoadLegDetails
 */
-DROP TABLE IF EXISTS ##tblLoadLegDetails
-SELECT * INTO ##tblLoadLegDetails FROM OPENQUERY(NAJDAPRD,'SELECT DISTINCT
+    DROP TABLE IF EXISTS ##tblLoadLegDetails
+    SELECT
+        *
+    INTO ##tblLoadLegDetails
+    FROM
+        OPENQUERY(NAJDAPRD,'SELECT DISTINCT
     load_number,
     shpm_num,
     load_leg_cnt
@@ -358,12 +374,16 @@ GROUP BY
 ORDER BY
     load_number')
 
-/*
+    /*
 Pull Lights Out Planned Status Details
 SELECT * FROM ##tblLightsOutPlanned
 SELECT DISTINCT LOAD_NUMBER, COUNT(LOAD_NUMBER) as Count FROM ##tblLightsOutPlanned GROUP BY LOAD_NUMBER HAVING COUNT(LOAD_NUMBER) <> 1
 */
-SELECT * INTO ##tblLightsOutPlanned FROM OPENQUERY(NAJDAPRD,'SELECT DISTINCT
+    SELECT
+        *
+    INTO ##tblLightsOutPlanned
+    FROM
+        OPENQUERY(NAJDAPRD,'SELECT DISTINCT
     plnd_mnt_dtt,
     plnd_doc_type,
     load_number,
@@ -446,12 +466,16 @@ GROUP BY
 ORDER BY
     load_number')
 
-/*
+    /*
 Pull Lights Out Load Tendered Details
 SELECT * FROM ##tblLightsOutTendered
 SELECT DISTINCT LOAD_NUMBER, COUNT(LOAD_NUMBER) as Count FROM ##tblLightsOutTendered GROUP BY LOAD_NUMBER HAVING COUNT(LOAD_NUMBER) <> 1
 */
-SELECT * INTO ##tblLightsOutTendered FROM OPENQUERY(NAJDAPRD,'SELECT DISTINCT
+    SELECT
+        *
+    INTO ##tblLightsOutTendered
+    FROM
+        OPENQUERY(NAJDAPRD,'SELECT DISTINCT
     tdr_time,
     tdr_doc_type,
     load_number,
@@ -535,7 +559,7 @@ ORDER BY
     load_number,
     tdr_mnt_tmestmp')
 
-/*
+    /*
 Pull Optimization Details
 -- Per meeting with John Crumpton on 11/26, do not need. Commenting out!
 
@@ -557,12 +581,16 @@ ORDER BY
 	OPMR_QUE_T.QUE_ID')
 */
 
-/*
+    /*
 Get Business Unit for Each Load from ABPP_LD_RFRC_T
 SELECT * FROM ##tblBusinessUnits
 */
-DROP TABLE IF EXISTS ##tblBusinessUnits
-Select * into ##tblBusinessUnits from OPENQUERY(NAJDAPRD,'SELECT DISTINCT
+    DROP TABLE IF EXISTS ##tblBusinessUnits
+    SELECT
+        *
+    INTO ##tblBusinessUnits
+    FROM
+        OPENQUERY(NAJDAPRD,'SELECT DISTINCT
     ld_leg_id,
     ob_bu
 FROM
@@ -776,7 +804,7 @@ FROM
 WHERE
     vol_rank = 1')
 
-/*
+    /*
 Create Actual Load Details Table
 SELECT * FROM ##tblActualLoadDetailsRFT WHERE LOAD_NUMBER = 516579480
 SELECT DISTINCT load_number, count(*) as COUNT FROM ##tblActualLoadDetailsRFT GROUP BY load_number HAVING Count(*) <>1
@@ -788,58 +816,58 @@ LEFT JOIN ##tblBusinessUnits bu on bu.ld_leg_id = ald.load_number
 WHERE bu.ob_bu is null
 */
 
-DROP TABLE IF EXISTS ##tblActualLoadDetailsRFT
-CREATE TABLE ##tblActualLoadDetailsRFT
+    DROP TABLE IF EXISTS ##tblActualLoadDetailsRFT
+    CREATE TABLE ##tblActualLoadDetailsRFT
     (
-        SHIPMENT_TYPE           NVARCHAR(max),
-        importexport            NVARCHAR(max),
-        DomesticInt             NVARCHAR(max),
-        shpd_dtt                datetime,
-        ymd_ship_dte            NVARCHAR(max),
-        date_last_refreshed     datetime,
-        load_number             nvarchar(max),
-        origin_id               nvarchar(max),
-        origin_name             nvarchar(max),
-        orig_city               nvarchar(max),
-        orig_state              nvarchar(max),
-        orig_zip                nvarchar(max),
-        orig_country            nvarchar(max),
-        stop_num                int,
-        shpm_num_count          int,
-		RowNumber				int,
-        dest_id                 nvarchar(max),
-        dest_name               nvarchar(max),
-        dest_city               nvarchar(max),
-        dest_state              nvarchar(max),
-        dest_zip                nvarchar(max),
-        dest_country            nvarchar(max),
-        carrier                 nvarchar(max),
-        service                 nvarchar(max),
-        eq_type                 nvarchar(max),
-        miles                   decimal(18,2),
-        num_stop                int,
-        num_shpm                int,
-        que_id                  nvarchar(max),
-        ld_source               nvarchar(max),
-        plan_id                 nvarchar(max),
-        team_name               nvarchar(max),
-        team_leader_id          nvarchar(max),
-        team_leader_name        nvarchar(max),
-        analyst_id              nvarchar(max),
-        analyst_name            nvarchar(max),
-        ld_compl_yn             nvarchar(max),
-        corp_id                 nvarchar(max),
-        currentstatus           nvarchar(max),
-        currentStatusDesc       nvarchar(max),
-        createdate              datetime
+        SHIPMENT_TYPE       NVARCHAR(max),
+        importexport        NVARCHAR(max),
+        DomesticInt         NVARCHAR(max),
+        shpd_dtt            DATETIME,
+        ymd_ship_dte        NVARCHAR(max),
+        date_last_refreshed DATETIME,
+        load_number         NVARCHAR(max),
+        origin_id           NVARCHAR(max),
+        origin_name         NVARCHAR(max),
+        orig_city           NVARCHAR(max),
+        orig_state          NVARCHAR(max),
+        orig_zip            NVARCHAR(max),
+        orig_country        NVARCHAR(max),
+        stop_num            INT,
+        shpm_num_count      INT,
+        RowNumber           INT,
+        dest_id             NVARCHAR(max),
+        dest_name           NVARCHAR(max),
+        dest_city           NVARCHAR(max),
+        dest_state          NVARCHAR(max),
+        dest_zip            NVARCHAR(max),
+        dest_country        NVARCHAR(max),
+        carrier             NVARCHAR(max),
+        service             NVARCHAR(max),
+        eq_type             NVARCHAR(max),
+        miles               DECIMAL(18,2),
+        num_stop            INT,
+        num_shpm            INT,
+        que_id              NVARCHAR(max),
+        ld_source           NVARCHAR(max),
+        plan_id             NVARCHAR(max),
+        team_name           NVARCHAR(max),
+        team_leader_id      NVARCHAR(max),
+        team_leader_name    NVARCHAR(max),
+        analyst_id          NVARCHAR(max),
+        analyst_name        NVARCHAR(max),
+        ld_compl_yn         NVARCHAR(max),
+        corp_id             NVARCHAR(max),
+        currentstatus       NVARCHAR(max),
+        currentStatusDesc   NVARCHAR(max),
+        createdate          DATETIME
     )
 
-/*
+    /*
 Pull Shipped Loads Details
 DECLARE @myQuery VARCHAR(MAX)
 */
 
-SET @myQuery = 'SELECT DISTINCT
+    SET @myQuery = 'SELECT DISTINCT
 CASE WHEN SUBSTR(DEST_ID,1,2)=''58'' THEN ''CUSTOMER''
 	WHEN SUBSTR(DEST_ID,1,2) = ''99'' THEN ''CUSTOMER''
 	WHEN CORP_ID = ''RM'' THEN ''RM-INBOUND''
@@ -1093,20 +1121,20 @@ ORDER BY
     load_number,
     stop_num'
 
-/*
+    /*
 Execute Query
 SELECT * FROM ##tblActualLoadDetailsRFT
 */
-INSERT INTO ##tblActualLoadDetailsRFT
-EXEC (@myQuery) AT NAJDAPRD
+    INSERT INTO ##tblActualLoadDetailsRFT
+    EXEC (@myQuery) AT NAJDAPRD
 
-/*
+    /*
 Delete from ##tblActualLoadDetailsRFT where the stop number is NOT the max stop
 */
-DELETE FROM ##tblActualLoadDetailsRFT
+    DELETE FROM ##tblActualLoadDetailsRFT
 WHERE RowNumber <> 1
 
-/*
+    /*
 Business Unit
 Drop column from ##tblActualLoadDetailsRFT if it exists
 If it doesn't exist, then add it to the table
@@ -1116,33 +1144,36 @@ SELECT * FROM ##tblActualLoadDetailsRFT WHERE LOAD_NUMBER = '516621044'
 
 select * from ##tblActualLoadDetailsRFT where BU is null
 */
-ALTER TABLE ##tblActualLoadDetailsRFT DROP COLUMN IF EXISTS BU
-ALTER TABLE ##tblActualLoadDetailsRFT ADD BU NVARCHAR(10)
+    ALTER TABLE ##tblActualLoadDetailsRFT DROP COLUMN IF EXISTS BU
+    ALTER TABLE ##tblActualLoadDetailsRFT ADD BU NVARCHAR(10)
 
-UPDATE ##tblActualLoadDetailsRFT
+    UPDATE ##tblActualLoadDetailsRFT
 SET BU = bu.ob_bu
-FROM ##tblActualLoadDetailsRFT ald
-INNER JOIN ##tblBusinessUnits bu on bu.ld_leg_id = ald.load_number
+FROM
+        ##tblActualLoadDetailsRFT ald
+        INNER JOIN ##tblBusinessUnits bu ON bu.ld_leg_id = ald.load_number
 
-/*
+    /*
 If still null, update from Actual Load Detail
 */
-UPDATE ##tblActualLoadDetailsRFT
+    UPDATE ##tblActualLoadDetailsRFT
 SET BU = ald.BU
-FROM ##tblActualLoadDetailsRFT rft
-INNER JOIN USCTTDEV.dbo.tblActualLoadDetail ald ON ald.LD_LEG_ID = rft.load_number
+FROM
+        ##tblActualLoadDetailsRFT rft
+        INNER JOIN USCTTDEV.dbo.tblActualLoadDetail ald ON ald.LD_LEG_ID = rft.load_number
 WHERE rft.BU IS NULL
 
-/*
+    /*
 If it's still null, may God have mercy on your soul
 Otherwise, just update to 'UNKNOWN
 */
-UPDATE ##tblActualLoadDetailsRFT
+    UPDATE ##tblActualLoadDetailsRFT
 SET BU = 'UNKNOWN'
-FROM ##tblActualLoadDetailsRFT rft
+FROM
+        ##tblActualLoadDetailsRFT rft
 WHERE rft.BU IS NULL
 
-/*
+    /*
 Add columns for Lights Out Planned and Lights Out Tendered
 SELECT * FROM ##tblActualLoadDetailsRFT
 SELECT * FROM ##tblLightsOutPlanned
@@ -1151,46 +1182,98 @@ SELECT * FROM ##tblLightsOutTendered
 Descriptions can be crazy long...
 SELECT DISTINCT LEN(PLND_STATUS_DESC) Length, PLND_STATUS_DESC  from ##tblLightsOUtPlanned GROUP BY PLND_STATUS_DESC ORDER BY LEN(PLND_STATUS_DESC) DESC
 */
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'LOPlannedStatus'	AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOPlannedStatus]	NVARCHAR(10) NULL	--##tblLightsOutPlanned.PLND_STATUS
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'LOPlannedDesc'		AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOPlannedDesc]		NVARCHAR(300) NULL	--##tblLightsOutPlanned.PLND_STATUS_DESC
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'LOPlannedOn'		AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOPlannedOn]		DATETIME NULL		--##tblLightsOutPlanned.PLND_MNT_TMESTMP
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'LOPlannedUserID'	AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOPlannedUserID]	NVARCHAR(30) NULL	--##tblLightsOutPlanned.PLND_USER_ID
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'LOPlannedCount'		AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOPlannedCount]		INT NULL			--##tblLightsOutPlanned.PLND_PROCSSD_CNT
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'LOTenderedStatus'	AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOTenderedStatus]	NVARCHAR(10) NULL	--##tblLightsOutTendered.TDR_STATUS
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'LOTenderedDesc'		AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOTenderedDesc]		NVARCHAR(300) NULL	--##tblLightsOutTendered.TDR_STATUS_DESC
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'LOTenderedOn'		AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOTenderedOn]		DATETIME NULL		--##tblLightsOutTendered.TDR_MNT_TMESTMP
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'LOTenderedUserID'	AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOTenderedUserID]	NVARCHAR(30) NULL	--##tblLightsOutTendered.TDR_USR_ID
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'LOTenderedCount'	AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOTenderedCount]	INT NULL			--##tblLightsOutTendered.TDR_PROCSSD_CNT
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'LOPlannedStatus' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOPlannedStatus]	NVARCHAR(10) NULL
+    --##tblLightsOutPlanned.PLND_STATUS
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'LOPlannedDesc' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOPlannedDesc]		NVARCHAR(300) NULL
+    --##tblLightsOutPlanned.PLND_STATUS_DESC
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'LOPlannedOn' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOPlannedOn]		DATETIME NULL
+    --##tblLightsOutPlanned.PLND_MNT_TMESTMP
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'LOPlannedUserID' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOPlannedUserID]	NVARCHAR(30) NULL
+    --##tblLightsOutPlanned.PLND_USER_ID
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'LOPlannedCount' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOPlannedCount]		INT NULL
+    --##tblLightsOutPlanned.PLND_PROCSSD_CNT
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'LOTenderedStatus' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOTenderedStatus]	NVARCHAR(10) NULL
+    --##tblLightsOutTendered.TDR_STATUS
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'LOTenderedDesc' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOTenderedDesc]		NVARCHAR(300) NULL
+    --##tblLightsOutTendered.TDR_STATUS_DESC
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'LOTenderedOn' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOTenderedOn]		DATETIME NULL
+    --##tblLightsOutTendered.TDR_MNT_TMESTMP
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'LOTenderedUserID' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOTenderedUserID]	NVARCHAR(30) NULL
+    --##tblLightsOutTendered.TDR_USR_ID
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'LOTenderedCount' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LOTenderedCount]	INT NULL
+    --##tblLightsOutTendered.TDR_PROCSSD_CNT
 
-/*
+    /*
 Update with Lights Out Planned Details
 SELECT * FROM ##tblLightsOutPlanned
 */
-UPDATE ##tblActualLoadDetailsRFT
+    UPDATE ##tblActualLoadDetailsRFT
 SET LOPlannedStatus = lop.PLND_STATUS,
 LOPlannedDesc		= lop.PLND_STATUS_DESC,
 LOPlannedOn			= lop.PLND_MNT_TMESTMP,
 LOPlannedUserID		= lop.PLND_USER_ID,
 LOPlannedCount		= lop.PLND_PROCSSD_CNT
-FROM ##tblActualLoadDetailsRFT ald
-INNER JOIN ##tblLightsOutPlanned lop ON ald.load_number = lop.load_number
+FROM
+        ##tblActualLoadDetailsRFT ald
+        INNER JOIN ##tblLightsOutPlanned lop ON ald.load_number = lop.load_number
 
-/*
+    /*
 Update with Lights Out Tendered Details
 SELECT * FROM ##tblLightsOutTendered
 
 SELECT * FROM ##tblActualLoadDetailsRFT
 */
-UPDATE ##tblActualLoadDetailsRFT
+    UPDATE ##tblActualLoadDetailsRFT
 SET LOTenderedStatus	= lot.TDR_STATUS,
 LOTenderedDesc			= lot.TDR_STATUS_DESC,
 LOTenderedOn			= lot.TDR_MNT_TMESTMP,
 LOTenderedUserID		= lot.TDR_USR_ID,
 LOTenderedCount			= lot.TDR_PROCSSD_CNT
-FROM ##tblActualLoadDetailsRFT ald
-INNER JOIN ##tblLightsOutTendered lot ON ald.load_number = lot.load_number
+FROM
+        ##tblActualLoadDetailsRFT ald
+        INNER JOIN ##tblLightsOutTendered lot ON ald.load_number = lot.load_number
 
-/*
+    /*
 Create count columns, and update from ##tblManuallyTouchedAggregate
 SELECT * FROM ##tblManuallyTouchedAggregate
 
@@ -1199,42 +1282,113 @@ SELECT * FROM ##tblManuallyTouchedAggregate where LoadNumber = '516700339'
 SELECT * FROM ##tblActualLoadDetailsRFT WHERE LOAD_NUMBER = '516700339'
 SELECT DISTINCT Reason, Ordinal, SUM(TimesTouched) as TimesTouched, Count (Distinct LoadNumber) as LoadCount FROM ##tblManuallyTouchedAggregate GROUP BY Reason, Ordinal ORDER BY Ordinal ASC
 */
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'LOPlanned'				AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD LOPlanned				INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'LOTendered'				AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD LOTendered				INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'AppointmentDeleted'		AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [AppointmentDeleted]		INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'ConfirmReversal'		AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [ConfirmReversal]		INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'DockChanged'			AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [DockChanged]			INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'DockCreated'			AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [DockCreated]			INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'DockDeleted'			AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [DockDeleted]			INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'LoadUnsuspended'		AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LoadUnsuspended]		INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'ManuallyAccepted'		AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [ManuallyAccepted]		INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'ManuallyPlanned'		AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [ManuallyPlanned]		INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'ManuallyTendered'		AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [ManuallyTendered]		INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'TenderCancelled'		AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [TenderCancelled]		INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'TenderRejected'			AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [TenderRejected]			INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'CAPSManuallyReviewed'	AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [CAPSManuallyReviewed]	INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'TotalTouches'			AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [TotalTouches]			INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'TotalProcessTouches'	AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [TotalProcessTouches]	INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'FirstFailure'			AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [FirstFailure]			NVARCHAR(50) NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'LOPlanned' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD LOPlanned				INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'LOTendered' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD LOTendered				INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'AppointmentDeleted' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [AppointmentDeleted]		INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'ConfirmReversal' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [ConfirmReversal]		INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'DockChanged' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [DockChanged]			INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'DockCreated' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [DockCreated]			INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'DockDeleted' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [DockDeleted]			INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'LoadUnsuspended' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [LoadUnsuspended]		INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'ManuallyAccepted' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [ManuallyAccepted]		INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'ManuallyPlanned' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [ManuallyPlanned]		INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'ManuallyTendered' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [ManuallyTendered]		INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'TenderCancelled' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [TenderCancelled]		INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'TenderRejected' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [TenderRejected]			INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'CAPSManuallyReviewed' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [CAPSManuallyReviewed]	INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'TotalTouches' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [TotalTouches]			INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'TotalProcessTouches' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [TotalProcessTouches]	INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'FirstFailure' AND TABLE_NAME LIKE '##tblActualLoadDetailsRFT') ALTER TABLE ##tblActualLoadDetailsRFT ADD [FirstFailure]			NVARCHAR(50) NULL
 
-/*
+    /*
 Create temp table for Dynamically Pivoted Reason Table
 SELECT * FROM ##tblManuallyTouchedAggregate
 SELECT * FROM ##tblManuallyTouchedPivot
 SELECT * FROM ##tblManuallyTouchedHighLevel
 */
-DECLARE @cols AS NVARCHAR(MAX),
+    DECLARE @cols AS NVARCHAR(MAX),
 @query AS NVARCHAR(MAX)
-DROP TABLE IF EXISTS ##tblManuallyTouchedPivot
+    DROP TABLE IF EXISTS ##tblManuallyTouchedPivot
 
-SET @cols = STUFF((
-			SELECT DISTINCT ',' + QUOTENAME(c.Reason)
-			FROM ##tblManuallyTouchedAggregate c
-			FOR XML PATH(''),
+    SET @cols = STUFF((
+			SELECT
+        DISTINCT
+        ',' + QUOTENAME(c.Reason)
+    FROM
+        ##tblManuallyTouchedAggregate c
+    FOR XML PATH(''),
 				TYPE
 			).value('.', 'NVARCHAR(MAX)'), 1, 1, '')
 
-SET @query = 'SELECT LoadNumber as LoadNumber, ' + @cols + ' from 
+    SET @query = 'SELECT LoadNumber as LoadNumber, ' + @cols + ' from 
             (
                 select prdr.LoadNumber
                     , prdr.Reason
@@ -1247,43 +1401,108 @@ SET @query = 'SELECT LoadNumber as LoadNumber, ' + @cols + ' from
                  SUM(TimesTouched)
                 for Reason in (' + @cols + ')
             ) p '
-SET @query = 'select * into ##tblManuallyTouchedPivot from (' + @query + ') y'
-EXECUTE (@query)
+    SET @query = 'select * into ##tblManuallyTouchedPivot from (' + @query + ') y'
+    EXECUTE (@query)
 
-/*
+    /*
 Create temp table for high level counts
 SELECT * FROM ##tblManuallyTouchedHighLevel
 */
-DROP TABLE IF EXISTS ##tblManuallyTouchedHighLevel
-SELECT * INTO ##tblManuallyTouchedHighLevel FROM (SELECT mta.LoadNumber, min.MinOrdinal, mta.Reason as FirstFailure, count.TotalProcessTouches, Count.TotalTouches
-FROM ##tblManuallyTouchedAggregate mta
-INNER JOIN (SELECT LoadNumber, MIN(Ordinal) as MinOrdinal FROM ##tblManuallyTouchedAggregate GROUP BY LoadNumber) min on min.LoadNumber = mta.LoadNumber and min.MinOrdinal = mta.Ordinal
-INNER JOIN (Select LoadNumber, SUM(TimesTouched) as TotalTouches, COUNT(LoadNumber) as TotalProcessTouches FROM ##tblManuallyTouchedAggregate mta GROUP BY LoadNumber) count on count.LoadNumber = mta.LoadNumber)data
+    DROP TABLE IF EXISTS ##tblManuallyTouchedHighLevel
+    SELECT
+        *
+    INTO ##tblManuallyTouchedHighLevel
+    FROM
+        (SELECT
+            mta.LoadNumber,
+            min.MinOrdinal,
+            mta.Reason AS FirstFailure,
+            count.TotalProcessTouches,
+            Count.TotalTouches
+        FROM
+            ##tblManuallyTouchedAggregate mta
+            INNER JOIN (SELECT
+                LoadNumber,
+                MIN(Ordinal) AS MinOrdinal
+            FROM
+                ##tblManuallyTouchedAggregate
+            GROUP BY LoadNumber) min ON min.LoadNumber = mta.LoadNumber AND min.MinOrdinal = mta.Ordinal
+            INNER JOIN (SELECT
+                LoadNumber,
+                SUM(TimesTouched) AS TotalTouches,
+                COUNT(LoadNumber) AS TotalProcessTouches
+            FROM
+                ##tblManuallyTouchedAggregate mta
+            GROUP BY LoadNumber) count ON count.LoadNumber = mta.LoadNumber)data
 
-/*
+    /*
 Need to add missing pivot columns, just in case they don't appear in the raw data
 SELECT * FROM ##tblManuallyTouchedPivot
 */
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Appointment Deleted'	AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Appointment Deleted]	INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Confirm Reversal'		AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Confirm Reversal]		INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Dock Changed'			AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Dock Changed]			INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Dock Created'			AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Dock Created]			INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Dock Deleted'			AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Dock Deleted]			INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Load Unsuspended'		AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Load Unsuspended]		INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Manually Accepted'		AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Manually Accepted]		INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Manually Planned'		AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Manually Planned]		INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Manually Tendered'		AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Manually Tendered]		INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Tender Cancelled'		AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Tender Cancelled]		INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Tender Rejected'		AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Tender Rejected]		INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Appointment Deleted' AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Appointment Deleted]	INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Confirm Reversal' AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Confirm Reversal]		INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Dock Changed' AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Dock Changed]			INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Dock Created' AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Dock Created]			INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Dock Deleted' AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Dock Deleted]			INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Load Unsuspended' AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Load Unsuspended]		INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Manually Accepted' AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Manually Accepted]		INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Manually Planned' AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Manually Planned]		INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Manually Tendered' AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Manually Tendered]		INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Tender Cancelled' AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Tender Cancelled]		INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Tender Rejected' AND TABLE_NAME LIKE '##tblManuallyTouchedPivot') ALTER TABLE ##tblManuallyTouchedPivot ADD [Tender Rejected]		INT NULL
 
-/*
+    /*
 Update ##tblActualLoadDetails to match Pivot table and ##tblManuallyTouchedHighlevl
 SELECT * FROM ##tblManuallyTouchedAggregate WHERE LoadNumber = 516796667
 SELECT * FROM ##tblActualLoadDetailsRFT Where LOAD_NUMBER = 516796667
 SELECT * FROM ##tblManuallyTouchedHighLevel WHERE LoadNumber = 516796667
 */
 
-UPDATE ##tblActualLoadDetailsRFT
+    UPDATE ##tblActualLoadDetailsRFT
 SET AppointmentDeleted = mtp.[Appointment Deleted],
 ConfirmReversal = mtp.[Confirm Reversal],
 DockChanged = mtp.[Dock Changed],
@@ -1298,17 +1517,18 @@ TenderRejected = mtp.[Tender Rejected],
 TotalTouches = mthl.[TotalTouches],
 TotalProcessTouches = mthl.[TotalProcessTouches],
 FirstFailure = mthl.FirstFailure 
-FROM ##tblActualLoadDetailsRFT ald
-INNER JOIN ##tblManuallyTouchedPivot mtp ON mtp.LoadNumber = ald.load_number
-INNER JOIN ##tblManuallyTouchedHighLevel mthl on mthl.LoadNumber = ald.load_number
+FROM
+        ##tblActualLoadDetailsRFT ald
+        INNER JOIN ##tblManuallyTouchedPivot mtp ON mtp.LoadNumber = ald.load_number
+        INNER JOIN ##tblManuallyTouchedHighLevel mthl ON mthl.LoadNumber = ald.load_number
 
-/*
+    /*
 SELECT * FROM USCTTDEV.dbo.tblRFTDetailDataHistoricalNew
 Update USCTTDEV.dbo.tblRFTDetailDataHistoricalNew to match all data from ##tblActualLoadDetailsRFT
 SELECT DISTINCT LOTenderedOn FROM  ##tblActualLoadDetailsRFT
 SELECT TOP 5 * FROM ##tblActualLoadDetailsRFT
 */
-UPDATE USCTTDEV.dbo.tblRFTDetailDataHistoricalNew
+    UPDATE USCTTDEV.dbo.tblRFTDetailDataHistoricalNew
 SET 
 LastUpdated = GETDATE(),
 SHIPMENT_TYPE = aldrft.SHIPMENT_TYPE,
@@ -1371,178 +1591,195 @@ FirstFailure = aldrft.FirstFailure,
 LOPlanned = aldrft.LOPlanned,
 LOTendered = aldrft.LOTendered,
 CAPSManuallyReviewed = aldrft.CAPSManuallyReviewed
-FROM USCTTDEV.dbo.tblRFTDetailDataHistoricalNew rfdh
-INNER JOIN ##tblActualLoadDetailsRFT aldrft ON aldrft.load_number = rfdh.load_number
+FROM
+        USCTTDEV.dbo.tblRFTDetailDataHistoricalNew rfdh
+        INNER JOIN ##tblActualLoadDetailsRFT aldrft ON aldrft.load_number = rfdh.load_number
 
-/*
+    /*
 Add new lines to tblRFTDetailDataHistoricalNew from ##tblActualLoadDetailsRFT where they don't exist
 */
-INSERT INTO USCTTDEV.dbo.tblRFTDetailDataHistoricalNew(
-AddedOn,
-LastUpdated,
-Shipment_Type,
-ImportExport,
-DomesticInt,
-shpd_dtt,
-load_number,
-origin_id,
-origin_name,
-orig_city,
-orig_state,
-orig_zip,
-orig_country,
-stop_num,
-shpm_num_count,
-dest_id,
-dest_name,
-dest_city,
-dest_state,
-dest_zip,
-dest_country,
-carrier,
-service,
-eq_type,
-miles,
-num_stop,
-num_shpm,
-que_id,
-ld_source,
-plan_id,
-team_name,
-team_leader_id,
-team_leader_name,
-analyst_id,
-analyst_name,
-ld_compl_yn,
-corp_id,
-currentstatus,
-currentStatusDesc,
-createdate,
-BU,
-LOPlannedStatus,
-LOPlannedDesc,
-LOPlannedOn,
-LOPlannedUserID,
-LOPlannedCount,
-LOTenderedStatus,
-LOTenderedDesc,
-LOTenderedOn,
-LOTenderedUserID,
-LOTenderedCount,
-FirstFailure,
-TotalTouches,
-TotalProcessTouches,
-LOPlanned,
-LOTendered,
-ManuallyAccepted,
-TenderCancelled,
-TenderRejected,
-ConfirmReversal,
-LoadUnsuspended,
-DockDeleted,
-DockCreated,
-DockChanged,
-AppointmentDeleted,
-ManuallyPlanned,
-ManuallyTendered,
-CAPSManuallyReviewed)
-SELECT 
-GETDATE(),
-GETDATE(),
-ald.Shipment_Type,
-ald.ImportExport,
-ald.DomesticInt,
-ald.shpd_dtt,
-ald.load_number,
-ald.origin_id,
-ald.origin_name,
-ald.orig_city,
-ald.orig_state,
-ald.orig_zip,
-ald.orig_country,
-ald.stop_num,
-ald.shpm_num_count,
-ald.dest_id,
-ald.dest_name,
-ald.dest_city,
-ald.dest_state,
-ald.dest_zip,
-ald.dest_country,
-ald.carrier,
-ald.service,
-ald.eq_type,
-ald.miles,
-ald.num_stop,
-ald.num_shpm,
-ald.que_id,
-ald.ld_source,
-ald.plan_id,
-ald.team_name,
-ald.team_leader_id,
-ald.team_leader_name,
-ald.analyst_id,
-ald.analyst_name,
-ald.ld_compl_yn,
-ald.corp_id,
-ald.currentstatus,
-ald.currentStatusDesc,
-ald.createdate,
-ald.BU,
-ald.LOPlannedStatus,
-ald.LOPlannedDesc,
-ald.LOPlannedOn,
-ald.LOPlannedUserID,
-ald.LOPlannedCount,
-ald.LOTenderedStatus,
-ald.LOTenderedDesc,
-ald.LOTenderedOn,
-ald.LOTenderedUserID,
-ald.LOTenderedCount,
-ald.FirstFailure,
-ald.TotalTouches,
-ald.TotalProcessTouches,
-ald.LOPlanned,
-ald.LOTendered,
-ald.ManuallyAccepted,
-ald.TenderCancelled,
-ald.TenderRejected,
-ald.ConfirmReversal,
-ald.LoadUnsuspended,
-ald.DockDeleted,
-ald.DockCreated,
-ald.DockChanged,
-ald.AppointmentDeleted,
-ald.ManuallyPlanned,
-ald.ManuallyTendered,
-ald.CAPSManuallyReviewed
-FROM ##tblActualLoadDetailsRFT ald      
-LEFT JOIN USCTTDEV.dbo.tblRFTDetailDataHistoricalNew rfdh ON rfdh.load_number = ald.load_number
-WHERE rfdh.load_number IS NULL
-ORDER BY ald.CreateDate ASC, load_number ASC
+    INSERT INTO USCTTDEV.dbo.tblRFTDetailDataHistoricalNew
+        (
+        AddedOn,
+        LastUpdated,
+        Shipment_Type,
+        ImportExport,
+        DomesticInt,
+        shpd_dtt,
+        load_number,
+        origin_id,
+        origin_name,
+        orig_city,
+        orig_state,
+        orig_zip,
+        orig_country,
+        stop_num,
+        shpm_num_count,
+        dest_id,
+        dest_name,
+        dest_city,
+        dest_state,
+        dest_zip,
+        dest_country,
+        carrier,
+        service,
+        eq_type,
+        miles,
+        num_stop,
+        num_shpm,
+        que_id,
+        ld_source,
+        plan_id,
+        team_name,
+        team_leader_id,
+        team_leader_name,
+        analyst_id,
+        analyst_name,
+        ld_compl_yn,
+        corp_id,
+        currentstatus,
+        currentStatusDesc,
+        createdate,
+        BU,
+        LOPlannedStatus,
+        LOPlannedDesc,
+        LOPlannedOn,
+        LOPlannedUserID,
+        LOPlannedCount,
+        LOTenderedStatus,
+        LOTenderedDesc,
+        LOTenderedOn,
+        LOTenderedUserID,
+        LOTenderedCount,
+        FirstFailure,
+        TotalTouches,
+        TotalProcessTouches,
+        LOPlanned,
+        LOTendered,
+        ManuallyAccepted,
+        TenderCancelled,
+        TenderRejected,
+        ConfirmReversal,
+        LoadUnsuspended,
+        DockDeleted,
+        DockCreated,
+        DockChanged,
+        AppointmentDeleted,
+        ManuallyPlanned,
+        ManuallyTendered,
+        CAPSManuallyReviewed)
+    SELECT
+        GETDATE(),
+        GETDATE(),
+        ald.Shipment_Type,
+        ald.ImportExport,
+        ald.DomesticInt,
+        ald.shpd_dtt,
+        ald.load_number,
+        ald.origin_id,
+        ald.origin_name,
+        ald.orig_city,
+        ald.orig_state,
+        ald.orig_zip,
+        ald.orig_country,
+        ald.stop_num,
+        ald.shpm_num_count,
+        ald.dest_id,
+        ald.dest_name,
+        ald.dest_city,
+        ald.dest_state,
+        ald.dest_zip,
+        ald.dest_country,
+        ald.carrier,
+        ald.service,
+        ald.eq_type,
+        ald.miles,
+        ald.num_stop,
+        ald.num_shpm,
+        ald.que_id,
+        ald.ld_source,
+        ald.plan_id,
+        ald.team_name,
+        ald.team_leader_id,
+        ald.team_leader_name,
+        ald.analyst_id,
+        ald.analyst_name,
+        ald.ld_compl_yn,
+        ald.corp_id,
+        ald.currentstatus,
+        ald.currentStatusDesc,
+        ald.createdate,
+        ald.BU,
+        ald.LOPlannedStatus,
+        ald.LOPlannedDesc,
+        ald.LOPlannedOn,
+        ald.LOPlannedUserID,
+        ald.LOPlannedCount,
+        ald.LOTenderedStatus,
+        ald.LOTenderedDesc,
+        ald.LOTenderedOn,
+        ald.LOTenderedUserID,
+        ald.LOTenderedCount,
+        ald.FirstFailure,
+        ald.TotalTouches,
+        ald.TotalProcessTouches,
+        ald.LOPlanned,
+        ald.LOTendered,
+        ald.ManuallyAccepted,
+        ald.TenderCancelled,
+        ald.TenderRejected,
+        ald.ConfirmReversal,
+        ald.LoadUnsuspended,
+        ald.DockDeleted,
+        ald.DockCreated,
+        ald.DockChanged,
+        ald.AppointmentDeleted,
+        ald.ManuallyPlanned,
+        ald.ManuallyTendered,
+        ald.CAPSManuallyReviewed
+    FROM
+        ##tblActualLoadDetailsRFT ald
+        LEFT JOIN USCTTDEV.dbo.tblRFTDetailDataHistoricalNew rfdh ON rfdh.load_number = ald.load_number
+    WHERE rfdh.load_number IS NULL
+    ORDER BY ald.CreateDate ASC, load_number ASC
 
-/*
+    /*
 Delete if the orig/dest countries are null
 */
-DELETE FROM USCTTDEV.dbo.tblRFTDetailDataHistoricalNew WHERE orig_country IS NULL OR orig_country IS NULL
+    DELETE FROM USCTTDEV.dbo.tblRFTDetailDataHistoricalNew WHERE orig_country IS NULL OR orig_country IS NULL
 
-/*
+    /*
 Add Manually Touched Details to USCTTDEV.dbo.tblRFTManuallyTouchedDetails
 */
-INSERT INTO USCTTDEV.dbo.tblRFTManuallyTouchedDetails(AddedOn, LoadNumber, LoadCount, Reason, Ordinal, User_Login, User_Name, EventDate)
-SELECT GETDATE(), mtdt.LoadNumber, mtdt.LoadCount, mtdt.Reason, mtdt.Ordinal, mtdt.User_Login, mtdt.User_Name, mtdt.EventDate
-FROM ##tblManuallyTouchedDetails mtdt
-LEFT JOIN USCTTDEV.dbo.tblRFTManuallyTouchedDetails mtd ON mtd.LoadNumber = mtdt.LoadNumber AND mtd.EventDate = mtdt.EventDate
-WHERE mtd.LoadNumber IS NULL AND mtd.EventDate IS NULL
-ORDER BY mtdt.LoadNumber ASC, mtdt.Ordinal ASC, mtdt.EventDate ASC
+    INSERT INTO USCTTDEV.dbo.tblRFTManuallyTouchedDetails
+        (AddedOn, LoadNumber, LoadCount, Reason, Ordinal, User_Login, User_Name, EventDate)
+    SELECT
+        GETDATE(),
+        mtdt.LoadNumber,
+        mtdt.LoadCount,
+        mtdt.Reason,
+        mtdt.Ordinal,
+        mtdt.User_Login,
+        mtdt.User_Name,
+        mtdt.EventDate
+    FROM
+        ##tblManuallyTouchedDetails mtdt
+        LEFT JOIN USCTTDEV.dbo.tblRFTManuallyTouchedDetails mtd ON mtd.LoadNumber = mtdt.LoadNumber AND mtd.EventDate = mtdt.EventDate
+    WHERE mtd.LoadNumber IS NULL AND mtd.EventDate IS NULL
+    ORDER BY mtdt.LoadNumber ASC, mtdt.Ordinal ASC, mtdt.EventDate ASC
 
-/*
+    /*
 CAPS Manually Reviewed Details
 Create temp table with CAPS Manually Reviewed Details	
 
 SELECT * FROM ##tblCAPSManuallyReviewed
 */
-DROP TABLE IF EXISTS ##tblCAPSManuallyReviewed
-SELECT * INTO ##tblCAPSManuallyReviewed FROM OPENQUERY(NAJDAPRD, '
+    DROP TABLE IF EXISTS ##tblCAPSManuallyReviewed
+    SELECT
+        *
+    INTO ##tblCAPSManuallyReviewed
+    FROM
+        OPENQUERY(NAJDAPRD, '
 SELECT DISTINCT
     load_id,
     COUNT(*) AS LoadCount,
@@ -1573,31 +1810,44 @@ GROUP BY
 REVIEWED_DATE
 ')
 
-/*
+    /*
 Add CAPS Manually Reviewed Details to dbo.tblRFTManuallyTouchedDetails
 */
-INSERT INTO USCTTDEV.dbo.tblRFTManuallyTouchedDetails(AddedOn, LoadNumber, LoadCount, Reason, Ordinal, User_Login, User_Name, EventDate)
-SELECT GETDATE(), cmr.Load_ID, cmr.LoadCount, cmr.Reason, cmr.Ordinal, cmr.User_Login, cmr.User_Name, cmr.EventDate
-FROM ##tblCAPSManuallyReviewed cmr
-LEFT JOIN USCTTDEV.dbo.tblRFTManuallyTouchedDetails mtd ON mtd.LoadNumber = cmr.Load_ID AND mtd.EventDate = cmr.EventDate
-WHERE mtd.LoadNumber IS NULL AND mtd.EventDate IS NULL
-ORDER BY cmr.Load_ID ASC, cmr.Ordinal ASC, cmr.EventDate ASC
+    INSERT INTO USCTTDEV.dbo.tblRFTManuallyTouchedDetails
+        (AddedOn, LoadNumber, LoadCount, Reason, Ordinal, User_Login, User_Name, EventDate)
+    SELECT
+        GETDATE(),
+        cmr.Load_ID,
+        cmr.LoadCount,
+        cmr.Reason,
+        cmr.Ordinal,
+        cmr.User_Login,
+        cmr.User_Name,
+        cmr.EventDate
+    FROM
+        ##tblCAPSManuallyReviewed cmr
+        LEFT JOIN USCTTDEV.dbo.tblRFTManuallyTouchedDetails mtd ON mtd.LoadNumber = cmr.Load_ID AND mtd.EventDate = cmr.EventDate
+    WHERE mtd.LoadNumber IS NULL AND mtd.EventDate IS NULL
+    ORDER BY cmr.Load_ID ASC, cmr.Ordinal ASC, cmr.EventDate ASC
 
-/*
+    /*
 Create temp table for Dynamically Pivoted Reason Table
 DECLARE @cols AS NVARCHAR(MAX),
 @query AS NVARCHAR(MAX)
 */
 
-DROP TABLE IF EXISTS ##tblManuallyTouchedPivotFinal
-SET @cols = STUFF((
-			SELECT DISTINCT ',' + QUOTENAME(c.Reason)
-			FROM USCTTDEV.dbo.tblRFTManuallyTouchedDetails c
-			FOR XML PATH(''),
+    DROP TABLE IF EXISTS ##tblManuallyTouchedPivotFinal
+    SET @cols = STUFF((
+			SELECT
+        DISTINCT
+        ',' + QUOTENAME(c.Reason)
+    FROM
+        USCTTDEV.dbo.tblRFTManuallyTouchedDetails c
+    FOR XML PATH(''),
 				TYPE
 			).value('.', 'NVARCHAR(MAX)'), 1, 1, '')
 
-SET @query = 'SELECT LoadNumber as LoadNumber, ' + @cols + ' from 
+    SET @query = 'SELECT LoadNumber as LoadNumber, ' + @cols + ' from 
             (
                 select prdr.LoadNumber
                     , prdr.Reason
@@ -1610,26 +1860,86 @@ SET @query = 'SELECT LoadNumber as LoadNumber, ' + @cols + ' from
                  SUM(LoadCount)
                 for Reason in (' + @cols + ')
             ) p '
-SET @query = 'select * into ##tblManuallyTouchedPivotFinal from (' + @query + ') y'
-EXECUTE (@query)
+    SET @query = 'select * into ##tblManuallyTouchedPivotFinal from (' + @query + ') y'
+    EXECUTE (@query)
 
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Appointment Deleted'	AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Appointment Deleted]			INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Confirm Reversal'		AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Confirm Reversal]				INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Dock Changed'			AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Dock Changed]					INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Dock Created'			AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Dock Created]					INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Dock Deleted'			AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Dock Deleted]					INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Load Unsuspended'		AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Load Unsuspended]				INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Manually Accepted'		AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Manually Accepted]			INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Manually Planned'		AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Manually Planned]				INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Manually Tendered'		AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Manually Tendered]			INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Tender Cancelled'		AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Tender Cancelled]				INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Tender Rejected'		AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Tender Rejected]				INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'CAPS Manually Reviewed'	AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [CAPS Manually Reviewed]		INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'FirstFailure'			AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [FirstFailure]					NVARCHAR(100) NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'TotalTouches'			AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [TotalTouches]					INT NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'TotalProcessTouches'	AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [TotalProcessTouches]			INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Appointment Deleted' AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Appointment Deleted]			INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Confirm Reversal' AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Confirm Reversal]				INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Dock Changed' AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Dock Changed]					INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Dock Created' AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Dock Created]					INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Dock Deleted' AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Dock Deleted]					INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Load Unsuspended' AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Load Unsuspended]				INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Manually Accepted' AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Manually Accepted]			INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Manually Planned' AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Manually Planned]				INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Manually Tendered' AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Manually Tendered]			INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Tender Cancelled' AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Tender Cancelled]				INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Tender Rejected' AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [Tender Rejected]				INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'CAPS Manually Reviewed' AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [CAPS Manually Reviewed]		INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'FirstFailure' AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [FirstFailure]					NVARCHAR(100) NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'TotalTouches' AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [TotalTouches]					INT NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'TotalProcessTouches' AND TABLE_NAME LIKE '##tblManuallyTouchedPivotFinal') ALTER TABLE ##tblManuallyTouchedPivotFinal ADD [TotalProcessTouches]			INT NULL
 
-/*
+    /*
 SELECT * FROM ##tblManuallyTouchedPivotFinal
 SELECT DISTINCT Ordinal, Reason FROM USCTTDEV.dbo.tblRFTManuallyTouchedDetails ORDER BY ORDINAL ASC
 1	MANUALLY ACCEPTED
@@ -1646,12 +1956,12 @@ SELECT DISTINCT Ordinal, Reason FROM USCTTDEV.dbo.tblRFTManuallyTouchedDetails O
 12	CAPS MANUALLY REVIEWED
 */
 
-/*
+    /*
 Create final pivoted table for all change reasons/people
 
 SELECT * FROM ##tblManuallyTouchedPivotFinal
 */
-UPDATE ##tblManuallyTouchedPivotFinal
+    UPDATE ##tblManuallyTouchedPivotFinal
 SET FirstFailure = CASE WHEN [MANUALLY ACCEPTED] IS NOT NULL THEN 'MANUALLY ACCEPTED'
 WHEN [TENDER CANCELLED] IS NOT NULL THEN 'TENDER CANCELLED'
 WHEN [TENDER REJECTED] IS NOT NULL THEN 'TENDER REJECTED'
@@ -1690,7 +2000,7 @@ IIF([MANUALLY PLANNED] IS NOT NULL,1,0) +
 IIF([MANUALLY TENDERED] IS NOT NULL,1,0) +
 IIF([CAPS MANUALLY REVIEWED] IS NOT NULL,1,0)
 
-/*
+    /*
 SELECT * FROM USCTTDEV.dbo.tblRFTDetailDataHistoricalNew WHERE ID < 100
 SELECT DISTINCT LoadNumber, COUNT(*) AS COUNT FROM ##tblManuallyTouchedPivotFinal GROUP BY LoadNumber HAVING COUNT(*)<>1
 
@@ -1711,7 +2021,7 @@ SELECT * FROM USCTTDEV.dbo.tblRFTDetailDataHistoricalNew WHERE ID <10 ORDER BY I
 
 */
 
-UPDATE USCTTDEV.dbo.tblRFTDetailDataHistoricalNew
+    UPDATE USCTTDEV.dbo.tblRFTDetailDataHistoricalNew
 SET ManuallyAccepted  = mtpf.[MANUALLY ACCEPTED],
 TenderCancelled = mtpf.[TENDER CANCELLED],
 TenderRejected = mtpf.[TENDER REJECTED],
@@ -1727,18 +2037,55 @@ CAPSManuallyReviewed = mtpf.[CAPS MANUALLY REVIEWED],
 FirstFailure = mtpf.FirstFailure,
 TotalTouches = mtpf.TotalTouches,
 TotalProcessTouches = mtpf.TotalProcessTouches
-FROM USCTTDEV.dbo.tblRFTDetailDataHistoricalNew rftNew
-INNER JOIN ##tblManuallyTouchedPivotFinal mtpf ON mtpf.LoadNumber = rftNew.load_number
+FROM
+        USCTTDEV.dbo.tblRFTDetailDataHistoricalNew rftNew
+        INNER JOIN ##tblManuallyTouchedPivotFinal mtpf ON mtpf.LoadNumber = rftNew.load_number
 
-/*
+    /*
 Update Manually Built process failure
 */
-UPDATE tblRFTDetailDataHistoricalNew
+    UPDATE tblRFTDetailDataHistoricalNew
 SET ManuallyBuilt = 1,
 TotalTouches = COALESCE(TotalTouches,0) - 1,
 TotalProcessTouches = COALESCE(TotalProcessTouches,0) - 1,
 FirstFailure = 'MANUALLY BUILT'
 WHERE LD_SOURCE = 'Manual'
-AND FirstFailure <> 'Manually Built'
+        AND FirstFailure <> 'Manually Built'
+
+    /*
+Update 8/9/2021
+Ensure that everything has a failure count value assigned, since Tableau is going to be used to count
+*/
+    UPDATE USCTTDEV.dbo.tblRFTDetailDataHistoricalNew
+SET
+TotalTouches = 
+COALESCE(LoadUnsuspended,0) +
+COALESCE(ManuallyBuilt,0) +
+COALESCE(ManuallyPlanned,0) +
+COALESCE(DockCreated,0) +
+COALESCE(DockChanged,0) +
+COALESCE(DockDeleted,0) +
+COALESCE(ManuallyTendered,0) +
+COALESCE(TenderRejected,0) +
+COALESCE(TenderCancelled,0) +
+COALESCE(ManuallyAccepted,0) +
+COALESCE(ConfirmReversal,0) +
+COALESCE(AppointmentDeleted,0) +
+COALESCE(CAPSManuallyReviewed,0),
+TotalProcessTouches = 
+IIF(LoadUnsuspended IS NOT NULL,1,0) +
+IIF(ManuallyBuilt IS NOT NULL,1,0) +
+IIF(ManuallyPlanned IS NOT NULL,1,0) +
+IIF(DockCreated IS NOT NULL,1,0) +
+IIF(DockChanged IS NOT NULL,1,0) +
+IIF(DockDeleted IS NOT NULL,1,0) +
+IIF(ManuallyTendered IS NOT NULL,1,0) +
+IIF(TenderRejected IS NOT NULL,1,0) +
+IIF(TenderCancelled IS NOT NULL,1,0) +
+IIF(ManuallyAccepted IS NOT NULL,1,0) +
+IIF(ConfirmReversal IS NOT NULL,1,0) +
+IIF(AppointmentDeleted IS NOT NULL,1,0) +
+IIF(CAPSManuallyReviewed IS NOT NULL,1,0)
+WHERE CAST(LastUpdated AS DATE) = CAST(GETDATE() AS DATE)
 
 END
