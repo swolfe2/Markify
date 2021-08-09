@@ -12,10 +12,10 @@ timeStart = "08:00:00"
 timeEnd = "18:00:00"
 
 # Set sleep second integer
-sleep_seconds = 20
+sleep_seconds = 240
 
 # Set number of pixels to move
-pixel_move = 1
+pixel_move = 25
 
 # Start number of moves counter
 num_moves = 0
@@ -45,7 +45,7 @@ def waiting(sleep_seconds):
             "Moved "
             + str(num_moves)
             + " times to keep you safe! "
-            + "Next mouse movement happening in "
+            + "Next system movement happening in "
             + str(sleep_seconds_left)
             + " seconds. "
             + "Press Ctrl+C to stop script. ",
@@ -73,8 +73,13 @@ try:
         if x == 1 or x == w - 1:
             pixel_move = pixel_move * -1
 
-        # Move mouse 1 pixel to right every X number of seconds
-        pyautogui.moveTo(x + pixel_move, y)
+        # If you want to enable mouse moves, uncomment out above. Otherwise, just stick turning numlock on/off really quick.
+        # pyautogui.moveTo(x + pixel_move, y)
+        # pyautogui.moveTo(x - pixel_move, y)
+        pyautogui.keyDown("numlock")
+        pyautogui.keyUp("numlock")
+        pyautogui.keyDown("numlock")
+        pyautogui.keyUp("numlock")
         num_moves += 1
 
 
