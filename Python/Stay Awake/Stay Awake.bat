@@ -1,1 +1,1 @@
-"C:\Program Files\Python37\Python.exe" "C:\Users\U15405\Desktop\Code\Python\Stay Awake\Stay Awake.py"
+start /min "" "C:\Program Files\Python37\Python.exe" "C:\Users\U15405\Desktop\Code\Python\Stay Awake\Stay Awake.py"

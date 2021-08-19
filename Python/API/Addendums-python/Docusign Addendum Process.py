@@ -6,6 +6,7 @@ import win32com.client as win32
 import app.ds_config as config
 import app.docusign.utils as utils
 from docusign_esign import (
+    AuthenticationApi,
     ApiClient,
     EnvelopesApi,
     EnvelopeDefinition,
@@ -45,7 +46,7 @@ def globalVariables():
     global processType
     processType = "Production"
     # Comment out below for production
-    processType = "Testing"
+    # processType = "Testing"
 
 
 # Convert all of the Addendums-Pending .xlsx files to .pdf
@@ -73,16 +74,20 @@ def convertXLSXtoPDF():
     global fileCount
     fileCount = 0
     for filename in os.listdir(pendingDir):
-        fileCount += 1
+        if filename.endswith(".pdf"):
+            fileCount += 1
 
 
-# Get Docusign Emails from Sharpeoint file
+# Get Docusign Emails from Sharepoint file
 def sharepointEmails():
-    sharepointFile = r"\\kimberlyclark.sharepoint.com\Teams\A286\Rates\ContractsPricing\Shared Documents\Docusign Emails.xlsx"
-    # sharepointFile = r"https://kimberlyclark.sharepoint.com/Teams/A286/Rates/ContractsPricing/Shared%20Documents/Docusign%20Emails.xlsx"
+    sharepointFile = (
+        "C:\\Users\\"
+        + userid
+        + "\\Kimberly-Clark\\Contracts & Pricing - Shared Documents\\Docusign Emails.xlsx"
+    )
     xl = pd.ExcelFile(sharepointFile)
-    global sharepointEmails
     df = xl.parse("Docusign Emails")
+    global sharepointEmails
     sharepointEmails = df.fillna("")
 
 
@@ -486,12 +491,13 @@ def processAddendums():
         # Create the envelope request object
         # envelope_definition = make_envelope(args)
         api_client = utils.create_api_client(
-            base_path=base_path, access_token=ds_access_token
+            base_path=base_uri, access_token=ds_access_token
         )
 
         # Call Envelopes::create API method
         # Exceptions will be caught by the calling function
         envelopes_api = EnvelopesApi(api_client)
+
         results = envelopes_api.create_envelope(
             account_id=account_id, envelope_definition=args
         )
@@ -579,7 +585,7 @@ def processAddendums():
                     docusignDetails["docusignEmail1"] = "steve.wolfe@kcc.com"
                     docusignDetails["docusignEmail2"] = "steve.wolfe@kcc.com"
             else:
-                docusignDetails["docusignEmail"] = docusignEmail
+                docusignDetails["docusignEmail1"] = docusignEmail
                 docusignDetails["docusignEmail2"] = ""
                 if docusignDetails["processType"] == "Testing":
                     docusignDetails["docusignEmail1"] = "steve.wolfe@kcc.com"
@@ -624,16 +630,39 @@ def processAddendums():
 
 # Get token for Docusign API
 def getDocusignAPIToken():
+    def printer(response):
+        print(response)
+
+    def getuser(access_token):
+        base_path = "https://na2.docusign.net/restapi"
+        api_client = utils.create_api_client(
+            base_path=base_path, access_token=access_token
+        )
+        authApi = AuthenticationApi(api_client)
+        loginInfo = authApi.login(callback=printer)
+        print(loginInfo)
 
     global base_path
-    base_path = "https://demo.docusign.net/restapi"
+
+    if processType == "Production":
+        authorization_server = "prod_authorization_server"
+        base_path = "https://www.docusign.net/restapi"
+        userID = "prod_user_id"
+        private_key_file = "prod_private_key_file"
+    else:
+        authorization_server = "dev_authorization_server"
+        base_path = "https://demo.docusign.net/restapi"
+        userID = "ds_impersonated_user_id"
+        private_key_file = "dev_private_key_file"
 
     api_client = ApiClient(base_path)
+
+    global token
     token = api_client.request_jwt_user_token(
         client_id=config.DS_JWT.get("ds_client_id"),
-        user_id=config.DS_JWT.get("ds_impersonated_user_id"),
-        oauth_host_name=config.DS_JWT.get("authorization_server"),
-        private_key_bytes=open(config.DS_JWT.get("private_key_file"), "r").read(),
+        user_id=config.DS_JWT.get(userID),
+        oauth_host_name=config.DS_JWT.get(authorization_server),
+        private_key_bytes=open(config.DS_JWT.get(private_key_file), "r").read(),
         expires_in=3600,
     )
     global ds_access_token
@@ -651,14 +680,24 @@ def getDocusignAPIToken():
     """Make request to the API to get the user information"""
     # Determine user, account_id, base_url by calling OAuth::getUserInfo
     # See https://developers.docusign.com/esign-rest-api/guides/authentication/user-info-endpoints
-    url = config.DS_CONFIG["authorization_server"] + "/oauth/userinfo"
+    global url
+    url = "https://" + config.DS_JWT.get(authorization_server) + "/oauth/userinfo"
+
+    global auth
     auth = {"Authorization": "Bearer " + ds_access_token}
+
+    global response
     response = requests.get(url, headers=auth).json()
 
     global account_id
     account_id = response["accounts"][0]["account_id"]
-    print(account_id)
-    print("Done With ID")
+    print("Done With ID " + account_id)
+
+    global base_uri
+    base_uri = response["accounts"][0]["base_uri"] + "/restapi"
+    # base_uri = base_uri.replace("na2", "na3")
+
+    getuser(ds_access_token)
 
 
 # set global variables

@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_LoadLevelData]    Script Date: 8/4/2021 10:28:11 AM ******/
+/****** Object:  StoredProcedure [dbo].[sp_LoadLevelData]    Script Date: 8/10/2021 5:22:21 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -471,14 +471,16 @@ Final query output from stored procedure
         DISTINCT
         final.[Ship Plant] AS FromLocationID,
         final.[Dest Plant] AS ToLocationID,
-        final.[Shipping Condition] AS ModelID,
+        final.[Shipping Condition] AS ModeID,
         final.PreferenceMarker AS CarrierID,
         0 AS MinimumsLoadsPerDay,
-        CAST(CASE WHEN final.Type = 'Missing in Actuals' THEN @DefaultCapacity ELSE CEILING((ROUND(final.WeeklyBaseCapacity / 7,1))) END AS INT) AS MaximumLoadsPerDay,
+        CASE WHEN CAST(CASE WHEN final.Type = 'Missing in Actuals' THEN @DefaultCapacity ELSE CEILING((ROUND(final.WeeklyBaseCapacity / 7,10))) END AS INT) = 0 THEN 1 ELSE
+CAST(CASE WHEN final.Type = 'Missing in Actuals' THEN @DefaultCapacity ELSE CEILING((ROUND(final.WeeklyBaseCapacity / 7,10))) END AS INT) END
+AS MaximumLoadsPerDay,
         CASE WHEN final.Type = 'Missing in Actuals' THEN @DefaultLoadCost ELSE final.AvgActLinehaul END AS RatePerLoad,
         GETUTCDATE() AS CurrentUTCDateTime
     FROM
         final
-    ORDER BY FromLocationID ASC, ToLocationID ASC, ModelID ASC, CarrierID ASC
+    ORDER BY FromLocationID ASC, ToLocationID ASC, ModeID ASC, CarrierID ASC
 
 END

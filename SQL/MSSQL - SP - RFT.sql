@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_RFT]    Script Date: 8/9/2021 3:55:29 PM ******/
+/****** Object:  StoredProcedure [dbo].[sp_RFT]    Script Date: 8/18/2021 3:38:28 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -9,7 +9,8 @@ GO
 -- =============================================
 -- Author:		Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team
 -- Create date: 12/6/2019
--- Last modified: 8/9/2021
+-- Last modified: 8/12/2021
+-- 8/12/2021 - SW - Per John Crumpton / Jeff Perrot, update FirstFailure to the actual first failure that happened by event date and NOT the sequential date
 -- 8/9/2021 - SW - Added update query to ensure that the TotalLoadCount and ProcessCount values are correct, since Tableau is going to be used to count total failures
 -- 7/14/2020 - SW - Commented out LTL/PKG exclusions per John Crumpton
 -- 2/21/2020 - SW - Pretty large functionality changes. Now bringing in all shipments in the last 2 calendar years that aren't cancelled. Also, completely started new table from scratch,
@@ -2087,5 +2088,36 @@ IIF(ConfirmReversal IS NOT NULL,1,0) +
 IIF(AppointmentDeleted IS NOT NULL,1,0) +
 IIF(CAPSManuallyReviewed IS NOT NULL,1,0)
 WHERE CAST(LastUpdated AS DATE) = CAST(GETDATE() AS DATE)
+
+    /*
+8/12/2021
+Per John Crumpton / Jeff Perrot
+Update RFT's First Failure to the FIRST systematic failure, and not the current sequential failure it currently uses 
+*/
+    UPDATE USCTTDEV.dbo.tblRFTDetailDataHistoricalNew
+SET FirstFailure = mtd.Reason
+FROM
+        USCTTDEv.dbo.tblRFTDetailDataHistoricalNew rft
+        INNER JOIN (
+SELECT
+            *
+        FROM
+            (
+SELECT
+                DISTINCT
+                mtd.LoadNumber,
+                mtd.Reason,
+                mtd.EventDate,
+                ROW_NUMBER() OVER (PARTITION BY mtd.LoadNumber ORDER BY mtd.EventDate ASC) AS RankNum
+            FROM
+                USCTTDEV.dbo.tblRFTManuallyTouchedDetails mtd
+            GROUP BY mtd.LoadNumber,
+mtd.Reason,
+mtd.EventDate) mtd
+        WHERE mtd.RankNum = 1
+) mtd ON mtd.LoadNumber = rft.load_number
+            AND mtd.RankNum = 1
+WHERE rft.FirstFailure IS NULL
+        OR rft.FirstFailure <>  mtd.Reason
 
 END

@@ -1,6 +1,8 @@
 from turbodbc import connect, make_options
 import json
 import requests
+import pandas as pd
+
 
 # Set turboodbc options
 options = make_options(parameter_sets_to_buffer=1000)
@@ -14,6 +16,19 @@ mssql_connection = connect(
     encrypt="YES",
     trustservercertificate="YES",
 )
+
+# Put MSSQL results into dataframe
+# df = pd.read_sql_query("EXEC USCTTDEV.dbo.sp_LoadLevelData", mssql_connection)
+
+# Export to .csv file on Desktop
+# df.to_csv("C://Users//U15405//Desk#top//load_level_dataframe.csv", encoding="utf-8")
+# df.to_csv(
+#    r"C:\Users\U15405\Desktop\load_level_dataframe.csv",
+#    index=False,
+#    header=True,
+#    encoding="utf-8",
+# )
+
 
 # Set SQL cursor, and execute stored procedure
 cursor = mssql_connection.cursor()
@@ -29,8 +44,8 @@ payload = [
 payload_dumps = json.dumps(payload, indent=4, default=str)
 dict_paylod = json.loads(payload_dumps)
 
-"""
-In case you want to look at the JSON output, pretty-ly, put the below back in
+
+# In case you want to look at the JSON output, pretty-ly, put the below back in
 
 # open file for writing
 f = open(r"C:\Users\U15405\Desktop\Load Level JSON.txt", "w")
@@ -41,6 +56,5 @@ f.write(json.dumps(json.loads(payload_dumps), indent=4, sort_keys=True, default=
 # close file
 f.close()
 
-"""
 
 print("Done!")

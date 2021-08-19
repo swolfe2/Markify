@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_OperationalMetrics]    Script Date: 9/2/2020 12:24:09 PM ******/
+/****** Object:  StoredProcedure [dbo].[sp_OperationalMetrics]    Script Date: 8/12/2021 6:49:37 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -9,8 +9,13 @@ GO
 -- =============================================
 -- Author:		<Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team>
 -- Create date: <9/6/2019>
--- Last modified: <6/29/2020>
+-- Last modified: <4/27/2021>
 -- Description:	<Executes Tim Zoppa's query against Oracle, loads to temp table, then appends/updates dbo.tblOperationalMetrics>
+-- 4/27/2021 - SW - Update to include the first pickup appointment from/to times for Tableau Reporting
+-- 3/30/2021 - SW - Update to include START_DTT for Tableau reporting
+-- 3/10/2021 - SW - Update to include Z05 as NON WOVEN order type
+-- 3/1/2021 - SW - Changed region logic to also include the Business Unit
+-- 1/13/2021 - SW - Added subquery to update TEAM_NAME/TEAM_GROUP with table data from Eric Mailhan
 -- 6/29/2020 - SW - Added new fields needed by Katie Haynes for Tableau Reporting, updating directly from Actual Load Detail
 -- 6/25/2020 - SW - Added CREATE_DTT, FIRST_APPT_NOTIFIED, FIRST_APPT_CONFIRMED for Curtis Moore, and Appointment Reporting
 -- 6/11/2020 - SW - Added TM_AUCT_CNT, and changed First Tendered to exclude CARR_CD 'FRAN' per email from Taylor Rotella
@@ -1647,7 +1652,8 @@ SELECT
 	cps.CARR_ARRIVED_AT_DATETIME,
 	lar.corp1_id,
 	CASE WHEN LLR.RFRC_NUM16 IS NOT NULL THEN 1 ELSE 0 END AS TM_AUCT_CNT,
-	llr.crtd_dtt AS CREATE_DTT
+	llr.crtd_dtt AS CREATE_DTT,
+	llr.strd_dtt AS START_DTT
 FROM
     najdaadm.load_leg_r               llr
     JOIN najdaadm.load_at_r                lar ON llr.frst_shpg_loc_cd = lar.shpg_loc_cd
@@ -1877,7 +1883,8 @@ GROUP BY
 	cps.CARR_ARRIVED_AT_DATETIME,
 	lar.corp1_id,
 	CASE WHEN LLR.RFRC_NUM16 IS NOT NULL THEN 1 ELSE 0 END,
-	llr.crtd_dtt 
+	llr.crtd_dtt,
+	llr.strd_dtt
     ) 
 '
 
@@ -1952,7 +1959,8 @@ CREATE TABLE ##tblOperationalMetricsTemp
 	 CARR_ARRIVED_AT_DATETIME	   DATETIME,
 	 CORP1_ID					   NVARCHAR(20),
 	 TM_AUCT_CNT			INT,
-	 CREATE_DTT DATETIME
+	 CREATE_DTT DATETIME,
+	 START_DTT DATETIME
   ) 
 
   /*
@@ -2032,7 +2040,8 @@ CREATE TABLE ##tblOperationalMetricsTemp
 			 CARR_ARRIVED_AT_DATETIME,
 			 CORP1_ID,
 			 TM_AUCT_CNT,
-			 CREATE_DTT) 
+			 CREATE_DTT,
+			 START_DTT) 
 SELECT OMT.LD_LEG_ID, 
        OMT.SALES_ORG, 
        OMT.FREIGHT_TYPE, 
@@ -2099,7 +2108,8 @@ SELECT OMT.LD_LEG_ID,
 	   OMT.CARR_ARRIVED_AT_DATETIME,
 	   OMT.CORP1_ID,
 	   OMT.TM_AUCT_CNT,
-	   OMT.CREATE_DTT
+	   OMT.CREATE_DTT,
+	   OMT.START_DTT
 FROM   ##TBLOPERATIONALMETRICSTEMP AS OMT 
        LEFT JOIN USCTTDEV.DBO.TBLOPERATIONALMETRICS OM 
               ON OM.LD_LEG_ID = OMT.LD_LEG_ID 
@@ -2184,7 +2194,8 @@ OM.AWARD_SERVICE_CNT = OMT.AWARD_SERVICE_CNT,
 OM.CARR_ARRIVED_AT_DATETIME = OMT.CARR_ARRIVED_AT_DATETIME,
 OM.CORP1_ID = OMT.CORP1_ID,
 OM.TM_AUCT_CNT = OMT.TM_AUCT_CNT,
-OM.CREATE_DTT = OMT.CREATE_DTT
+OM.CREATE_DTT = OMT.CREATE_DTT,
+OM.START_DTT = OMT.START_DTT
 FROM USCTTDEV.DBO.TBLOPERATIONALMETRICS AS OM
 INNER JOIN   ##TBLOPERATIONALMETRICSTEMP AS OMT 
               ON OM.LD_LEG_ID = OMT.LD_LEG_ID 
@@ -2261,7 +2272,7 @@ RegionJoinCountry = ra.Country
 FROM USCTTDEV.dbo.tblOperationalMetrics om
  INNER JOIN USCTTDEV.dbo.tblRegionalAssignments AS ra
     ON ( ra.StateAbbv = 
-    CASE WHEN om.[OrderType] LIKE '%INBOUND%' THEN
+    CASE WHEN om.[OrderType] LIKE '%INBOUND%'  AND om.BUSINESS_UNIT <> 'NON WOVENS' THEN
         FINAL_STA_CD
         ELSE
         FRST_STA_CD
@@ -2519,9 +2530,68 @@ LEFT JOIN USCTTDEV.dbo.tblActualLoadDetail ald ON ald.LD_LEG_ID = om.LD_LEG_ID
 WHERE (CAST(om.LastUpdated AS DATE) = CAST(GETDATE() AS DATE) OR CAST(ald.LastUpdated AS DATE) = CAST(GETDATE() AS DATE))
 
 /*
+New 1/13/2021
+Update Team Name/Groups where different with data from Eric Mailhan
+*/
+UPDATE USCTTDEV.dbo.tblOperationalMetrics
+SET TEAM_GROUP = ca.TEAM_GROUP,
+TEAM_NAME = ca.TEAM_NAME
+FROM USCTTDEV.dbo.tblOperationalMetrics om 
+INNER JOIN (
+SELECT * FROM OPENQUERY(NAJDAPRD,'
+SELECT DISTINCT ca.LOCATION_ID,
+ca.TEAM_NAME,
+TEAM_ID,
+TEAM_GROUP
+FROM NAJDAADM.ABPP_OTC_CAPS_ANALYST ca
+WHERE CAST(TO_DATE AS DATE) >= CAST(SYSDATE AS DATE)
+') data
+)ca ON ca.LOCATION_ID = om.FRST_SHPG_LOC_CD
+WHERE (om.TEAM_GROUP <> ca.TEAM_GROUP OR om.TEAM_GROUP IS NULL)
+OR (om.TEAM_NAME <> ca.TEAM_NAME OR om.TEAM_NAME IS NULL)
+
+/*
+Update the Order Type to NON WOVEN when Sales Org = "Z05"
+Per Katie Haynes / 3/10/2021
+*/
+UPDATE USCTTDEV.dbo.tblOperationalMetrics
+SET OrderType = 'NON WOVENS',
+SHIP_TYPE = 'NON WOVENS'
+WHERE SALES_ORG = 'Z05'
+
+/*
+4/27/2021
+Per Katie Haynes / Melanie, capture the first pickup appointment date time for use in Tableau Pickup Dashboard
+*/
+UPDATE USCTTDEV.dbo.tblOperationalMetrics
+SET ORIGINAL_PICKUP_FROM_DTT = pickupAppt.APPOINTMENT_FROM_TIME,
+ORIGINAL_PICKUP_TO_DTT = pickupAppt.APPOINTMENT_TO_TIME 
+FROM USCTTDEV.dbo.tblOperationalMetrics om
+INNER JOIN (
+	SELECT * FROM OPENQUERY(NAJDAPRD,'
+	SELECT 
+	LOAD_NUMBER,
+	APPOINTMENT_FROM_TIME,
+	APPOINTMENT_TO_TIME,
+	APPOINTMENT_CHANGE_TIME,
+	LOAD_STATUS,
+	REASON_CODE,
+	REASON_DESC,
+	ROW_NUMBER() OVER (PARTITION BY LOAD_NUMBER ORDER BY APPOINTMENT_CHANGE_TIME ASC) AS Rank
+	FROM NAI2PADM.abpp_otc_appointmenthistory
+	WHERE STOP_NUMBER = 1
+	AND EXTRACT(YEAR FROM APPOINTMENT_CHANGE_TIME) >= EXTRACT(YEAR FROM SYSDATE) - 2
+	/*AND LOAD_NUMBER = ''521182291''*/
+	ORDER BY APPOINTMENT_CHANGE_TIME ASC
+	') data
+) pickupAppt ON pickupAppt.LOAD_NUMBER = om.LD_LEG_ID
+WHERE pickupAppt.Rank = 1
+
+/*
 Clear appointment temp tables
 */
 DROP TABLE IF EXISTS ##tblAppointments
 DROP TABLE IF EXISTS ##tblAppointmentsMin
 
 END
+
