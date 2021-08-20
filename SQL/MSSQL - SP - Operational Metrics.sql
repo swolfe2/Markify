@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_OperationalMetrics]    Script Date: 8/12/2021 6:49:37 AM ******/
+/****** Object:  StoredProcedure [dbo].[sp_OperationalMetrics]    Script Date: 8/20/2021 8:31:11 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -9,8 +9,9 @@ GO
 -- =============================================
 -- Author:		<Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team>
 -- Create date: <9/6/2019>
--- Last modified: <4/27/2021>
+-- Last modified: <8/20/2021>
 -- Description:	<Executes Tim Zoppa's query against Oracle, loads to temp table, then appends/updates dbo.tblOperationalMetrics>
+-- 8/20/2021 - SW - Update to include COMPLETION_DATE_TIME Per Jeff Perrot, wanting to measure when the loads are actually picked up
 -- 4/27/2021 - SW - Update to include the first pickup appointment from/to times for Tableau Reporting
 -- 3/30/2021 - SW - Update to include START_DTT for Tableau reporting
 -- 3/10/2021 - SW - Update to include Z05 as NON WOVEN order type
@@ -32,32 +33,32 @@ ALTER PROCEDURE [dbo].[sp_OperationalMetrics]
 
 AS
 BEGIN
-	-- SET NOCOUNT ON added to prevent extra result sets from
-	-- interfering with SELECT statements.
-	SET NOCOUNT ON;
+    -- SET NOCOUNT ON added to prevent extra result sets from
+    -- interfering with SELECT statements.
+    SET NOCOUNT ON;
 
     -- Insert statements for procedure here
-/*
+    /*
 This SQL file replicates Tim Zoppa's SQL file, and records historical data to MSSQL since Oracle purges after 90 days
 MSSQL AUTHOR: Steve Wolfe
 ORACLE AUTHOR: Tim Zoppa
 */
 
-/*
+    /*
 Delete Temp table, if exists
 */
-DROP TABLE IF EXISTS
+    DROP TABLE IF EXISTS
 ##tblOperationalMetricsTemp
 
-/*
+    /*
 Declare query variable, since query is more than 8,000 characters
 */
-DECLARE @myQuery VARCHAR(MAX)
+    DECLARE @myQuery VARCHAR(MAX)
 
-/*
+    /*
 Set query
 */
-SET @myQuery = 'SELECT * FROM (WITH
+    SET @myQuery = 'SELECT * FROM (WITH
 
 /********************************************************************************************************************
 
@@ -1888,245 +1889,247 @@ GROUP BY
     ) 
 '
 
-/*
+    /*
 Create Temp table
 */
-CREATE TABLE ##tblOperationalMetricsTemp 
-  ( 
-     LD_LEG_ID                     NVARCHAR(20), 
-     SALES_ORG                     NVARCHAR(10), 
-     FREIGHT_TYPE                  NVARCHAR(5), 
-     BUSINESS_UNIT                 NVARCHAR(10), 
-     LOAD_STATUS                   NVARCHAR(20), 
-     CARR_CD                       NVARCHAR(5), 
-     SRVC_CD                       NVARCHAR(5), 
-     EQMT_TYP                      NVARCHAR(5), 
-     SHIP_TYPE                     NVARCHAR(10), 
-     SHIP_FROM_NAME                NVARCHAR(75), 
-     LANE_DESC                     NVARCHAR(75), 
-     FRST_SHPG_LOC_CD              NVARCHAR(20), 
-     FRST_CTY_NAME                 NVARCHAR(50), 
-     FRST_STA_CD                   NVARCHAR(2), 
-     FRST_ZIP_CD                   NVARCHAR(10), 
-     FRST_CTRY_CD                  NVARCHAR(3), 
-     LAST_SHPG_LOC_CD              NVARCHAR(20), 
-     SELL_TO_CUST                  NVARCHAR(40), 
-     FINAL_CITY_NAME               NVARCHAR(50), 
-     FINAL_STA_CD                  NVARCHAR(2), 
-     FINAL_CTRY_CD                 NVARCHAR(3), 
-     FINAL_ZIP_CD                  NVARCHAR(10), 
-     DISTANCE_TO_FRST_STOP         NUMERIC(18, 2), 
-     TEAM_NAME                     NVARCHAR(20), 
-     TEAM_GROUP                    NVARCHAR(5), 
-     CHGD_AMT_DLR                  NUMERIC(18, 2), 
-     FRST_TENDER_DATE              DATETIME, 
-     PICK_APPOINTMENT_DATETIME     DATETIME, 
-     CARR_DEPARTED_PICK_DATETIME   DATETIME, 
-     SHIP_DATE                     DATETIME, 
-     SHIP_DOW                      NVARCHAR(5), 
-     SHIP_WEEK                     DATETIME, 
-     SHIP_MONTH                    DATETIME, 
-     LAST_STOP_BASE_APPT_DATETIME  DATETIME, 
-     LAST_STOP_FINAL_APPT_DATETIME DATETIME, 
-     FINAL_APPT_DOW                NVARCHAR(5), 
-     FINAL_APPT_WEEK               DATETIME, 
-     FINAL_APPT_MONTH              DATETIME, 
-     ACTUAL_DELIVERY_DATE          DATETIME, 
-     ACTUAL_DELIVERY_DOW           NVARCHAR(10), 
-     ACTUAL_DELIVERY_WEEK          DATETIME, 
-     ACTUAL_DELIVERY_MONTH         DATETIME, 
-     TOTAL_MILES                   NUMERIC(18, 2), 
-     LOAD_COUNT                    INT, 
-     STOP_COUNT                    INT, 
-     STOP_RESPONSE_COUNT           INT, 
-     FTA_CNT                       INT, 
-     TDR_LEAD_HRS                  DECIMAL(18, 2), 
-	CAPS_EARLY_STOP_CNT	INT,
-	CAPS_ONTIME_STOP_CNT INT,
-	CAPS_LATE_STOP_CNT INT,
-	CAPS_DELIVERED_STOP_CNT INT,
-     CAPS_REASON_DESC              NVARCHAR(50), 
-	 	CSRS_EARLY_STOP_CNT INT,
-	CSRS_ONTIME_STOP_CNT INT,
-	CSRS_LATE_STOP_CNT INT,
-	CSRS_DELIVERED_STOP_CNT INT,
-     CSRS_REASON_DESC              NVARCHAR(50), 
-     LAST_REFRESHED_TIME           DATETIME, 
-     AWARD_LANE_STATUS             NVARCHAR(20), 
-     AWARD_LANE_CNT                INT, 
-     AWARD_SERVICE_STATUS          NVARCHAR(20), 
-     AWARD_SERVICE_CNT             INT,
-	 CARR_ARRIVED_AT_DATETIME	   DATETIME,
-	 CORP1_ID					   NVARCHAR(20),
-	 TM_AUCT_CNT			INT,
-	 CREATE_DTT DATETIME,
-	 START_DTT DATETIME
-  ) 
+    CREATE TABLE ##tblOperationalMetricsTemp
+    (
+        LD_LEG_ID                     NVARCHAR(20),
+        SALES_ORG                     NVARCHAR(10),
+        FREIGHT_TYPE                  NVARCHAR(5),
+        BUSINESS_UNIT                 NVARCHAR(10),
+        LOAD_STATUS                   NVARCHAR(20),
+        CARR_CD                       NVARCHAR(5),
+        SRVC_CD                       NVARCHAR(5),
+        EQMT_TYP                      NVARCHAR(5),
+        SHIP_TYPE                     NVARCHAR(10),
+        SHIP_FROM_NAME                NVARCHAR(75),
+        LANE_DESC                     NVARCHAR(75),
+        FRST_SHPG_LOC_CD              NVARCHAR(20),
+        FRST_CTY_NAME                 NVARCHAR(50),
+        FRST_STA_CD                   NVARCHAR(2),
+        FRST_ZIP_CD                   NVARCHAR(10),
+        FRST_CTRY_CD                  NVARCHAR(3),
+        LAST_SHPG_LOC_CD              NVARCHAR(20),
+        SELL_TO_CUST                  NVARCHAR(40),
+        FINAL_CITY_NAME               NVARCHAR(50),
+        FINAL_STA_CD                  NVARCHAR(2),
+        FINAL_CTRY_CD                 NVARCHAR(3),
+        FINAL_ZIP_CD                  NVARCHAR(10),
+        DISTANCE_TO_FRST_STOP         NUMERIC(18, 2),
+        TEAM_NAME                     NVARCHAR(20),
+        TEAM_GROUP                    NVARCHAR(5),
+        CHGD_AMT_DLR                  NUMERIC(18, 2),
+        FRST_TENDER_DATE              DATETIME,
+        PICK_APPOINTMENT_DATETIME     DATETIME,
+        CARR_DEPARTED_PICK_DATETIME   DATETIME,
+        SHIP_DATE                     DATETIME,
+        SHIP_DOW                      NVARCHAR(5),
+        SHIP_WEEK                     DATETIME,
+        SHIP_MONTH                    DATETIME,
+        LAST_STOP_BASE_APPT_DATETIME  DATETIME,
+        LAST_STOP_FINAL_APPT_DATETIME DATETIME,
+        FINAL_APPT_DOW                NVARCHAR(5),
+        FINAL_APPT_WEEK               DATETIME,
+        FINAL_APPT_MONTH              DATETIME,
+        ACTUAL_DELIVERY_DATE          DATETIME,
+        ACTUAL_DELIVERY_DOW           NVARCHAR(10),
+        ACTUAL_DELIVERY_WEEK          DATETIME,
+        ACTUAL_DELIVERY_MONTH         DATETIME,
+        TOTAL_MILES                   NUMERIC(18, 2),
+        LOAD_COUNT                    INT,
+        STOP_COUNT                    INT,
+        STOP_RESPONSE_COUNT           INT,
+        FTA_CNT                       INT,
+        TDR_LEAD_HRS                  DECIMAL(18, 2),
+        CAPS_EARLY_STOP_CNT           INT,
+        CAPS_ONTIME_STOP_CNT          INT,
+        CAPS_LATE_STOP_CNT            INT,
+        CAPS_DELIVERED_STOP_CNT       INT,
+        CAPS_REASON_DESC              NVARCHAR(50),
+        CSRS_EARLY_STOP_CNT           INT,
+        CSRS_ONTIME_STOP_CNT          INT,
+        CSRS_LATE_STOP_CNT            INT,
+        CSRS_DELIVERED_STOP_CNT       INT,
+        CSRS_REASON_DESC              NVARCHAR(50),
+        LAST_REFRESHED_TIME           DATETIME,
+        AWARD_LANE_STATUS             NVARCHAR(20),
+        AWARD_LANE_CNT                INT,
+        AWARD_SERVICE_STATUS          NVARCHAR(20),
+        AWARD_SERVICE_CNT             INT,
+        CARR_ARRIVED_AT_DATETIME      DATETIME,
+        CORP1_ID                      NVARCHAR(20),
+        TM_AUCT_CNT                   INT,
+        CREATE_DTT                    DATETIME,
+        START_DTT                     DATETIME
+    )
 
-  /*
+    /*
   Append records from giant Oracle query into MSSQL temp table
   SELECT * FROM ##tblOperationalMetricsTemp
   */
-  INSERT INTO ##tblOperationalMetricsTemp
-  EXEC (@myQuery) AT NAJDAPRD
+    INSERT INTO ##tblOperationalMetricsTemp
+    EXEC (@myQuery) AT NAJDAPRD
 
-  /*
+    /*
   Append new values from ##tblOperationalMetricsTemp to USCTTDEV.DBO.TBLOPERATIONALMETRICS, where the LD_LEG_ID value does not exist
   */
-  INSERT INTO USCTTDEV.DBO.TBLOPERATIONALMETRICS 
-            (LD_LEG_ID, 
-             SALES_ORG, 
-             FREIGHT_TYPE, 
-             BUSINESS_UNIT, 
-             LOAD_STATUS, 
-             CARR_CD, 
-             SRVC_CD, 
-             EQMT_TYP, 
-             SHIP_TYPE, 
-             SHIP_FROM_NAME, 
-             LANE_DESC, 
-             FRST_SHPG_LOC_CD, 
-             FRST_CTY_NAME, 
-             FRST_STA_CD, 
-             FRST_ZIP_CD, 
-             FRST_CTRY_CD, 
-             LAST_SHPG_LOC_CD, 
-             SELL_TO_CUST, 
-             FINAL_CITY_NAME, 
-             FINAL_STA_CD, 
-             FINAL_CTRY_CD, 
-             FINAL_ZIP_CD, 
-             DISTANCE_TO_FRST_STOP, 
-             TEAM_NAME, 
-             TEAM_GROUP, 
-             CHGD_AMT_DLR, 
-             FRST_TENDER_DATE, 
-             PICK_APPOINTMENT_DATETIME, 
-             CARR_DEPARTED_PICK_DATETIME, 
-             SHIP_DATE, 
-             SHIP_DOW, 
-             SHIP_WEEK, 
-             SHIP_MONTH, 
-             LAST_STOP_BASE_APPT_DATETIME, 
-             LAST_STOP_FINAL_APPT_DATETIME, 
-             FINAL_APPT_DOW, 
-             FINAL_APPT_WEEK, 
-             FINAL_APPT_MONTH, 
-             ACTUAL_DELIVERY_DATE, 
-             ACTUAL_DELIVERY_DOW, 
-             ACTUAL_DELIVERY_WEEK, 
-             ACTUAL_DELIVERY_MONTH, 
-             TOTAL_MILES, 
-             LOAD_COUNT, 
-             STOP_COUNT, 
-             STOP_RESPONSE_COUNT, 
-             FTA_CNT, 
-             TDR_LEAD_HRS, 
-			 CAPS_EARLY_STOP_CNT,
-			CAPS_ONTIME_STOP_CNT,
-			CAPS_LATE_STOP_CNT,
-			CAPS_DELIVERED_STOP_CNT,
-             CAPS_REASON_DESC, 
-			CSRS_EARLY_STOP_CNT,
-			CSRS_ONTIME_STOP_CNT,
-			CSRS_LATE_STOP_CNT,
-			CSRS_DELIVERED_STOP_CNT,
-             CSRS_REASON_DESC, 
-             LAST_REFRESHED_TIME, 
-             AWARD_LANE_STATUS, 
-             AWARD_LANE_CNT, 
-             AWARD_SERVICE_STATUS, 
-             AWARD_SERVICE_CNT,
-			 CARR_ARRIVED_AT_DATETIME,
-			 CORP1_ID,
-			 TM_AUCT_CNT,
-			 CREATE_DTT,
-			 START_DTT) 
-SELECT OMT.LD_LEG_ID, 
-       OMT.SALES_ORG, 
-       OMT.FREIGHT_TYPE, 
-       OMT.BUSINESS_UNIT, 
-       OMT.LOAD_STATUS, 
-       OMT.CARR_CD, 
-       OMT.SRVC_CD, 
-       OMT.EQMT_TYP, 
-       OMT.SHIP_TYPE, 
-       OMT.SHIP_FROM_NAME, 
-       OMT.LANE_DESC, 
-       OMT.FRST_SHPG_LOC_CD, 
-       OMT.FRST_CTY_NAME, 
-       OMT.FRST_STA_CD, 
-       OMT.FRST_ZIP_CD, 
-       OMT.FRST_CTRY_CD, 
-       OMT.LAST_SHPG_LOC_CD, 
-       OMT.SELL_TO_CUST, 
-       OMT.FINAL_CITY_NAME, 
-       OMT.FINAL_STA_CD, 
-       OMT.FINAL_CTRY_CD, 
-       OMT.FINAL_ZIP_CD, 
-       OMT.DISTANCE_TO_FRST_STOP, 
-       OMT.TEAM_NAME, 
-       OMT.TEAM_GROUP, 
-       OMT.CHGD_AMT_DLR, 
-       OMT.FRST_TENDER_DATE, 
-       OMT.PICK_APPOINTMENT_DATETIME, 
-       OMT.CARR_DEPARTED_PICK_DATETIME, 
-       OMT.SHIP_DATE, 
-       OMT.SHIP_DOW, 
-       OMT.SHIP_WEEK, 
-       OMT.SHIP_MONTH, 
-       OMT.LAST_STOP_BASE_APPT_DATETIME, 
-       OMT.LAST_STOP_FINAL_APPT_DATETIME, 
-       OMT.FINAL_APPT_DOW, 
-       OMT.FINAL_APPT_WEEK, 
-       OMT.FINAL_APPT_MONTH, 
-       OMT.ACTUAL_DELIVERY_DATE, 
-       OMT.ACTUAL_DELIVERY_DOW, 
-       OMT.ACTUAL_DELIVERY_WEEK, 
-       OMT.ACTUAL_DELIVERY_MONTH, 
-       OMT.TOTAL_MILES, 
-       OMT.LOAD_COUNT, 
-       OMT.STOP_COUNT, 
-       OMT.STOP_RESPONSE_COUNT, 
-       OMT.FTA_CNT, 
-       OMT.TDR_LEAD_HRS, 
-	   OMT.CAPS_EARLY_STOP_CNT,
-	   OMT.CAPS_ONTIME_STOP_CNT,
-	   OMT.CAPS_LATE_STOP_CNT,
-	   OMT.CAPS_DELIVERED_STOP_CNT,
-       OMT.CAPS_REASON_DESC, 
-	   OMT.CSRS_EARLY_STOP_CNT,
-	   OMT.CSRS_ONTIME_STOP_CNT,
-	   OMT.CSRS_LATE_STOP_CNT,
-	   OMT.CSRS_DELIVERED_STOP_CNT,
-       OMT.CSRS_REASON_DESC, 
-       OMT.LAST_REFRESHED_TIME, 
-       OMT.AWARD_LANE_STATUS, 
-       OMT.AWARD_LANE_CNT, 
-       OMT.AWARD_SERVICE_STATUS, 
-       OMT.AWARD_SERVICE_CNT,
-	   OMT.CARR_ARRIVED_AT_DATETIME,
-	   OMT.CORP1_ID,
-	   OMT.TM_AUCT_CNT,
-	   OMT.CREATE_DTT,
-	   OMT.START_DTT
-FROM   ##TBLOPERATIONALMETRICSTEMP AS OMT 
-       LEFT JOIN USCTTDEV.DBO.TBLOPERATIONALMETRICS OM 
-              ON OM.LD_LEG_ID = OMT.LD_LEG_ID 
-WHERE  OM.LD_LEG_ID IS NULL 
+    INSERT INTO USCTTDEV.DBO.TBLOPERATIONALMETRICS
+        (LD_LEG_ID,
+        SALES_ORG,
+        FREIGHT_TYPE,
+        BUSINESS_UNIT,
+        LOAD_STATUS,
+        CARR_CD,
+        SRVC_CD,
+        EQMT_TYP,
+        SHIP_TYPE,
+        SHIP_FROM_NAME,
+        LANE_DESC,
+        FRST_SHPG_LOC_CD,
+        FRST_CTY_NAME,
+        FRST_STA_CD,
+        FRST_ZIP_CD,
+        FRST_CTRY_CD,
+        LAST_SHPG_LOC_CD,
+        SELL_TO_CUST,
+        FINAL_CITY_NAME,
+        FINAL_STA_CD,
+        FINAL_CTRY_CD,
+        FINAL_ZIP_CD,
+        DISTANCE_TO_FRST_STOP,
+        TEAM_NAME,
+        TEAM_GROUP,
+        CHGD_AMT_DLR,
+        FRST_TENDER_DATE,
+        PICK_APPOINTMENT_DATETIME,
+        CARR_DEPARTED_PICK_DATETIME,
+        SHIP_DATE,
+        SHIP_DOW,
+        SHIP_WEEK,
+        SHIP_MONTH,
+        LAST_STOP_BASE_APPT_DATETIME,
+        LAST_STOP_FINAL_APPT_DATETIME,
+        FINAL_APPT_DOW,
+        FINAL_APPT_WEEK,
+        FINAL_APPT_MONTH,
+        ACTUAL_DELIVERY_DATE,
+        ACTUAL_DELIVERY_DOW,
+        ACTUAL_DELIVERY_WEEK,
+        ACTUAL_DELIVERY_MONTH,
+        TOTAL_MILES,
+        LOAD_COUNT,
+        STOP_COUNT,
+        STOP_RESPONSE_COUNT,
+        FTA_CNT,
+        TDR_LEAD_HRS,
+        CAPS_EARLY_STOP_CNT,
+        CAPS_ONTIME_STOP_CNT,
+        CAPS_LATE_STOP_CNT,
+        CAPS_DELIVERED_STOP_CNT,
+        CAPS_REASON_DESC,
+        CSRS_EARLY_STOP_CNT,
+        CSRS_ONTIME_STOP_CNT,
+        CSRS_LATE_STOP_CNT,
+        CSRS_DELIVERED_STOP_CNT,
+        CSRS_REASON_DESC,
+        LAST_REFRESHED_TIME,
+        AWARD_LANE_STATUS,
+        AWARD_LANE_CNT,
+        AWARD_SERVICE_STATUS,
+        AWARD_SERVICE_CNT,
+        CARR_ARRIVED_AT_DATETIME,
+        CORP1_ID,
+        TM_AUCT_CNT,
+        CREATE_DTT,
+        START_DTT)
+    SELECT
+        OMT.LD_LEG_ID,
+        OMT.SALES_ORG,
+        OMT.FREIGHT_TYPE,
+        OMT.BUSINESS_UNIT,
+        OMT.LOAD_STATUS,
+        OMT.CARR_CD,
+        OMT.SRVC_CD,
+        OMT.EQMT_TYP,
+        OMT.SHIP_TYPE,
+        OMT.SHIP_FROM_NAME,
+        OMT.LANE_DESC,
+        OMT.FRST_SHPG_LOC_CD,
+        OMT.FRST_CTY_NAME,
+        OMT.FRST_STA_CD,
+        OMT.FRST_ZIP_CD,
+        OMT.FRST_CTRY_CD,
+        OMT.LAST_SHPG_LOC_CD,
+        OMT.SELL_TO_CUST,
+        OMT.FINAL_CITY_NAME,
+        OMT.FINAL_STA_CD,
+        OMT.FINAL_CTRY_CD,
+        OMT.FINAL_ZIP_CD,
+        OMT.DISTANCE_TO_FRST_STOP,
+        OMT.TEAM_NAME,
+        OMT.TEAM_GROUP,
+        OMT.CHGD_AMT_DLR,
+        OMT.FRST_TENDER_DATE,
+        OMT.PICK_APPOINTMENT_DATETIME,
+        OMT.CARR_DEPARTED_PICK_DATETIME,
+        OMT.SHIP_DATE,
+        OMT.SHIP_DOW,
+        OMT.SHIP_WEEK,
+        OMT.SHIP_MONTH,
+        OMT.LAST_STOP_BASE_APPT_DATETIME,
+        OMT.LAST_STOP_FINAL_APPT_DATETIME,
+        OMT.FINAL_APPT_DOW,
+        OMT.FINAL_APPT_WEEK,
+        OMT.FINAL_APPT_MONTH,
+        OMT.ACTUAL_DELIVERY_DATE,
+        OMT.ACTUAL_DELIVERY_DOW,
+        OMT.ACTUAL_DELIVERY_WEEK,
+        OMT.ACTUAL_DELIVERY_MONTH,
+        OMT.TOTAL_MILES,
+        OMT.LOAD_COUNT,
+        OMT.STOP_COUNT,
+        OMT.STOP_RESPONSE_COUNT,
+        OMT.FTA_CNT,
+        OMT.TDR_LEAD_HRS,
+        OMT.CAPS_EARLY_STOP_CNT,
+        OMT.CAPS_ONTIME_STOP_CNT,
+        OMT.CAPS_LATE_STOP_CNT,
+        OMT.CAPS_DELIVERED_STOP_CNT,
+        OMT.CAPS_REASON_DESC,
+        OMT.CSRS_EARLY_STOP_CNT,
+        OMT.CSRS_ONTIME_STOP_CNT,
+        OMT.CSRS_LATE_STOP_CNT,
+        OMT.CSRS_DELIVERED_STOP_CNT,
+        OMT.CSRS_REASON_DESC,
+        OMT.LAST_REFRESHED_TIME,
+        OMT.AWARD_LANE_STATUS,
+        OMT.AWARD_LANE_CNT,
+        OMT.AWARD_SERVICE_STATUS,
+        OMT.AWARD_SERVICE_CNT,
+        OMT.CARR_ARRIVED_AT_DATETIME,
+        OMT.CORP1_ID,
+        OMT.TM_AUCT_CNT,
+        OMT.CREATE_DTT,
+        OMT.START_DTT
+    FROM
+        ##TBLOPERATIONALMETRICSTEMP AS OMT
+        LEFT JOIN USCTTDEV.DBO.TBLOPERATIONALMETRICS OM
+        ON OM.LD_LEG_ID = OMT.LD_LEG_ID
+    WHERE  OM.LD_LEG_ID IS NULL
 
-/*
+    /*
 Declare and set variable for current date/time to use on AddedOn/LastUpdated
 */
-DECLARE @currentDateTime as datetime
-SET @currentDateTime = GETDATE()
+    DECLARE @currentDateTime AS DATETIME
+    SET @currentDateTime = GETDATE()
 
-/*
+    /*
 Update ALL fields on MSSQL Server table to match what's currently in Temp table
 */
-UPDATE OM
+    UPDATE OM
 SET 
-OM.AddedOn = CASE WHEN OM.AddedOn is null then @currentDateTime else OM.AddedOn END,
+OM.AddedOn = CASE WHEN OM.AddedOn IS NULL THEN @currentDateTime ELSE OM.AddedOn END,
 OM.LastUpdated = @currentDateTime,
 OM.LD_LEG_ID = OMT.LD_LEG_ID,
 OM.SALES_ORG = OMT.SALES_ORG,
@@ -2196,99 +2199,107 @@ OM.CORP1_ID = OMT.CORP1_ID,
 OM.TM_AUCT_CNT = OMT.TM_AUCT_CNT,
 OM.CREATE_DTT = OMT.CREATE_DTT,
 OM.START_DTT = OMT.START_DTT
-FROM USCTTDEV.DBO.TBLOPERATIONALMETRICS AS OM
-INNER JOIN   ##TBLOPERATIONALMETRICSTEMP AS OMT 
-              ON OM.LD_LEG_ID = OMT.LD_LEG_ID 
+FROM
+        USCTTDEV.DBO.TBLOPERATIONALMETRICS AS OM
+        INNER JOIN ##TBLOPERATIONALMETRICSTEMP AS OMT
+        ON OM.LD_LEG_ID = OMT.LD_LEG_ID
 
-/*
+    /*
 Redundant, but I do it anyway! : D 
 Delete Temp table, if exists
 */
-DROP TABLE IF EXISTS
+    DROP TABLE IF EXISTS
 ##tblOperationalMetricsTemp
 
-/*
+    /*
 Update USCTTDEV.dbo.tblOperationalMetrics if no longer appears on Oracle query, to whatever status matches from USCTTDEV.dbo.tblRFTDetailDataHistoricalNew
 */
-UPDATE USCTTDEV.dbo.tblOperationalMetrics
+    UPDATE USCTTDEV.dbo.tblOperationalMetrics
 SET LOAD_STATUS = rft.CurrentStatusDesc, LastUpdated = rft.LastUpdated
-FROM USCTTDEV.dbo.tblOperationalMetrics om
-LEFT JOIN USCTTDEV.dbo.tblRFTDetailDataHistoricalNew rft on rft.load_number = om.ld_leg_id
+FROM
+        USCTTDEV.dbo.tblOperationalMetrics om
+        LEFT JOIN USCTTDEV.dbo.tblRFTDetailDataHistoricalNew rft ON rft.load_number = om.ld_leg_id
 WHERE LOAD_STATUS <> rft.CurrentStatusDesc
-AND rft.FirstFailure Is Not Null
-AND LOAD_STATUS <> 'Completed'
-AND om.LastUpdated < rft.LastUpdated-1
+        AND rft.FirstFailure IS NOT NULL
+        AND LOAD_STATUS <> 'Completed'
+        AND om.LastUpdated < rft.LastUpdated-1
 
-/*
+    /*
 Update Actual Load Details with new city names, when there's something weird
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET DestCity =
               CASE
                 WHEN zc.ZONE IS NOT NULL AND
-                  zc.CityName IS NOT NULL THEN zc.UpdatedCityName
+        zc.CityName IS NOT NULL THEN zc.UpdatedCityName
                 ELSE ald.LAST_CTY_NAME
               END
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-LEFT JOIN USCTTDEV.dbo.tblZoneCities zc
-  ON zc.Zone = ald.Dest_Zone
-  AND zc.CityName = ald.LAST_CTY_NAME
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
+        LEFT JOIN USCTTDEV.dbo.tblZoneCities zc
+        ON zc.Zone = ald.Dest_Zone
+            AND zc.CityName = ald.LAST_CTY_NAME
 
-/*
+    /*
 Update Operational Metrics if CORP1_ID = 'RF' and SHIP_TYPE = 'RECFIBER', 
 but CORP1_ID is still null for some reason
 */
-UPDATE USCTTDEV.dbo.tblOperationalMetrics
+    UPDATE USCTTDEV.dbo.tblOperationalMetrics
 SET CORP1_ID = 'RF'
 WHERE SHIP_TYPE = 'RECFIBER'
-AND CORP1_ID IS NULL
+        AND CORP1_ID IS NULL
 
-/*
+    /*
 Determine order type for each Load
 SELECT * FROM USCTTDEV.dbo.tblOperationalMetrics WHERE ORDERTYPE IS NULL AND LOAD_STATUS <> 'CANCELED'
 */
-UPDATE USCTTDEV.dbo.tblOperationalMetrics
+    UPDATE USCTTDEV.dbo.tblOperationalMetrics
 SET OrderType = 
-CASE WHEN CORP1_ID = 'RM' Then 'RM-INBOUND'
-WHEN CORP1_ID = 'RF' Then 'RF-INBOUND' 
-WHEN substring(LAST_SHPG_LOC_CD,1,1) = 'R' then 'RETURNS'
-WHEN substring(LAST_SHPG_LOC_CD,1,1) = '1' then 'INTERMILL'
-WHEN substring(LAST_SHPG_LOC_CD,1,1) = '2' then 'INTERMILL'
-WHEN substring(LAST_SHPG_LOC_CD,1,1) = '5' then 'CUSTOMER'
-WHEN substring(LAST_SHPG_LOC_CD,1,1) = '9' then 'CUSTOMER'
+CASE WHEN CORP1_ID = 'RM' THEN 'RM-INBOUND'
+WHEN CORP1_ID = 'RF' THEN 'RF-INBOUND' 
+WHEN substring(LAST_SHPG_LOC_CD,1,1) = 'R' THEN 'RETURNS'
+WHEN substring(LAST_SHPG_LOC_CD,1,1) = '1' THEN 'INTERMILL'
+WHEN substring(LAST_SHPG_LOC_CD,1,1) = '2' THEN 'INTERMILL'
+WHEN substring(LAST_SHPG_LOC_CD,1,1) = '5' THEN 'CUSTOMER'
+WHEN substring(LAST_SHPG_LOC_CD,1,1) = '9' THEN 'CUSTOMER'
 ELSE NULL
 END
 
-/*
+    /*
 Determine CarrierManager, Region, Join State for each load
 SELECT * FROM USCTTDEV.dbo.tblOperationalMetrics WHERE ID <20
 */
-UPDATE USCTTDEV.dbo.tblOperationalMetrics
+    UPDATE USCTTDEV.dbo.tblOperationalMetrics
 SET CarrierManager = ra.CarrierManager,
 Region = ra.Region,
 RegionJoinState = ra.StateAbbv,
 RegionJoinCountry = ra.Country
 
-FROM USCTTDEV.dbo.tblOperationalMetrics om
- INNER JOIN USCTTDEV.dbo.tblRegionalAssignments AS ra
-    ON ( ra.StateAbbv = 
-    CASE WHEN om.[OrderType] LIKE '%INBOUND%'  AND om.BUSINESS_UNIT <> 'NON WOVENS' THEN
+FROM
+        USCTTDEV.dbo.tblOperationalMetrics om
+        INNER JOIN USCTTDEV.dbo.tblRegionalAssignments AS ra
+        ON ( ra.StateAbbv = 
+    CASE WHEN om.[OrderType] LIKE '%INBOUND%' AND om.BUSINESS_UNIT <> 'NON WOVENS' THEN
         FINAL_STA_CD
         ELSE
         FRST_STA_CD
     END)
 
-/*
+    /*
 Execute Cancelled Loads Stored Procedure
 */
-exec USCTTDEV.dbo.sp_CancelledLoads
+    EXEC USCTTDEV.dbo.sp_CancelledLoads
 
-/*
+    /*
 Create a table of temp appointment data for the past 2 calendar years
 */
 
-DROP TABLE IF EXISTS ##tblAppointments
-SELECT * INTO ##tblAppointments FROM OPENQUERY(NAJDAPRD, 'SELECT DISTINCT
+    DROP TABLE IF EXISTS ##tblAppointments
+    SELECT
+        *
+    INTO ##tblAppointments
+    FROM
+        OPENQUERY(NAJDAPRD, 'SELECT DISTINCT
     load_leg_detail_r.ld_leg_id           AS loadnumber,
     load_leg_detail_r.dlvy_stop_seq_num   AS stopnumber,
     load_leg_detail_r.to_shpg_loc_cd      AS destinationid,
@@ -2437,80 +2448,103 @@ ORDER BY
     load_leg_detail_r.dlvy_stop_seq_num,
     appointments.apptchgdatetime') data
 
-/*
+    /*
 Create a table of MIN appointment stuff, for when the first appointment was made for Notified and Confirmed
 SELECT TOP 50 * FROM ##tblAppointments ORDER BY LOADNUMBER ASC, APPTCHGDATETIME ASC
 
 */
-DROP TABLE IF EXISTS ##tblAppointmentsMin
-SELECT DISTINCT LoadNumber INTO ##tblAppointmentsMin FROM ##tblAppointments
+    DROP TABLE IF EXISTS ##tblAppointmentsMin
+    SELECT
+        DISTINCT
+        LoadNumber
+    INTO ##tblAppointmentsMin
+    FROM
+        ##tblAppointments
 
-/*
+    /*
 Add FIRST_APPT_NOTIFIED and FIRST_APPT_CONFIRMED to ##tblAppointmentsMin
 SELECT TOP 50  * FROM ##tblAppointmentsMin
 */
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'FIRST_APPT_NOTIFIED'				AND TABLE_NAME LIKE '##tblAppointmentsMin') ALTER TABLE ##tblAppointmentsMin ADD [FIRST_APPT_NOTIFIED] 		DATETIME NULL	
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'FIRST_APPT_CONFIRMED'		AND TABLE_NAME LIKE '##tblAppointmentsMin') ALTER TABLE ##tblAppointmentsMin ADD [FIRST_APPT_CONFIRMED]	DATETIME NULL	
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'FIRST_APPT_NOTIFIED' AND TABLE_NAME LIKE '##tblAppointmentsMin') ALTER TABLE ##tblAppointmentsMin ADD [FIRST_APPT_NOTIFIED] 		DATETIME NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'FIRST_APPT_CONFIRMED' AND TABLE_NAME LIKE '##tblAppointmentsMin') ALTER TABLE ##tblAppointmentsMin ADD [FIRST_APPT_CONFIRMED]	DATETIME NULL
 
-/*
+    /*
 Update ##tblAppointmentsMin with first appointment notified datetime
 SELECT * FROM ##tblAppointmentsMin
 */
-UPDATE ##tblAppointmentsMin
+    UPDATE ##tblAppointmentsMin
 SET FIRST_APPT_NOTIFIED = notified.FIRST_APPT_NOTIFIED
-FROM ##tblAppointmentsMin aptm
-INNER JOIN(
-	SELECT LoadNumber, MIN(apt.APPTCHGDATETIME) AS FIRST_APPT_NOTIFIED
-	FROM ##tblAppointments apt
-	WHERE apt.STATUS = 'Notified First'
-	GROUP BY LoadNumber) notified On notified.LoadNumber = aptm.LoadNumber
+FROM
+        ##tblAppointmentsMin aptm
+        INNER JOIN(
+	SELECT
+            LoadNumber,
+            MIN(apt.APPTCHGDATETIME) AS FIRST_APPT_NOTIFIED
+        FROM
+            ##tblAppointments apt
+        WHERE apt.STATUS = 'Notified First'
+        GROUP BY LoadNumber) notified ON notified.LoadNumber = aptm.LoadNumber
 
-/*
+    /*
 Update ##tblAppointmentsMin with first appointment notified datetime
 */
-UPDATE ##tblAppointmentsMin
+    UPDATE ##tblAppointmentsMin
 SET FIRST_APPT_CONFIRMED = confirmed.FIRST_APPT_CONFIRMED
-FROM ##tblAppointmentsMin aptm
-INNER JOIN(
-	SELECT LoadNumber, MIN(apt.APPTCHGDATETIME) AS FIRST_APPT_CONFIRMED
-	FROM ##tblAppointments apt
-	WHERE apt.STATUS = 'Confirmed First'
-	GROUP BY LoadNumber) confirmed On confirmed.LoadNumber = aptm.LoadNumber
+FROM
+        ##tblAppointmentsMin aptm
+        INNER JOIN(
+	SELECT
+            LoadNumber,
+            MIN(apt.APPTCHGDATETIME) AS FIRST_APPT_CONFIRMED
+        FROM
+            ##tblAppointments apt
+        WHERE apt.STATUS = 'Confirmed First'
+        GROUP BY LoadNumber) confirmed ON confirmed.LoadNumber = aptm.LoadNumber
 
 
-/*
+    /*
 Update Operational Metrics with FIRST_APPT_NOTIFIED and FIRST_APPT_CONFIRMED
 */
-UPDATE USCTTDEV.dbo.tblOperationalMetrics
+    UPDATE USCTTDEV.dbo.tblOperationalMetrics
 SET FIRST_APPT_NOTIFIED = min.FIRST_APPT_NOTIFIED,
 FIRST_APPT_CONFIRMED = min.FIRST_APPT_CONFIRMED
-FROM USCTTDEV.dbo.tblOperationalMetrics om 
-INNER JOIN ##tblAppointmentsMin min ON min.LoadNumber = om.LD_LEG_ID
+FROM
+        USCTTDEV.dbo.tblOperationalMetrics om
+        INNER JOIN ##tblAppointmentsMin min ON min.LoadNumber = om.LD_LEG_ID
 
-/*
+    /*
 Attempt to update Business Unit from Actual Load Detail.
 Otherwise, assume that it's KCNA
 */
-UPDATE USCTTDEV.dbo.tblOperationalMetrics
+    UPDATE USCTTDEV.dbo.tblOperationalMetrics
 SET BUSINESS_UNIT = CASE WHEN om.BUSINESS_UNIT IS NOT NULL THEN om.BUSINESS_UNIT
 WHEN ald.BU IS NULL THEN 'KCNA' ELSE ald.BU END
-FROM USCTTDEV.dbo.tblOperationalMetrics om
-LEFT JOIN USCTTDEV.dbo.tblActualLoadDetail ald ON ald.LD_LEG_ID = om.LD_LEG_ID
+FROM
+        USCTTDEV.dbo.tblOperationalMetrics om
+        LEFT JOIN USCTTDEV.dbo.tblActualLoadDetail ald ON ald.LD_LEG_ID = om.LD_LEG_ID
 WHERE om.BUSINESS_UNIT IS NULL
-AND CAST(om.LastUpdated AS DATE) = CAST(GETDATE() AS DATE)
+        AND CAST(om.LastUpdated AS DATE) = CAST(GETDATE() AS DATE)
 
-/*
+    /*
 Force to KCNA or KCP Business Units
 */
-UPDATE USCTTDEV.dbo.tblOperationalMetrics
+    UPDATE USCTTDEV.dbo.tblOperationalMetrics
 SET BUSINESS_UNIT = CASE WHEN BUSINESS_UNIT = 'KCP' THEN 'KCP'
 ELSE 'KCNA' END
 WHERE CAST(LastUpdated AS DATE) = CAST(GETDATE() AS DATE)
 
-/*
+    /*
 Update Operational Metrics with new fields from Actual Load Detail
 */
-UPDATE USCTTDEV.dbo.tblOperationalMetrics
+    UPDATE USCTTDEV.dbo.tblOperationalMetrics
 SET FRAN = CASE WHEN ald.FRAN = 'eAuction' THEN 'eAuction' ELSE NULL END,
 AwardLane = ald.AwardLane,
 AWARD_LANE_STATUS = CASE WHEN ald.AwardLane = 'Y' THEN 'Award Lane' ELSE 'Not Award Lane' END,
@@ -2525,20 +2559,25 @@ BUSegment = CASE WHEN ald.BUSegment IS NULL THEN 'UNKNOWN' ELSE ald.BUSegment EN
 Dedicated = ald.Dedicated,
 RateType = CASE WHEN ald.RateType IS NULL THEN 'UNKNOWN' ELSE ald.RateType END,
 LiveLoad = ald.LiveLoad
-FROM USCTTDEV.dbo.tblOperationalMetrics om 
-LEFT JOIN USCTTDEV.dbo.tblActualLoadDetail ald ON ald.LD_LEG_ID = om.LD_LEG_ID
+FROM
+        USCTTDEV.dbo.tblOperationalMetrics om
+        LEFT JOIN USCTTDEV.dbo.tblActualLoadDetail ald ON ald.LD_LEG_ID = om.LD_LEG_ID
 WHERE (CAST(om.LastUpdated AS DATE) = CAST(GETDATE() AS DATE) OR CAST(ald.LastUpdated AS DATE) = CAST(GETDATE() AS DATE))
 
-/*
+    /*
 New 1/13/2021
 Update Team Name/Groups where different with data from Eric Mailhan
 */
-UPDATE USCTTDEV.dbo.tblOperationalMetrics
+    UPDATE USCTTDEV.dbo.tblOperationalMetrics
 SET TEAM_GROUP = ca.TEAM_GROUP,
 TEAM_NAME = ca.TEAM_NAME
-FROM USCTTDEV.dbo.tblOperationalMetrics om 
-INNER JOIN (
-SELECT * FROM OPENQUERY(NAJDAPRD,'
+FROM
+        USCTTDEV.dbo.tblOperationalMetrics om
+        INNER JOIN (
+SELECT
+            *
+        FROM
+            OPENQUERY(NAJDAPRD,'
 SELECT DISTINCT ca.LOCATION_ID,
 ca.TEAM_NAME,
 TEAM_ID,
@@ -2548,27 +2587,31 @@ WHERE CAST(TO_DATE AS DATE) >= CAST(SYSDATE AS DATE)
 ') data
 )ca ON ca.LOCATION_ID = om.FRST_SHPG_LOC_CD
 WHERE (om.TEAM_GROUP <> ca.TEAM_GROUP OR om.TEAM_GROUP IS NULL)
-OR (om.TEAM_NAME <> ca.TEAM_NAME OR om.TEAM_NAME IS NULL)
+        OR (om.TEAM_NAME <> ca.TEAM_NAME OR om.TEAM_NAME IS NULL)
 
-/*
+    /*
 Update the Order Type to NON WOVEN when Sales Org = "Z05"
 Per Katie Haynes / 3/10/2021
 */
-UPDATE USCTTDEV.dbo.tblOperationalMetrics
+    UPDATE USCTTDEV.dbo.tblOperationalMetrics
 SET OrderType = 'NON WOVENS',
 SHIP_TYPE = 'NON WOVENS'
 WHERE SALES_ORG = 'Z05'
 
-/*
+    /*
 4/27/2021
 Per Katie Haynes / Melanie, capture the first pickup appointment date time for use in Tableau Pickup Dashboard
 */
-UPDATE USCTTDEV.dbo.tblOperationalMetrics
+    UPDATE USCTTDEV.dbo.tblOperationalMetrics
 SET ORIGINAL_PICKUP_FROM_DTT = pickupAppt.APPOINTMENT_FROM_TIME,
 ORIGINAL_PICKUP_TO_DTT = pickupAppt.APPOINTMENT_TO_TIME 
-FROM USCTTDEV.dbo.tblOperationalMetrics om
-INNER JOIN (
-	SELECT * FROM OPENQUERY(NAJDAPRD,'
+FROM
+        USCTTDEV.dbo.tblOperationalMetrics om
+        INNER JOIN (
+	SELECT
+            *
+        FROM
+            OPENQUERY(NAJDAPRD,'
 	SELECT 
 	LOAD_NUMBER,
 	APPOINTMENT_FROM_TIME,
@@ -2587,11 +2630,51 @@ INNER JOIN (
 ) pickupAppt ON pickupAppt.LOAD_NUMBER = om.LD_LEG_ID
 WHERE pickupAppt.Rank = 1
 
-/*
+    /*
 Clear appointment temp tables
 */
-DROP TABLE IF EXISTS ##tblAppointments
-DROP TABLE IF EXISTS ##tblAppointmentsMin
+    DROP TABLE IF EXISTS ##tblAppointments
+    DROP TABLE IF EXISTS ##tblAppointmentsMin
+
+    /*
+Update 8/20/2021
+Per Jeff Perrot, COMPLETION_DATE_TIME wanting to measure when the loads are actually picked up
+*/
+    UPDATE USCTTDEV.dbo.tblOperationalMetrics
+SET COMPLETION_DATE_TIME = data.COMPLETION_DATE_TIME
+FROM
+        USCTTDEV.dbo.tblOperationalMetrics om
+        INNER JOIN (
+SELECT
+            *
+        FROM
+            OPENQUERY(NAJDAPRD,'
+SELECT cm.LOAD_ID,
+llr.STRD_DTT,
+cm.ARRIVED_AT_DATETIME,
+cm.COMPLETION_DATE_TIME,
+llr.SHPD_DTT,
+REPLACE(CASE
+    WHEN INSTR(llr.FRST_SHPG_LOC_CD,''-'') > 0 THEN
+	SUBSTR(llr.FRST_SHPG_LOC_CD, 0, INSTR(llr.FRST_SHPG_LOC_CD,''-'')-1)
+    ELSE
+        llr.FRST_SHPG_LOC_CD
+END , ''V'','''') AS FRST_SHPG_PLANT,
+llr.FRST_SHPG_LOC_CD,
+CASE WHEN cust.cust_cd IS NOT NULL THEN cust.name
+	ELSE
+		CASE 
+		WHEN SUBSTR(llr.FRST_SHPG_LOC_CD,1,1) = ''V'' THEN SUBSTR(llr.FRST_SHPG_LOC_CD,1,9)
+		WHEN CAST(SUBSTR(llr.FRST_SHPG_LOC_CD,1,1) AS VARCHAR(1)) IN ( ''1'', ''2'') THEN CAST(SUBSTR(llr.FRST_SHPG_LOC_CD,1,4) AS VARCHAR(4)) || '' - '' || llr.FRST_CTY_NAME
+		ELSE ''UNKNOWN'' 
+	END 
+END AS OriginPlant
+FROM
+NAI2PADM.ABPP_OTC_CAPS_MASTER cm
+INNER JOIN NAJDAADM.LOAD_LEG_R llr ON llr.LD_LEG_ID = cm.LOAD_ID
+LEFT JOIN NAJDAADM.CUST_TV cust ON cust.CUST_CD = SUBSTR(llr.FRST_SHPG_LOC_CD,2,8)
+WHERE TRUNC(llr.STRD_DTT) IS NOT NULL
+AND cm.STOP_NUM = 1
+') data ) data ON data.LOAD_ID = om.LD_LEG_ID
 
 END
-
