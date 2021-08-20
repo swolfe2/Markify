@@ -11,7 +11,7 @@ GO
 -- Create date: <9/6/2019>
 -- Last modified: <8/20/2021>
 -- Description:	<Executes Tim Zoppa's query against Oracle, loads to temp table, then appends/updates dbo.tblOperationalMetrics>
--- 8/20/2021 - SW - Update to include COMPLETION_DATE_TIME Per Jeff Perrot, wanting to measure when the loads are actually picked up
+-- 8/20/2021 - SW - Update to include COMPLETION_DATE_TIME Per Jeff Perrot, wanting to measure when the loads are actually picked up. Also added PICKUP_TIME  using logic from him.
 -- 4/27/2021 - SW - Update to include the first pickup appointment from/to times for Tableau Reporting
 -- 3/30/2021 - SW - Update to include START_DTT for Tableau reporting
 -- 3/10/2021 - SW - Update to include Z05 as NON WOVEN order type
@@ -2676,5 +2676,17 @@ LEFT JOIN NAJDAADM.CUST_TV cust ON cust.CUST_CD = SUBSTR(llr.FRST_SHPG_LOC_CD,2,
 WHERE TRUNC(llr.STRD_DTT) IS NOT NULL
 AND cm.STOP_NUM = 1
 ') data ) data ON data.LOAD_ID = om.LD_LEG_ID
+
+    /*
+Set Pickup Date/Time
+Logic from Jeff Perrot 8/20/2021
+Pickup_Time = min(ABPP_OTC_CAPS_MASTER.ARRIVED_AT_DATETIME, LOAD_LEG_R.SHPD_DTT).  If both are NULL then we have to assume the load has not picked up yet.
+*/
+    UPDATE USCTTDEV.dbo.tblOperationalMetrics
+SET PICKUP_TIME = CASE WHEN CARR_ARRIVED_AT_DATETIME <= SHIP_DATE THEN CARR_ARRIVED_AT_DATETIME
+WHEN SHIP_DATE < CARR_ARRIVED_AT_DATETIME THEN SHIP_DATE
+WHEN SHIP_DATE IS NOT NULL THEN SHIP_DATE
+WHEN CARR_ARRIVED_AT_DATETIME IS NOT NULL THEN CARR_ARRIVED_AT_DATETIME
+ELSE NULL END
 
 END
