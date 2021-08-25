@@ -16,19 +16,19 @@ mssql_connection = connect(
     encrypt="YES",
     trustservercertificate="YES",
 )
-
+"""
 # Put MSSQL results into dataframe
-# df = pd.read_sql_query("EXEC USCTTDEV.dbo.sp_LoadLevelData", mssql_connection)
+df = pd.read_sql_query("EXEC USCTTDEV.dbo.sp_LoadLevelData", mssql_connection)
 
 # Export to .csv file on Desktop
-# df.to_csv("C://Users//U15405//Desk#top//load_level_dataframe.csv", encoding="utf-8")
-# df.to_csv(
-#    r"C:\Users\U15405\Desktop\load_level_dataframe.csv",
-#    index=False,
-#    header=True,
-#    encoding="utf-8",
-# )
-
+df.to_csv("C://Users//U15405//Desk#top//load_level_dataframe.csv", encoding="utf-8")
+df.to_csv(
+    r"C:\Users\U15405\Desktop\load_level_dataframe.csv",
+    index=False,
+    header=True,
+    encoding="utf-8",
+)
+"""
 
 # Set SQL cursor, and execute stored procedure
 cursor = mssql_connection.cursor()
@@ -43,7 +43,6 @@ payload = [
 # Do some formatting on the json so that it looks pretty
 payload_dumps = json.dumps(payload, indent=4, default=str)
 dict_paylod = json.loads(payload_dumps)
-
 
 # In case you want to look at the JSON output, pretty-ly, put the below back in
 
