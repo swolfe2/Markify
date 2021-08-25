@@ -2,9 +2,6 @@ import pyautogui
 import time
 from datetime import datetime
 
-# calculate height and width of screen
-w, h = list(pyautogui.size())[0], list(pyautogui.size())[1]
-
 # Set Start Time
 time_start = "07:00:00"
 
@@ -65,6 +62,9 @@ try:
 
         # Wait the right number of seconds, displaying a countdown message for every second
         waiting(sleep_seconds)
+
+        # Calculate height and width of screen
+        w, h = list(pyautogui.size())[0], list(pyautogui.size())[1]
 
         # Get current position
         x, y = list(pyautogui.position())[0], list(pyautogui.position())[1]
