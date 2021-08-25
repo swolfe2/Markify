@@ -70,11 +70,11 @@ try:
         x, y = list(pyautogui.position())[0], list(pyautogui.position())[1]
 
         # Set whether we're going left or right on the screen. Positive = right, negative = left
-        # if x - pixel_move <= 1 or x >= w - pixel_move - 1:
         if x + pixel_move <= 1 or x + pixel_move >= w:
             pixel_move = pixel_move * -1
 
         # If you prefere a mouse jutter, uncomment out below. Otherwise, just stick turning the key on/off really quick.
+        # Also, if you would rather just have the mouse ping pong across the screen, keep the top line of the below
         """
         pyautogui.moveTo(x + pixel_move, y)
         pyautogui.moveTo(x - pixel_move, y)
