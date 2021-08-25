@@ -6,23 +6,23 @@ from datetime import datetime
 w, h = list(pyautogui.size())[0], list(pyautogui.size())[1]
 
 # Set Start Time
-timeStart = "08:00:00"
+time_start = "07:00:00"
 
 # Set End Time
-timeEnd = "18:00:00"
+time_end = "18:00:00"
 
 # Set sleep second integer
 sleep_seconds = 240
 
 # Set number of pixels to move
-pixel_move = 25
+pixel_move = 5
 
 # Start number of moves counter
 num_moves = 0
 
 # Method to see if current time is between the time start/time end
-def isNowInTimePeriod(startTime, endTime, nowTime, num_moves):
-    if not (nowTime >= startTime and nowTime <= endTime):
+def isNowInTimePeriod(start_time, end_time, now_time, num_moves):
+    if not (now_time >= start_time and now_time <= end_time):
         print(
             "Sold work today! "
             + "\n"
@@ -60,7 +60,7 @@ try:
     while True:
         # Check to see if it's during work hours. If it's not, then exit.
         isNowInTimePeriod(
-            timeStart, timeEnd, datetime.now().strftime("%H:%M:%S"), num_moves
+            time_start, time_end, datetime.now().strftime("%H:%M:%S"), num_moves
         )
 
         # Wait the right number of seconds, displaying a countdown message for every second
@@ -70,12 +70,18 @@ try:
         x, y = list(pyautogui.position())[0], list(pyautogui.position())[1]
 
         # Set whether we're going left or right on the screen. Positive = right, negative = left
-        if x == 1 or x == w - 1:
+        # if x - pixel_move <= 1 or x >= w - pixel_move - 1:
+        if x + pixel_move <= 1 or x + pixel_move >= w:
             pixel_move = pixel_move * -1
 
-        # If you want to enable mouse moves, uncomment out above. Otherwise, just stick turning numlock on/off really quick.
-        # pyautogui.moveTo(x + pixel_move, y)
-        # pyautogui.moveTo(x - pixel_move, y)
+        # If you prefere a mouse jutter, uncomment out below. Otherwise, just stick turning the key on/off really quick.
+        """
+        pyautogui.moveTo(x + pixel_move, y)
+        pyautogui.moveTo(x - pixel_move, y)
+        pyautogui.moveTo(x, y)
+        """
+
+        # Turning num lock on/off is the easiest one to do. However, you can really press any button you want.
         pyautogui.keyDown("numlock")
         pyautogui.keyUp("numlock")
         pyautogui.keyDown("numlock")
