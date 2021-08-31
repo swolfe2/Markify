@@ -16,7 +16,7 @@ mssql_connection = connect(
     encrypt="YES",
     trustservercertificate="YES",
 )
-"""
+
 # Put MSSQL results into dataframe
 df = pd.read_sql_query("EXEC USCTTDEV.dbo.sp_LoadLevelData", mssql_connection)
 
@@ -28,7 +28,7 @@ df.to_csv(
     header=True,
     encoding="utf-8",
 )
-"""
+
 
 # Set SQL cursor, and execute stored procedure
 cursor = mssql_connection.cursor()

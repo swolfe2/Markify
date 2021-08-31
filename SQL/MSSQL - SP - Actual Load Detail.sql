@@ -70,7 +70,7 @@ ALTER PROCEDURE [dbo].[sp_ActualLoadDetail]
 
 AS
 BEGIN
-/*
+    /*
 This SQL file replicates the Freight Expenditures file currently running on USTCA097
 AUTHOR: Steve Wolfe
 Transport Cost
@@ -85,22 +85,22 @@ Transport Cost
 	4. Roll up 2018 and 2019 by lane, week number, business unit (once we determine whether it is a 5 digit or 3 digit lane)
 */
 
-/*
+    /*
 Declare Variables
 */
-DECLARE @cols AS NVARCHAR(MAX),
+    DECLARE @cols AS NVARCHAR(MAX),
 @query AS NVARCHAR(MAX),
 @fuelDifferential AS DECIMAL(5,5)
 
-/*
+    /*
 Set fuel differential for use later in file
 */
-SET @fuelDifferential = .032
+    SET @fuelDifferential = .032
 
-/*
+    /*
 Drop all temp tables, and ensure a clean process
 */
-DROP TABLE IF EXISTS
+    DROP TABLE IF EXISTS
 ##tblActualBusinessUnits,
 ##tblActualLoadDetailsALD,
 ##tblActualLoadDetailsPRLD,
@@ -119,15 +119,15 @@ DROP TABLE IF EXISTS
 ##tblShipmentItemsAgg,
 ##tblShipmentItemsRaw
 
-/*
+    /*
 Create temp table for Actual Load Details
 */
-DROP TABLE IF EXISTS ##tblActualLoadDetailsRaw
+    DROP TABLE IF EXISTS ##tblActualLoadDetailsRaw
 
-/*
+    /*
 Set query
 */
-SET @query = '
+    SET @query = '
 SELECT
     z.*,
     shp_con.ship_condition
@@ -407,49 +407,49 @@ FROM
 			eqmt_typ
     ) shp_con ON z.ld_leg_id = shp_con.ld_leg_id'
 
-/*
+    /*
 Create Temp table
 */
-CREATE TABLE ##tblActualLoadDetailsRaw
-  ( 
-CARR_CD                       NVARCHAR(100),
-NAME                          NVARCHAR(100),
-SRVC_CD                       NVARCHAR(100), 
-SRVC_DESC                     NVARCHAR(100),
-CUR_OPTLSTAT_ID               NVARCHAR(100), 
-STATUS                        NVARCHAR(100), 
-CRTD_DTT                      DATETIME,
-SHPD_DTT                      DATETIME,
-STRD_DTT                      DATETIME,  
-DLVY_DTT					  DATETIME,
-LD_LEG_ID                     NVARCHAR(100),
-FRST_SHPG_LOC_CD              NVARCHAR(100),
-FRST_SHPG_LOC_NAME            NVARCHAR(100),
-FRST_CTY_NAME                 NVARCHAR(100),
-FRST_STA_CD                   NVARCHAR(100),
-FRST_PSTL_CD                  NVARCHAR(100),
-FRST_CTRY_CD                  NVARCHAR(100),
-LAST_SHPG_LOC_CD              NVARCHAR(100),
-LAST_SHPG_LOC_NAME            NVARCHAR(100),
-LAST_CTY_NAME                 NVARCHAR(100),
-LAST_STA_CD                   NVARCHAR(100),
-LAST_PSTL_CD                  NVARCHAR(100),
-LAST_CTRY_CD                  NVARCHAR(100),
-EQMT_TYP                      NVARCHAR(100),
-FIXD_ITNR_DIST                NUMERIC(18, 2),
-TOT_TOT_PCE                   NUMERIC(18, 2),
-TOT_SCLD_WGT                  NUMERIC(18, 2),
-TOT_VOL                       NUMERIC(18, 2),
-ACTL_CHGD_AMT_DLR             NUMERIC(18, 2),
-CORP1_ID                      NVARCHAR(100),
-MARKETPLACE_CATCHALL          NVARCHAR(100),
-STOPS                         NUMERIC(18, 2),
-SPACEMAKER					  NVARCHAR(1),
-ORIGIN_ZONE                   NVARCHAR(100),
-SHIP_CONDITION                NVARCHAR(100)
-)
+    CREATE TABLE ##tblActualLoadDetailsRaw
+    (
+        CARR_CD              NVARCHAR(100),
+        NAME                 NVARCHAR(100),
+        SRVC_CD              NVARCHAR(100),
+        SRVC_DESC            NVARCHAR(100),
+        CUR_OPTLSTAT_ID      NVARCHAR(100),
+        STATUS               NVARCHAR(100),
+        CRTD_DTT             DATETIME,
+        SHPD_DTT             DATETIME,
+        STRD_DTT             DATETIME,
+        DLVY_DTT             DATETIME,
+        LD_LEG_ID            NVARCHAR(100),
+        FRST_SHPG_LOC_CD     NVARCHAR(100),
+        FRST_SHPG_LOC_NAME   NVARCHAR(100),
+        FRST_CTY_NAME        NVARCHAR(100),
+        FRST_STA_CD          NVARCHAR(100),
+        FRST_PSTL_CD         NVARCHAR(100),
+        FRST_CTRY_CD         NVARCHAR(100),
+        LAST_SHPG_LOC_CD     NVARCHAR(100),
+        LAST_SHPG_LOC_NAME   NVARCHAR(100),
+        LAST_CTY_NAME        NVARCHAR(100),
+        LAST_STA_CD          NVARCHAR(100),
+        LAST_PSTL_CD         NVARCHAR(100),
+        LAST_CTRY_CD         NVARCHAR(100),
+        EQMT_TYP             NVARCHAR(100),
+        FIXD_ITNR_DIST       NUMERIC(18, 2),
+        TOT_TOT_PCE          NUMERIC(18, 2),
+        TOT_SCLD_WGT         NUMERIC(18, 2),
+        TOT_VOL              NUMERIC(18, 2),
+        ACTL_CHGD_AMT_DLR    NUMERIC(18, 2),
+        CORP1_ID             NVARCHAR(100),
+        MARKETPLACE_CATCHALL NVARCHAR(100),
+        STOPS                NUMERIC(18, 2),
+        SPACEMAKER           NVARCHAR(1),
+        ORIGIN_ZONE          NVARCHAR(100),
+        SHIP_CONDITION       NVARCHAR(100)
+    )
 
-/*
+    /*
 Append records from giant Oracle query into MSSQL temp table
 SELECT DISTINCT LD_LEG_ID 
 FROM ##tblActualLoadDetailsRaw
@@ -460,15 +460,19 @@ SELECT DISTINCT LD_LEG_ID, COUNT(*) FROM ##tblActualLoadDetailsRaw
 GROUP BY LD_LEG_ID
 HAVING COUNT(*)=1
 */
-INSERT INTO ##tblActualLoadDetailsRaw
-EXEC (@query) AT NAJDAPRD
+    INSERT INTO ##tblActualLoadDetailsRaw
+    EXEC (@query) AT NAJDAPRD
 
-/*
+    /*
 Create temp table for Pre-rate Load Details, will pivot in next query
 SELECT * FROM ##tblPreRateLoadDetailsRaw
 */
-DROP TABLE IF EXISTS ##tblPreRateLoadDetailsRaw
-Select * into ##tblPreRateLoadDetailsRaw from OPENQUERY(NAJDAPRD, 'SELECT
+    DROP TABLE IF EXISTS ##tblPreRateLoadDetailsRaw
+    SELECT
+        *
+    INTO ##tblPreRateLoadDetailsRaw
+    FROM
+        OPENQUERY(NAJDAPRD, 'SELECT
     l.ld_leg_id,
 	c.chrg_cd,
     CASE
@@ -652,19 +656,22 @@ WHERE
     AND c.chrg_amt_dlr <> 0
 	AND l.last_shpg_loc_cd NOT LIKE ''LCL%''')
 
-/*
+    /*
 Create temp table for Dynamically Pivoted Pre-rate Load Details
 */
-DROP TABLE IF EXISTS ##tblPreRateLoadDetailsPivot
+    DROP TABLE IF EXISTS ##tblPreRateLoadDetailsPivot
 
-SET @cols = STUFF((
-			SELECT DISTINCT ',' + QUOTENAME(c.CHARGETYPE)
-			FROM ##tblprerateloaddetailsraw c
-			FOR XML PATH(''),
+    SET @cols = STUFF((
+			SELECT
+        DISTINCT
+        ',' + QUOTENAME(c.CHARGETYPE)
+    FROM
+        ##tblprerateloaddetailsraw c
+    FOR XML PATH(''),
 				TYPE
 			).value('.', 'NVARCHAR(MAX)'), 1, 1, '')
 
-SET @query = 'SELECT LD_LEG_ID as prldLD_LEG_ID, ' + @cols + ' from 
+    SET @query = 'SELECT LD_LEG_ID as prldLD_LEG_ID, ' + @cols + ' from 
             (
                 select prdr.LD_LEG_ID
                     , prdr.CHARGEAMOUNT
@@ -676,68 +683,94 @@ SET @query = 'SELECT LD_LEG_ID as prldLD_LEG_ID, ' + @cols + ' from
                  SUM(CHARGEAMOUNT)
                 for CHARGETYPE in (' + @cols + ')
             ) p '
-SET @query = 'select * into ##tblPreRateLoadDetailsPivot from (' + @query + ') y'
+    SET @query = 'select * into ##tblPreRateLoadDetailsPivot from (' + @query + ') y'
 
-EXECUTE (@query)
+    EXECUTE (@query)
 
-/*
+    /*
 Add any missing columns to pivot table
 SELECT * FROM ##tblPreRateLoadDetailsPivot
 */
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'PreRate_Repo' AND TABLE_NAME LIKE '##tblPreRateLoadDetailsPivot') ALTER TABLE ##tblPreRateLoadDetailsPivot ADD [PreRate_Repo] NUMERIC(18,2) NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'PreRate_ZUSB' AND TABLE_NAME LIKE '##tblPreRateLoadDetailsPivot') ALTER TABLE ##tblPreRateLoadDetailsPivot ADD [PreRate_ZUSB] NUMERIC(18,2) NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'PreRate_ZSPT' AND TABLE_NAME LIKE '##tblPreRateLoadDetailsPivot') ALTER TABLE ##tblPreRateLoadDetailsPivot ADD [PreRate_ZSPT] NUMERIC(18,2) NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'PreRate_Repo' AND TABLE_NAME LIKE '##tblPreRateLoadDetailsPivot') ALTER TABLE ##tblPreRateLoadDetailsPivot ADD [PreRate_Repo] NUMERIC(18,2) NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'PreRate_ZUSB' AND TABLE_NAME LIKE '##tblPreRateLoadDetailsPivot') ALTER TABLE ##tblPreRateLoadDetailsPivot ADD [PreRate_ZUSB] NUMERIC(18,2) NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'PreRate_ZSPT' AND TABLE_NAME LIKE '##tblPreRateLoadDetailsPivot') ALTER TABLE ##tblPreRateLoadDetailsPivot ADD [PreRate_ZSPT] NUMERIC(18,2) NULL
 
-/*
+    /*
 Update PreRate_ZSPT to sum from raw table
 */
-UPDATE ##tblPreRateLoadDetailsPivot
+    UPDATE ##tblPreRateLoadDetailsPivot
 SET PreRate_ZSPT =  zspt.SumCharge
-FROM ##tblPreRateLoadDetailsPivot prldp
-INNER JOIN (SELECT LD_LEG_ID, SUM(CHARGEAMOUNT) AS SumCharge FROM ##tblPreRateLoadDetailsRaw WHERE chrg_cd = 'ZSPT' GROUP BY LD_LEG_ID) zspt
-ON zspt.LD_LEG_ID = prldp.prldLD_LEG_ID
+FROM
+        ##tblPreRateLoadDetailsPivot prldp
+        INNER JOIN (SELECT
+            LD_LEG_ID,
+            SUM(CHARGEAMOUNT) AS SumCharge
+        FROM
+            ##tblPreRateLoadDetailsRaw
+        WHERE chrg_cd = 'ZSPT'
+        GROUP BY LD_LEG_ID) zspt
+        ON zspt.LD_LEG_ID = prldp.prldLD_LEG_ID
 
 
-/*
+    /*
 Create temp table for Dynamically Pivoted Pre-rate Load Details
 */
-DROP TABLE IF EXISTS ##tblActualLoadDetailsPRLD
+    DROP TABLE IF EXISTS ##tblActualLoadDetailsPRLD
 
-/*
+    /*
 Create temp table with left-joined data
 */
-Select * into ##tblActualLoadDetailsPRLD from 
-##tblActualLoadDetailsRaw ald
-LEFT JOIN ##tblPreRateLoadDetailsPivot prld on prld.prldld_leg_id = ald.ld_leg_id
+    SELECT
+        *
+    INTO ##tblActualLoadDetailsPRLD
+    FROM
+        ##tblActualLoadDetailsRaw ald
+        LEFT JOIN ##tblPreRateLoadDetailsPivot prld ON prld.prldld_leg_id = ald.ld_leg_id
 
-/*
+    /*
 Add Pre-Rate Charge Exists Column
 */
-ALTER TABLE ##tblActualLoadDetailsPRLD ADD PreRateCharge NVARCHAR(3)
+    ALTER TABLE ##tblActualLoadDetailsPRLD ADD PreRateCharge NVARCHAR(3)
 
-/*
+    /*
 Update Pre-Rate Charge Exists String
 
 select * from ##tblActualLoadDetailsPRLD
 select * from ##tblActualLoadDetailsALD
 */
-UPDATE ##tblActualLoadDetailsPRLD
-SET PreRateCharge = case WHEN prldLD_LEG_ID is null then 'No' else 'Yes' end
+    UPDATE ##tblActualLoadDetailsPRLD
+SET PreRateCharge = CASE WHEN prldLD_LEG_ID IS NULL THEN 'No' ELSE 'Yes' END
 
-/*
+    /*
 Remove Pre-Rate LD_LEG_ID column from dataset
 
 ALTER TABLE ##tblActualLoadDetailsPRLD DROP COLUMN prldLD_LEG_ID
 */
 
-/*
+    /*
 Create temp table for full Actual Rate Load Details
 
 Select * FROM ##tblActualRateLoadDetailsRaw 
 */
-DROP TABLE IF EXISTS ##tblActualRateLoadDetailsRaw
+    DROP TABLE IF EXISTS ##tblActualRateLoadDetailsRaw
 
-Select * into ##tblActualRateLoadDetailsRaw from OPENQUERY(NAJDAPRD,'SELECT
+    SELECT
+        *
+    INTO ##tblActualRateLoadDetailsRaw
+    FROM
+        OPENQUERY(NAJDAPRD,'SELECT
     l.ld_leg_id,
 	c.chrg_cd,
     CASE
@@ -908,19 +941,22 @@ WHERE
     AND c.chrg_cd IS NOT NULL
 	AND l.last_shpg_loc_cd NOT LIKE ''LCL%''')
 
-/*
+    /*
 Create temp table for Dynamically Pivoted Actual Rate Load Details
 */
-DROP TABLE IF EXISTS ##tblActualRateLoadDetailsPivot
+    DROP TABLE IF EXISTS ##tblActualRateLoadDetailsPivot
 
-SET @cols = STUFF((
-			SELECT DISTINCT ',' + QUOTENAME(c.CHARGETYPE)
-			FROM ##tblActualRateLoadDetailsRaw c
-			FOR XML PATH(''),
+    SET @cols = STUFF((
+			SELECT
+        DISTINCT
+        ',' + QUOTENAME(c.CHARGETYPE)
+    FROM
+        ##tblActualRateLoadDetailsRaw c
+    FOR XML PATH(''),
 				TYPE
 			).value('.', 'NVARCHAR(MAX)'), 1, 1, '')
 
-SET @query = 'SELECT LD_LEG_ID as arldLD_LEG_ID, ' + @cols + ' from 
+    SET @query = 'SELECT LD_LEG_ID as arldLD_LEG_ID, ' + @cols + ' from 
             (
                 select prdr.LD_LEG_ID
                     , prdr.PAYMENTAMOUNT
@@ -932,70 +968,92 @@ SET @query = 'SELECT LD_LEG_ID as arldLD_LEG_ID, ' + @cols + ' from
                  SUM(PAYMENTAMOUNT)
                 for CHARGETYPE in (' + @cols + ')
             ) p '
-SET @query = 'select * into ##tblActualRateLoadDetailsPivot from (' + @query + ') y'
+    SET @query = 'select * into ##tblActualRateLoadDetailsPivot from (' + @query + ') y'
 
-EXECUTE (@query)
+    EXECUTE (@query)
 
-/*
+    /*
 Add any missing columns to pivot table
 SELECT * FROM ##tblActualRateLoadDetailsPivot
 */
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Act_Repo' AND TABLE_NAME LIKE '##tblActualRateLoadDetailsPivot') ALTER TABLE ##tblActualRateLoadDetailsPivot ADD [Act_Repo] NUMERIC(18,2) NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Act_ZUSB' AND TABLE_NAME LIKE '##tblActualRateLoadDetailsPivot') ALTER TABLE ##tblActualRateLoadDetailsPivot ADD [Act_ZUSB] NUMERIC(18,2) NULL
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Act_ZSPT' AND TABLE_NAME LIKE '##tblActualRateLoadDetailsPivot') ALTER TABLE ##tblActualRateLoadDetailsPivot ADD [Act_ZSPT] NUMERIC(18,2) NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Act_Repo' AND TABLE_NAME LIKE '##tblActualRateLoadDetailsPivot') ALTER TABLE ##tblActualRateLoadDetailsPivot ADD [Act_Repo] NUMERIC(18,2) NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Act_ZUSB' AND TABLE_NAME LIKE '##tblActualRateLoadDetailsPivot') ALTER TABLE ##tblActualRateLoadDetailsPivot ADD [Act_ZUSB] NUMERIC(18,2) NULL
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Act_ZSPT' AND TABLE_NAME LIKE '##tblActualRateLoadDetailsPivot') ALTER TABLE ##tblActualRateLoadDetailsPivot ADD [Act_ZSPT] NUMERIC(18,2) NULL
 
-/*
+    /*
 Update PreRate_ZSPT to sum from raw table
 SELECT TOP 10 * FROM ##tblActualRateLoadDetailsRaw
 SELECT * FROM ##tblActualRateLoadDetailsPivot
 */
-UPDATE ##tblActualRateLoadDetailsPivot
+    UPDATE ##tblActualRateLoadDetailsPivot
 SET Act_ZSPT =  zspt.SumCharge
-FROM ##tblActualRateLoadDetailsPivot arld
-INNER JOIN (SELECT LD_LEG_ID, SUM(CHARGEAMOUNT) AS SumCharge FROM ##tblActualRateLoadDetailsRaw WHERE chrg_cd = 'ZSPT' GROUP BY LD_LEG_ID) zspt
-ON zspt.LD_LEG_ID = arld.arldLD_LEG_ID
+FROM
+        ##tblActualRateLoadDetailsPivot arld
+        INNER JOIN (SELECT
+            LD_LEG_ID,
+            SUM(CHARGEAMOUNT) AS SumCharge
+        FROM
+            ##tblActualRateLoadDetailsRaw
+        WHERE chrg_cd = 'ZSPT'
+        GROUP BY LD_LEG_ID) zspt
+        ON zspt.LD_LEG_ID = arld.arldLD_LEG_ID
 
-/*
+    /*
 Create temp table for Dynamically Pivoted Pre-rate Load Details
 */
-DROP TABLE IF EXISTS ##tblActualLoadDetailsALD
+    DROP TABLE IF EXISTS ##tblActualLoadDetailsALD
 
-/*
+    /*
 Create temp table with left-joined data
 */
-Select * into ##tblActualLoadDetailsALD from 
-##tblActualLoadDetailsPRLD ald
-LEFT JOIN ##tblActualRateLoadDetailsPivot arld on arld.arldld_leg_id = ald.ld_leg_id
+    SELECT
+        *
+    INTO ##tblActualLoadDetailsALD
+    FROM
+        ##tblActualLoadDetailsPRLD ald
+        LEFT JOIN ##tblActualRateLoadDetailsPivot arld ON arld.arldld_leg_id = ald.ld_leg_id
 
-/*
+    /*
 Add Pre-Rate Charge Exists Column
 */
-ALTER TABLE ##tblActualLoadDetailsALD ADD ActualRateCharge NVARCHAR(3)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD ActualRateCharge NVARCHAR(3)
 
-/*
-Update Pre-Rate Charge Exists String
+    /*
+If there are actual charges against a Freight Bill, then "Yes" else "No" (would only be pre-rate)
 */
-UPDATE ##tblActualLoadDetailsALD
-SET ActualRateCharge = case WHEN arldLD_LEG_ID is null then 'No' else 'Yes' end
+    UPDATE ##tblActualLoadDetailsALD
+SET ActualRateCharge = CASE WHEN arldLD_LEG_ID IS NULL THEN 'No' ELSE 'Yes' END
 
-/*
+    /*
 Remove Pre-Rate LD_LEG_ID column from dataset
 
 ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN arldLD_LEG_ID
 */
 
-/*
+    /*
 Drop column from ##tblActualLoadDetailsALD if it exists
 If it doesn't exist, then add it to the table
 */
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS Drop_It
-ALTER TABLE ##tblActualLoadDetailsALD ADD Drop_It NVARCHAR(3)
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS Drop_It
+    ALTER TABLE ##tblActualLoadDetailsALD ADD Drop_It NVARCHAR(3)
 
 
-/*
+    /*
 Update Actuals Charges to PreRate details, if no Actuals charges were recorded
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET Act_Fuel = PreRate_Fuel,
 Act_Accessorials = PreRate_Accessorials,
 Act_Linehaul = PreRate_Linehaul,
@@ -1003,102 +1061,102 @@ Act_Repo = PreRate_Repo,
 Act_ZUSB = PreRate_ZUSB,
 Act_ZSPT = PreRate_ZSPT
 WHERE SRVC_CD NOT IN ('FDCC')
-AND ActualRateCharge = 'No'
-AND PreRateCharge = 'Yes'
+        AND ActualRateCharge = 'No'
+        AND PreRateCharge = 'Yes'
 
-/*
+    /*
 Update Miles if distance is 0 or null to 1
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET FIXD_ITNR_DIST = 1
-WHERE FIXD_ITNR_DIST <= 1 
-or FIXD_ITNR_DIST is null
+WHERE FIXD_ITNR_DIST <= 1
+        OR FIXD_ITNR_DIST IS NULL
 
-/*
+    /*
 Update Act_Linehaul if <1 or null to 1500
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET Act_Linehaul = 1500
-WHERE Act_Linehaul < 1 
-or Act_Linehaul is null
+WHERE Act_Linehaul < 1
+        OR Act_Linehaul IS NULL
 
-/*
+    /*
 Update Marketplace Catchall
 */
-UPDATE ##tblActualLoadDetailsALD
-Set Drop_it = 'Y'
+    UPDATE ##tblActualLoadDetailsALD
+SET Drop_it = 'Y'
 WHERE SRVC_CD NOT IN ('FDCC')
-AND MARKETPLACE_CATCHALL = 'Y'
+        AND MARKETPLACE_CATCHALL = 'Y'
 
-/*
+    /*
 Update linehaul costs for intermodal, based on fuel differential cost
 */
 
-UPDATE ##tblActualLoadDetailsALD
-SET Act_Linehaul = CASE when EQMT_TYP not in ('53IM') THEN Act_Linehaul - (@fuelDifferential* FIXD_ITNR_DIST) 
-	else 
+    UPDATE ##tblActualLoadDetailsALD
+SET Act_Linehaul = CASE WHEN EQMT_TYP NOT IN ('53IM') THEN Act_Linehaul - (@fuelDifferential* FIXD_ITNR_DIST) 
+	ELSE 
 Act_Linehaul - ((@fuelDifferential*FIXD_ITNR_DIST)/2) END
 WHERE SRVC_CD='OPEN'
-AND CAST(Act_Fuel as NVARCHAR(10)) in (' ','','.','-')
+        AND CAST(Act_Fuel AS NVARCHAR(10)) IN (' ','','.','-')
 
-/*
+    /*
 Update fuel costs for intermodal, based on fuel differential cost
 */
 
-UPDATE ##tblActualLoadDetailsALD
-SET Act_Linehaul = CASE when EQMT_TYP not in ('53IM') THEN @fuelDifferential*FIXD_ITNR_DIST
-	else 
+    UPDATE ##tblActualLoadDetailsALD
+SET Act_Linehaul = CASE WHEN EQMT_TYP NOT IN ('53IM') THEN @fuelDifferential*FIXD_ITNR_DIST
+	ELSE 
 (@fuelDifferential*FIXD_ITNR_DIST)/2 END
 WHERE SRVC_CD='OPEN'
-AND CAST(Act_Fuel as NVARCHAR(10)) in (' ','','.','-')
+        AND CAST(Act_Fuel AS NVARCHAR(10)) IN (' ','','.','-')
 
-/*
+    /*
 Drop column from ##tblActualLoadDetailsALD if it exists
 If it doesn't exist, then add it to the table
 */
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS OrderType
-ALTER TABLE ##tblActualLoadDetailsALD ADD OrderType NVARCHAR(10)
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS OrderType
+    ALTER TABLE ##tblActualLoadDetailsALD ADD OrderType NVARCHAR(10)
 
-/*
+    /*
 Determine order type for each Load
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET OrderType = 
-CASE WHEN CORP1_ID = 'RM' Then 'RM-INBOUND'
-WHEN CORP1_ID = 'RF' Then 'RF-INBOUND' 
-WHEN substring(LAST_SHPG_LOC_CD,1,1) = 'R' then 'RETURNS'
-WHEN substring(LAST_SHPG_LOC_CD,1,1) = '1' then 'INTERMILL'
-WHEN substring(LAST_SHPG_LOC_CD,1,1) = '2' then 'INTERMILL'
-WHEN substring(LAST_SHPG_LOC_CD,1,1) = '5' then 'CUSTOMER'
-WHEN substring(LAST_SHPG_LOC_CD,1,1) = '9' then 'CUSTOMER'
-WHEN LAST_SHPG_LOC_CD LIKE '%HUB%' then 'CUSTOMER'
+CASE WHEN CORP1_ID = 'RM' THEN 'RM-INBOUND'
+WHEN CORP1_ID = 'RF' THEN 'RF-INBOUND' 
+WHEN substring(LAST_SHPG_LOC_CD,1,1) = 'R' THEN 'RETURNS'
+WHEN substring(LAST_SHPG_LOC_CD,1,1) = '1' THEN 'INTERMILL'
+WHEN substring(LAST_SHPG_LOC_CD,1,1) = '2' THEN 'INTERMILL'
+WHEN substring(LAST_SHPG_LOC_CD,1,1) = '5' THEN 'CUSTOMER'
+WHEN substring(LAST_SHPG_LOC_CD,1,1) = '9' THEN 'CUSTOMER'
+WHEN LAST_SHPG_LOC_CD LIKE '%HUB%' THEN 'CUSTOMER'
 ELSE NULL
 END
 
-/*
+    /*
 Get volume for each LD_LEG_ID, and set business units based off of volume share
 */
 
-/*
+    /*
 Drop column from ##tblActualLoadDetailsALD if it exists
 If it doesn't exist, then add it to the table
 */
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS BU
-ALTER TABLE ##tblActualLoadDetailsALD ADD BU NVARCHAR(10)
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS BU
+    ALTER TABLE ##tblActualLoadDetailsALD ADD BU NVARCHAR(10)
 
 
-/*
+    /*
 Create temp table of business units based off of shipment volume, ranked by volume
 SELECT * FROM ##tblActualBusinessUnits
 */
-DROP TABLE IF EXISTS ##tblActualBusinessUnits
-CREATE TABLE ##tblActualBusinessUnits
-( 
-LD_LEG_ID                     NVARCHAR(100),
-OB_BU                         NVARCHAR(100)
-)
-DECLARE @BUQuery NVARCHAR(MAX)
-SET @BUQuery = 'SELECT DISTINCT
+    DROP TABLE IF EXISTS ##tblActualBusinessUnits
+    CREATE TABLE ##tblActualBusinessUnits
+    (
+        LD_LEG_ID NVARCHAR(100),
+        OB_BU     NVARCHAR(100)
+    )
+    DECLARE @BUQuery NVARCHAR(MAX)
+    SET @BUQuery = 'SELECT DISTINCT
     ld_leg_id,
     ob_bu
 FROM
@@ -1380,10 +1438,10 @@ FROM
 WHERE
     vol_rank = 1'
 
-INSERT INTO ##tblActualBusinessUnits
-EXEC (@BUQuery) AT NAJDAPRD
+    INSERT INTO ##tblActualBusinessUnits
+    EXEC (@BUQuery) AT NAJDAPRD
 
-/*
+    /*
 Update business unit for each load
 If load is Inbound, use the Inbound Business Unit
 If load isn't outbound, use the Actuals Business Unit
@@ -1402,87 +1460,91 @@ FROM ##tblActualLoadDetailsALD ALD
 		END
 	LEFT JOIN ##tblActualBusinessUnits ABU on ABU.LD_LEG_ID = ALD.LD_LEG_ID
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET BU = CASE WHEN abu.OB_BU IS NULL THEN 'UNKNOWN' ELSE abu.OB_BU END
-FROM ##tblActualLoadDetailsALD ald
-LEFT JOIN ##tblActualBusinessUnits abu ON ald.ld_leg_id = abu.ld_leg_id
+FROM
+        ##tblActualLoadDetailsALD ald
+        LEFT JOIN ##tblActualBusinessUnits abu ON ald.ld_leg_id = abu.ld_leg_id
 
 
-/*
+    /*
 Drop column from ##tblActualLoadDetailsALD if it exists
 If it doesn't exist, then add it to the table
 */
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS ShipMode
-/*
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS ShipMode
+    /*
 ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS Year
 ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS Month
 ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS Week_Beginning
 */
-ALTER TABLE ##tblActualLoadDetailsALD ADD ShipMode NVARCHAR(10)
-/*
+    ALTER TABLE ##tblActualLoadDetailsALD ADD ShipMode NVARCHAR(10)
+    /*
 ALTER TABLE ##tblActualLoadDetailsALD ADD Year INT
 ALTER TABLE ##tblActualLoadDetailsALD ADD Month INT
 ALTER TABLE ##tblActualLoadDetailsALD ADD Week_Beginning DATETIME
 */
 
-/*
+    /*
 Update Shipmode and Date Fields
 SELECT * FROM ##tblActualLoadDetailsALD WHERE SRVC_CD = 'FECD'
 */
-SET DATEFIRST 1 --Set start date of week to Monday
-UPDATE ##tblActualLoadDetailsALD
+    SET DATEFIRST 1
+    --Set start date of week to Monday
+    UPDATE ##tblActualLoadDetailsALD
 SET ShipMode = CASE WHEN EQMT_TYP = '53IM' THEN 'INTERMODAL' 
 WHEN EQMT_TYP = 'LTL' THEN 'LTL' 
 ELSE 'TRUCK' END
 
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET SHIPMODE = 'INTERMODAL'
 WHERE SHIPMODE = 'TRUCK'
-AND EQMT_TYP = '53IM'
-AND SHIP_CONDITION = 'IM'
+        AND EQMT_TYP = '53IM'
+        AND SHIP_CONDITION = 'IM'
 
-/*
+    /*
 Drop column from ##tblActualLoadDetailsALD if it exists
 If it doesn't exist, then add it to the table
 */
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS CarrierManager
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS Region
-ALTER TABLE ##tblActualLoadDetailsALD ADD CarrierManager NVARCHAR(50)
-ALTER TABLE ##tblActualLoadDetailsALD ADD Region NVARCHAR(10)
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS CarrierManager
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS Region
+    ALTER TABLE ##tblActualLoadDetailsALD ADD CarrierManager NVARCHAR(50)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD Region NVARCHAR(10)
 
-/*
+    /*
 Update Carrier Manager. If Inbound, use the destination state else use the origin state
 */
-UPDATE ##tblactualloaddetailsald 
+    UPDATE ##tblactualloaddetailsald 
 SET    carriermanager = RA.carriermanager, 
        region = RA.region 
-FROM   ##tblactualloaddetailsald 
-       LEFT JOIN uscttdev.dbo.tblregionalassignments RA 
-              ON RA.stateabbv = CASE 
-                                  WHEN ordertype LIKE ( '%INBOUND%' ) and BU <> 'NON WOVENS' THEN
+FROM
+        ##tblactualloaddetailsald
+        LEFT JOIN uscttdev.dbo.tblregionalassignments RA
+        ON RA.stateabbv = CASE 
+                                  WHEN ordertype LIKE ( '%INBOUND%' ) AND BU <> 'NON WOVENS' THEN
                                   last_sta_cd 
                                   ELSE frst_sta_cd 
-                                END 
+                                END
 
-UPDATE USCTTDEV.dbo.tblActualLoadDetail 
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail 
 SET    carriermanager = RA.carriermanager, 
        region = RA.region 
-FROM   USCTTDEV.dbo.tblActualLoadDetail 
-       LEFT JOIN uscttdev.dbo.tblregionalassignments RA 
-              ON RA.stateabbv = CASE 
-                                  WHEN ordertype LIKE ( '%INBOUND%' ) and BU <> 'NON WOVENS' THEN
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail
+        LEFT JOIN uscttdev.dbo.tblregionalassignments RA
+        ON RA.stateabbv = CASE 
+                                  WHEN ordertype LIKE ( '%INBOUND%' ) AND BU <> 'NON WOVENS' THEN
                                   last_sta_cd 
                                   ELSE frst_sta_cd 
-                                END 
-								
-/*
+                                END
+
+    /*
 ,
 YEAR = DATEPART(yyyy, CASE WHEN SHPD_DTT IS NULL THEN STRD_DTT ELSE SHPD_DTT END),
 MONTH = DATEPART(mm, CASE WHEN SHPD_DTT IS NULL THEN STRD_DTT ELSE SHPD_DTT END),
 Week_Beginning = CONVERT(VARCHAR,DATEADD(DD, 1 - DATEPART(DW, CASE WHEN SHPD_DTT IS NULL THEN STRD_DTT ELSE SHPD_DTT END), CASE WHEN SHPD_DTT IS NULL THEN STRD_DTT ELSE SHPD_DTT END),101)
 */
 
-/*
+    /*
 Create master TMS Zone table
 SELECT * FROM ##tblTMSMasterZones
 
@@ -1490,7 +1552,11 @@ SELECT * FROM USCTTDEV.dbo.tblActualLoadDetail WHERE ID <10\
 */
 
 
-SELECT * INTO ##tblTMSMasterZones FROM OPENQUERY(NAJDAPRD,'SELECT DISTINCT
+    SELECT
+        *
+    INTO ##tblTMSMasterZones
+    FROM
+        OPENQUERY(NAJDAPRD,'SELECT DISTINCT
     TRIM(replace(concat(sta_cd, substr(zn_desc, 1, instr(zn_desc, '','') - 1)), '' '', '''')) AS stcity,
     zn_cd AS zone,
     zn_desc,
@@ -1515,7 +1581,7 @@ ORDER BY
     sta_cd,
     TRIM(replace(substr(zn_desc, 1, instr(zn_desc, '','') - 1), ''  '', '''')) ASC')
 
-/*
+    /*
 Drop column from ##tblActualLoadDetailsALD if it exists
 If it doesn't exist, then add it to the table
 
@@ -1526,80 +1592,90 @@ SELECT DISTINCT LAST_CTY_NAME, LAST_STA_CD, LAST_CTRY_CD, Dest_Zone FROM ##tblAc
 
 SELECT * FROM USCTTDEV.dbo.tblTMSZones WHERE CTY_CD = 'FORT ST. JOHN'
 */
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS Origin_Zone
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS Dest_Zone
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS Lane
-ALTER TABLE ##tblActualLoadDetailsALD ADD Origin_Zone NVARCHAR(16)
-ALTER TABLE ##tblActualLoadDetailsALD ADD Dest_Zone NVARCHAR(25)
-ALTER TABLE ##tblActualLoadDetailsALD ADD Lane NVARCHAR(25)
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS Origin_Zone
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS Dest_Zone
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS Lane
+    ALTER TABLE ##tblActualLoadDetailsALD ADD Origin_Zone NVARCHAR(16)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD Dest_Zone NVARCHAR(25)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD Lane NVARCHAR(25)
 
-/*
+    /*
 UPDATE: 12/14 - Thomas' previous table has been deleted. Now getting what exists on Actual Load Detail as the gospel.
 SELECT * FROM ##tblLaneOrigDest
 SELECT * FROM USCTTDEV.dbo.tblTMSZones
 */
-DROP TABLE IF EXISTS ##tblLaneOrigDest
+    DROP TABLE IF EXISTS ##tblLaneOrigDest
 
-SELECT data.Code,
-data.CityName,
-data.OrigDest
-INTO ##tblLaneOrigDest
-FROM (
-SELECT DISTINCT
-origin.Code,
-origin.CityName,
-origin.OrigDest
-FROM(
-SELECT DISTINCT 
-ald.Origin_Zone AS Code,
-ald.FRST_CTY_NAME + ', ' + ald.FRST_STA_CD AS CityName,
-'Origin' AS origdest,
-ROW_NUMBER() OVER (PARTITION BY ald.FRST_CTY_NAME + ', ' + ald.FRST_STA_CD ORDER BY COUNT(DISTINCT ald.LD_LEG_ID) DESC) AS RowNum,
-COUNT(DISTINCT ald.LD_LEG_ID) AS LoadCount
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-WHERE CAST(ald.SHPD_DTT AS DATE) >= CAST(GETDATE() - 365 AS DATE)
-GROUP BY ald.FRST_CTY_NAME + ', ' + ald.FRST_STA_CD,
+    SELECT
+        data.Code,
+        data.CityName,
+        data.OrigDest
+    INTO ##tblLaneOrigDest
+    FROM
+        (
+            SELECT
+                DISTINCT
+                origin.Code,
+                origin.CityName,
+                origin.OrigDest
+            FROM(
+SELECT
+                    DISTINCT
+                    ald.Origin_Zone AS Code,
+                    ald.FRST_CTY_NAME + ', ' + ald.FRST_STA_CD AS CityName,
+                    'Origin' AS origdest,
+                    ROW_NUMBER() OVER (PARTITION BY ald.FRST_CTY_NAME + ', ' + ald.FRST_STA_CD ORDER BY COUNT(DISTINCT ald.LD_LEG_ID) DESC) AS RowNum,
+                    COUNT(DISTINCT ald.LD_LEG_ID) AS LoadCount
+                FROM
+                    USCTTDEV.dbo.tblActualLoadDetail ald
+                WHERE CAST(ald.SHPD_DTT AS DATE) >= CAST(GETDATE() - 365 AS DATE)
+                GROUP BY ald.FRST_CTY_NAME + ', ' + ald.FRST_STA_CD,
 ald.Origin_Zone) origin
-WHERE origin.RowNum = 1
+            WHERE origin.RowNum = 1
 
-UNION ALL
+        UNION ALL
 
-SELECT DISTINCT
-dest.Code,
-dest.CityName,
-dest.OrigDest
-FROM(
-SELECT DISTINCT 
-ald.Dest_Zone AS Code,
-ald.LAST_CTY_NAME + ', ' + ald.LAST_STA_CD AS CityName,
-'Dest' AS origdest,
-ROW_NUMBER() OVER (PARTITION BY ald.LAST_CTY_NAME + ', ' + ald.LAST_STA_CD ORDER BY COUNT(DISTINCT ald.LD_LEG_ID) DESC) AS RowNum,
-COUNT(DISTINCT ald.LD_LEG_ID) AS LoadCount
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-WHERE CAST(ald.SHPD_DTT AS DATE) >= CAST(GETDATE() - 365 AS DATE)
-GROUP BY ald.LAST_CTY_NAME + ', ' + ald.LAST_STA_CD,
+            SELECT
+                DISTINCT
+                dest.Code,
+                dest.CityName,
+                dest.OrigDest
+            FROM(
+SELECT
+                    DISTINCT
+                    ald.Dest_Zone AS Code,
+                    ald.LAST_CTY_NAME + ', ' + ald.LAST_STA_CD AS CityName,
+                    'Dest' AS origdest,
+                    ROW_NUMBER() OVER (PARTITION BY ald.LAST_CTY_NAME + ', ' + ald.LAST_STA_CD ORDER BY COUNT(DISTINCT ald.LD_LEG_ID) DESC) AS RowNum,
+                    COUNT(DISTINCT ald.LD_LEG_ID) AS LoadCount
+                FROM
+                    USCTTDEV.dbo.tblActualLoadDetail ald
+                WHERE CAST(ald.SHPD_DTT AS DATE) >= CAST(GETDATE() - 365 AS DATE)
+                GROUP BY ald.LAST_CTY_NAME + ', ' + ald.LAST_STA_CD,
 ald.Dest_Zone
 ) dest
-WHERE dest.RowNum = 1
+            WHERE dest.RowNum = 1
 ) data
-ORDER BY data.CityName ASC
+    ORDER BY data.CityName ASC
 
-/*
+    /*
 Add new zones to USCTTDEV.dbo.tblTMSZones
 SELECT * FROM USCTTDEV.dbo.tblTMSZones WHERE ZN_CD LIKE 'US-%' WHERE CTY_CD = 'FORT ST. JOHN'
 */
-INSERT INTO USCTTDEV.dbo.tblTMSZones (ZN_CD,
-ZN_DESC,
-CTY_CD,
-STA_CD,
-STA_NAME,
-CTRY_CD,
-CTRY_NAME,
-AddedOn)
-  SELECT
-    zones.*,
-    GETDATE() AS AddedOn
-  FROM OPENQUERY(NAJDAPRD, 'SELECT DISTINCT z.ZN_CD,
+    INSERT INTO USCTTDEV.dbo.tblTMSZones
+        (ZN_CD,
+        ZN_DESC,
+        CTY_CD,
+        STA_CD,
+        STA_NAME,
+        CTRY_CD,
+        CTRY_NAME,
+        AddedOn)
+    SELECT
+        zones.*,
+        GETDATE() AS AddedOn
+    FROM
+        OPENQUERY(NAJDAPRD, 'SELECT DISTINCT z.ZN_CD,
 g.CITY_NAME || '', '' || g.STA_CD AS ZN_DESC,
 g.CITY_NAME AS CTY_CD,
 g.STA_CD,
@@ -1616,19 +1692,19 @@ z.ZN_CD NOT LIKE ''%-%%''
 AND z.CTRY_CD IN (''USA'',''CAN'',''MEX'')
 AND g.CITY_NAME IS NOT NULL
 ORDER BY z.ZN_CD ASC') zones
-  LEFT JOIN USCTTDEV.dbo.tblTMSZones tmsz
-    ON tmsz.ZN_CD = zones.ZN_CD
-	AND tmsz.CTY_CD = zones.CTY_CD
-  WHERE tmsz.ZN_CD IS NULL
-  AND tmsz.CTY_CD IS NULL
-  ORDER BY zones.ZN_CD ASC
+        LEFT JOIN USCTTDEV.dbo.tblTMSZones tmsz
+        ON tmsz.ZN_CD = zones.ZN_CD
+            AND tmsz.CTY_CD = zones.CTY_CD
+    WHERE tmsz.ZN_CD IS NULL
+        AND tmsz.CTY_CD IS NULL
+    ORDER BY zones.ZN_CD ASC
 
-/*
+    /*
 Update All Values where TMSZones matches
 SELECT * FROM USCTTDEV.dbo.tblTMSZones WHERE LastUpdated <> '2020-02-26 07:48:43.000'
 DELETE FROM USCTTDEV.dbo.tblTMSZones WHERE ZN_CD = 'KCGAMCDONOUGH'
 */
-UPDATE USCTTDEV.dbo.tblTMSZones
+    UPDATE USCTTDEV.dbo.tblTMSZones
 SET ZN_DESC = zones.ZN_DESC,
 CTY_CD = zones.CTY_CD,
 STA_CD = zones.STA_CD,
@@ -1636,10 +1712,12 @@ STA_NAME = zones.STA_NAME,
 CTRY_CD = zones.CTRY_CD,
 CTRY_NAME = zones.CTRY_NAME,
 LastUpdated = GETDATE()
-FROM USCTTDEV.dbo.tblTMSZones tmsz
-INNER JOIN (SELECT
-    *
-FROM OPENQUERY(NAJDAPRD, 'SELECT DISTINCT z.ZN_CD,
+FROM
+        USCTTDEV.dbo.tblTMSZones tmsz
+        INNER JOIN (SELECT
+            *
+        FROM
+            OPENQUERY(NAJDAPRD, 'SELECT DISTINCT z.ZN_CD,
 g.CITY_NAME || '', '' || g.STA_CD AS ZN_DESC,
 g.CITY_NAME AS CTY_CD,
 g.STA_CD,
@@ -1656,49 +1734,58 @@ z.ZN_CD NOT LIKE ''%-%%''
 AND z.CTRY_CD IN (''USA'',''CAN'',''MEX'')
 AND g.CITY_NAME IS NOT NULL
 ORDER BY z.ZN_CD ASC')) zones ON zones.ZN_CD = tmsz.ZN_CD
-AND zones.CTY_CD = tmsz.CTY_CD
+            AND zones.CTY_CD = tmsz.CTY_CD
 
-/*
+    /*
 Delete duplicate zones that might exist for some reason
 */
-DELETE FROM USCTTDEV.dbo.tblTMSZones
-FROM USCTTDEV.dbo.tblTMSZones tmz
-INNER JOIN(
-SELECT DISTINCT ZN_CD, ZN_DESC, COUNT(*) AS COUNT, MIN(ID) AS MinID
-FROM USCTTDEV.dbo.tblTMSZones
-GROUP BY ZN_CD, ZN_DESC
-HAVING COUNT(*) > 1) dupes ON dupes.ZN_CD = tmz.ZN_CD
-AND dupes.ZN_DESC = tmz.ZN_DESC
+    DELETE FROM USCTTDEV.dbo.tblTMSZones
+FROM
+        USCTTDEV.dbo.tblTMSZones tmz
+        INNER JOIN(
+SELECT
+            DISTINCT
+            ZN_CD,
+            ZN_DESC,
+            COUNT(*) AS COUNT,
+            MIN(ID) AS MinID
+        FROM
+            USCTTDEV.dbo.tblTMSZones
+        GROUP BY ZN_CD, ZN_DESC
+        HAVING COUNT(*) > 1) dupes ON dupes.ZN_CD = tmz.ZN_CD
+            AND dupes.ZN_DESC = tmz.ZN_DESC
 WHERE tmz.ID <> dupes.MinID
 
-/*
+    /*
 Update ORIGIN_ZONE if it's null to match origdest
 SELECT * FROM ##tblLaneOrigDest 
 SELECT * FROM ##tblActualLoadDetailsALD where ORIGIN_ZONE is null
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET ORIGIN_ZONE = lod.CODE
-FROM ##tblActualLoadDetailsALD ald
-INNER JOIN ##tblLaneOrigDest lod ON ald.frst_cty_name +', '+ ald.frst_STA_CD = lod.CITYNAME
-WHERE ald.ORIGIN_ZONE is null
-AND lod.ORIGDEST = 'ORIGIN'
+FROM
+        ##tblActualLoadDetailsALD ald
+        INNER JOIN ##tblLaneOrigDest lod ON ald.frst_cty_name +', '+ ald.frst_STA_CD = lod.CITYNAME
+WHERE ald.ORIGIN_ZONE IS NULL
+        AND lod.ORIGDEST = 'ORIGIN'
 
-/*
+    /*
 Update ##tblActualLoadDetails Origin_Zone from USCTTDEV.dbo.tblTMZones
 */
-UPDATE ##tblActualLoadDetailsALD 
+    UPDATE ##tblActualLoadDetailsALD 
 SET ORIGIN_ZONE = tmz.ZN_CD 
-FROM ##tblActualLoadDetailsALD ald
-INNER JOIN USCTTDEV.dbo.tblTMSZones tmz ON 
+FROM
+        ##tblActualLoadDetailsALD ald
+        INNER JOIN USCTTDEV.dbo.tblTMSZones tmz ON 
 tmz.CTRY_CD = ald.FRST_CTRY_CD
-AND tmz.CTY_CD = ald.FRST_CTY_NAME
-AND tmz.STA_CD = ald.FRST_STA_CD
+            AND tmz.CTY_CD = ald.FRST_CTY_NAME
+            AND tmz.STA_CD = ald.FRST_STA_CD
 WHERE ORIGIN_ZONE IS NULL
 
-/*
+    /*
 Overwrite with variables below in case something is wonky in the FRST_CTY_NAME
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET Origin_Zone = CASE WHEN FRST_CTY_NAME = 'GUILDERLAND CENTER' THEN 'NYGUICEN'
 	WHEN FRST_CTY_NAME = 'COWPENS' AND FRST_STA_CD = 'SC' THEN 'SCCOWPEN'
 	WHEN FRST_CTY_NAME = 'RANSOM' AND FRST_STA_CD = 'PA' THEN 'PARANSOM'
@@ -1723,10 +1810,10 @@ SET Origin_Zone = CASE WHEN FRST_CTY_NAME = 'GUILDERLAND CENTER' THEN 'NYGUICEN'
 	WHEN FRST_CTY_NAME = 'ELIZABETHTOWN' THEN 'PAELITOW' 
 	ELSE Origin_Zone END
 
-/*
+    /*
 Updates for KC-Romeoville Origin Zone
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET Origin_Zone = CASE
                 WHEN SUBSTRING(ald.FRST_SHPG_LOC_CD, 1, 4) IN (
                     '2358',
@@ -1740,10 +1827,11 @@ SET Origin_Zone = CASE
                 ELSE
                     ald.Origin_Zone
             END
-FROM ##tblActualLoadDetailsALD ald
+FROM
+        ##tblActualLoadDetailsALD ald
 WHERE SUBSTRING(ald.FRST_SHPG_LOC_CD, 1, 4) IN ('2292','2323','2358','2474')
 
-/*
+    /*
 If, for some unknown reason, the ORIGIN_ZONE is STILL null, update to the Frst_Cty_name
 
 UPDATE ##tblActualLoadDetailsALD
@@ -1751,43 +1839,45 @@ SET ORIGIN_ZONE = FRST_CTY_NAME
 WHERE ORIGIN_ZONE is null and Lane is null
 */
 
-/*
+    /*
 Special Cause updating where city names don't match between the tables
 SELECT * FROM ##tblActualLoadDetailsALD WHERE last_cty_name +', '+ last_STA_CD = 'NUEVO NOGALES, SO'
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET DEST_ZONE = CASE 
 WHEN last_cty_name +', '+ last_STA_CD = 'NUEVO NOGALES, SO' THEN 'SONOGALE' 
 WHEN last_cty_name +', '+ last_STA_CD = 'SAINT JOHN, NB' THEN 'NBSTJOHN'
 WHEN last_cty_name +', '+ last_STA_CD = 'ST. JOHNS, NL' THEN 'NLSTJOHN' 
 ELSE DEST_ZONE END
-/*
+    /*
 If the LAST_CTRY_CD <> 'USA', update to the CTRY_CD String
 SELECT * FROM ##tblLaneOrigDest where CITYNAME = 'MILTON, ON' and ORIGDEST = 'DEST'
 
 UPDATE ##tblActualLoadDetailsALD 
 SET DEST_ZONE = Null, LANE = Null
 */
-UPDATE ##tblActualLoadDetailsALD 
+    UPDATE ##tblActualLoadDetailsALD 
 SET DEST_ZONE = lod.CODE, LANE = ORIGIN_ZONE + '-' + lod.Code
-FROM ##tblActualLoadDetailsALD ald
-INNER JOIN ##tblLaneOrigDest lod ON ald.last_cty_name +', '+ ald.last_STA_CD = lod.CITYNAME
+FROM
+        ##tblActualLoadDetailsALD ald
+        INNER JOIN ##tblLaneOrigDest lod ON ald.last_cty_name +', '+ ald.last_STA_CD = lod.CITYNAME
 WHERE lod.ORIGDEST = 'DEST'
-AND ald.LANE is null
-AND ald.LAST_CTRY_CD <> 'USA'
+        AND ald.LANE IS NULL
+        AND ald.LAST_CTRY_CD <> 'USA'
 
-/*
+    /*
 If the LAST_CTRY_CD <> 'USA', update to the CTRY_CD String, in case there's an origin that matches
 */
-UPDATE ##tblActualLoadDetailsALD 
+    UPDATE ##tblActualLoadDetailsALD 
 SET DEST_ZONE = lod.CODE, LANE = ORIGIN_ZONE + '-' + lod.Code
-FROM ##tblActualLoadDetailsALD ald
-INNER JOIN ##tblLaneOrigDest lod ON ald.last_cty_name +', '+ ald.last_STA_CD = lod.CITYNAME
+FROM
+        ##tblActualLoadDetailsALD ald
+        INNER JOIN ##tblLaneOrigDest lod ON ald.last_cty_name +', '+ ald.last_STA_CD = lod.CITYNAME
 WHERE lod.ORIGDEST = 'ORIGIN'
-AND ald.LANE is null
-AND ald.LAST_CTRY_CD <> 'USA'
+        AND ald.LANE IS NULL
+        AND ald.LAST_CTRY_CD <> 'USA'
 
-/*
+    /*
 Update ##tblActualLoadDetailsALD DEST_ZONE / LANE if match to 5 digit zip
 SELECT * FROM ##tblAwards
 SELECT * FROM ##tblLaneOrigDest order by cityname asc
@@ -1797,51 +1887,54 @@ Select distinct last_cty_name +', '+ last_STA_CD FROM ##tblActualLoadDetailsALD 
 SELECT * FROM ##tblLaneOrigDest order by cityname asc
 
 */
-UPDATE ##tblActualLoadDetailsALD 
+    UPDATE ##tblActualLoadDetailsALD 
 SET DEST_ZONE = lod.CODE, LANE = ORIGIN_ZONE + '-' + lod.Code
-FROM ##tblActualLoadDetailsALD ald
-INNER JOIN ##tblLaneOrigDest lod ON ald.last_cty_name +', '+ ald.last_STA_CD = lod.CITYNAME
-AND lod.CODE = '5'+ald.last_sta_cd+left(last_pstl_cd,5)
+FROM
+        ##tblActualLoadDetailsALD ald
+        INNER JOIN ##tblLaneOrigDest lod ON ald.last_cty_name +', '+ ald.last_STA_CD = lod.CITYNAME
+            AND lod.CODE = '5'+ald.last_sta_cd+LEFT(last_pstl_cd,5)
 WHERE lod.ORIGDEST = 'DEST'
-AND ald.LANE is null
-AND ald.LAST_CTRY_CD = 'USA'
+        AND ald.LANE IS NULL
+        AND ald.LAST_CTRY_CD = 'USA'
 
-/*
+    /*
 Update ##tblActualLoadDetailsALD DEST_ZONE / LANE if match to 3 digit zip
 */
-UPDATE ##tblActualLoadDetailsALD 
+    UPDATE ##tblActualLoadDetailsALD 
 SET DEST_ZONE = lod.CODE, LANE = ORIGIN_ZONE + '-' + lod.Code
-FROM ##tblActualLoadDetailsALD ald
-INNER JOIN ##tblLaneOrigDest lod ON ald.last_cty_name +', '+ ald.last_STA_CD = lod.CITYNAME
-AND lod.CODE = 'US-'+ald.last_sta_cd+left(last_pstl_cd,3)
+FROM
+        ##tblActualLoadDetailsALD ald
+        INNER JOIN ##tblLaneOrigDest lod ON ald.last_cty_name +', '+ ald.last_STA_CD = lod.CITYNAME
+            AND lod.CODE = 'US-'+ald.last_sta_cd+LEFT(last_pstl_cd,3)
 WHERE lod.ORIGDEST = 'DEST'
-AND ald.LANE is null
-AND ald.LAST_CTRY_CD = 'USA'
+        AND ald.LANE IS NULL
+        AND ald.LAST_CTRY_CD = 'USA'
 
-/*
+    /*
 If the DEST_ZONE / LANE is STILL null, update to the 5 digit, because there's just no hope at all for it
 */
-UPDATE ##tblActualLoadDetailsALD
-SET DEST_ZONE = '5'+last_sta_cd+left(last_pstl_cd,5), lane = ORIGIN_ZONE + '-' + '5'+last_sta_cd+left(last_pstl_cd,5)
-WHERE DEST_ZONE is null
-AND LANE is null
-AND LAST_CTRY_CD = 'USA'
+    UPDATE ##tblActualLoadDetailsALD
+SET DEST_ZONE = '5'+last_sta_cd+LEFT(last_pstl_cd,5), lane = ORIGIN_ZONE + '-' + '5'+last_sta_cd+LEFT(last_pstl_cd,5)
+WHERE DEST_ZONE IS NULL
+        AND LANE IS NULL
+        AND LAST_CTRY_CD = 'USA'
 
-/*
+    /*
 Update the Dest_Zone / Lane where the Last Ctry Cd <> 'USA'
 */
-UPDATE ##tblActualLoadDetailsALD 
+    UPDATE ##tblActualLoadDetailsALD 
 SET DEST_ZONE = tmz.ZN_CD,
 LANE = ald.Origin_Zone + '-' + tmz.ZN_CD
-FROM ##tblActualLoadDetailsALD ald
-INNER JOIN USCTTDEV.dbo.tblTMSZones tmz ON 
+FROM
+        ##tblActualLoadDetailsALD ald
+        INNER JOIN USCTTDEV.dbo.tblTMSZones tmz ON 
 tmz.CTRY_CD = ald.LAST_CTRY_CD
-AND tmz.CTY_CD = ald.LAST_CTY_NAME
-AND tmz.STA_CD = ald.LAST_STA_CD
+            AND tmz.CTY_CD = ald.LAST_CTY_NAME
+            AND tmz.STA_CD = ald.LAST_STA_CD
 WHERE (ald.DEST_ZONE IS NULL)
-AND ald.LAST_CTRY_CD <> 'USA'
+        AND ald.LAST_CTRY_CD <> 'USA'
 
-/*
+    /*
 THIS IS... THE LAST... STOP... HEEEEEEYYYYYYYYYYYYYYYYYYYYYYYY - DMB
 This is the last chance to update the Dest Zone based on the Master Zones logic
 
@@ -1866,7 +1959,7 @@ case
 	WHERE ald.Lane IS NULL
 */
 
-/*
+    /*
 Update Zones to matching values from ##tblTMSMasterZones
 
 UPDATE ##tblActualLoadDetailsALD
@@ -1877,33 +1970,33 @@ JOIN ##tblTMSMasterZones TMZO ON TMZO.CTRY_CD = ALD.FRST_CTRY_CD
 								AND TMZO.CITY = ALD.FRST_CTY_NAME
 */
 
-/*
+    /*
 Final lane string updating, if orig_zone / dest_zone are not null
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET Lane = ORIGIN_ZONE + '-' + DEST_ZONE
-WHERE ORIGIN_ZONE is not null
-AND DEST_ZONE is not null
-AND (LANE <> ORIGIN_ZONE + '-' + DEST_ZONE OR LANE IS NULL)
+WHERE ORIGIN_ZONE IS NOT NULL
+        AND DEST_ZONE IS NOT NULL
+        AND (LANE <> ORIGIN_ZONE + '-' + DEST_ZONE OR LANE IS NULL)
 
-/*
+    /*
 Drop column from ##tblActualLoadDetailsALD if it exists
 If it doesn't exist, then add it to the table
 */
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS OriginPlant
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS DestinationPlant
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS CustomerHierarchy
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS CustomerGroup
-ALTER TABLE ##tblActualLoadDetailsALD ADD OriginPlant NVARCHAR(50)
-ALTER TABLE ##tblActualLoadDetailsALD ADD DestinationPlant NVARCHAR(50)
-ALTER TABLE ##tblActualLoadDetailsALD ADD CustomerHierarchy NVARCHAR(50)
-ALTER TABLE ##tblActualLoadDetailsALD ADD CustomerGroup NVARCHAR(25)
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS OriginPlant
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS DestinationPlant
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS CustomerHierarchy
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS CustomerGroup
+    ALTER TABLE ##tblActualLoadDetailsALD ADD OriginPlant NVARCHAR(50)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD DestinationPlant NVARCHAR(50)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD CustomerHierarchy NVARCHAR(50)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD CustomerGroup NVARCHAR(25)
 
-/*
+    /*
 Update Origin/Destination plant, based off of first character of individual codes
 SELECT TOP 5 * FROM ##tblActualLoadDetailsALD
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET OriginPlant = CASE 
 WHEN SUBSTRING(FRST_SHPG_LOC_CD,1,1) = 'V' THEN SUBSTRING(FRST_SHPG_LOC_CD,1,9)
 WHEN SUBSTRING(FRST_SHPG_LOC_CD,1,1) = '1' OR SUBSTRING(FRST_SHPG_LOC_CD,1,1) = '2' THEN SUBSTRING(FRST_SHPG_LOC_CD,1,4) + ' - ' + FRST_CTY_NAME
@@ -1915,10 +2008,10 @@ WHEN SUBSTRING(LAST_SHPG_LOC_CD,1,1) = '1' OR SUBSTRING(LAST_SHPG_LOC_CD,1,1) = 
 ELSE 'UNKNOWN' 
 END
 
-/*
+    /*
 Update CustomerHierarchy/Group based off of Origin/Destination
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET CustomerHierarchy = CASE WHEN CUST.Hierarchy IS NULL AND CUST1.Hierarchy IS NULL THEN [DestinationPlant]
 WHEN CUST1.Hierarchy IS NULL THEN CUST.Hierarchy
 ELSE CUST1.Hierarchy
@@ -1927,45 +2020,51 @@ CustomerGroup = CASE WHEN CUST.Hierarchy IS NULL AND CUST1.Hierarchy IS NULL THE
 WHEN CUST1.Hierarchy IS NULL THEN CUST.CustomerGroup
 ELSE CUST1.CustomerGroup
 END
-FROM ##tblActualLoadDetailsALD AS ALD
-LEFT JOIN USCTTDEV.dbo.tblCustomers CUST on CUST.HierarchyNum = ALD.DestinationPlant
-LEFT JOIN USCTTDEV.dbo.tblCustomers CUST1 on CUST1.HierarchyNum = ALD.OriginPlant
+FROM
+        ##tblActualLoadDetailsALD AS ALD
+        LEFT JOIN USCTTDEV.dbo.tblCustomers CUST ON CUST.HierarchyNum = ALD.DestinationPlant
+        LEFT JOIN USCTTDEV.dbo.tblCustomers CUST1 ON CUST1.HierarchyNum = ALD.OriginPlant
 
-/*
+    /*
 Update the Origin Plant to the vendor hierarchy name from NAJDAADM.CUST_TV
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET OriginPlant = cust.name
-FROM ##tblActualLoadDetailsALD ald
-INNER JOIN (SELECT * from OPENQUERY(NAJDAPRD,'
+FROM
+        ##tblActualLoadDetailsALD ald
+        INNER JOIN (SELECT
+            *
+        FROM
+            OPENQUERY(NAJDAPRD,'
 	SELECT DISTINCT CUST_CD, NAME
 	FROM NAJDAADM.CUST_TV cust        
 	GROUP BY CUST_CD, NAME
 ')) cust ON cust.cust_cd = SUBSTRING(ald.FRST_SHPG_LOC_CD,2,8)
 WHERE SUBSTRING(FRST_SHPG_LOC_CD,1,1) = 'V'
 
-/*
+    /*
 Update customer name, in case it's going through a HUB and is 'UNKNOWN'
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET CustomerHierarchy = 'AK/HI Hub'
 WHERE CustomerHierarchy = 'UNKNOWN'
-AND LAST_SHPG_LOC_CD LIKE '%HUB%'
+        AND LAST_SHPG_LOC_CD LIKE '%HUB%'
 
-/*
+    /*
 Update unknown by HierarchyNumber
 LAST_SHPG_LOC_CD is probably 99999999
 SELECT * FROM ##tblActualLoadDetailsALD WHERE CustomerHierarchy = 'UNKNOWN'
 SELECT * FROM ##tblActualLoadDetailsALD WHERE LAST_SHPG_LOC_CD = '99999999'
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET CustomerHierarchy = cu.Hierarchy,
 DestinationPlant = cu.Hierarchy
-FROM ##tblActualLoadDetailsALD ald
-INNER JOIN USCTTDEV.dbo.tblCustomers cu ON cu.HierarchyNum = ald.LAST_SHPG_LOC_CD
+FROM
+        ##tblActualLoadDetailsALD ald
+        INNER JOIN USCTTDEV.dbo.tblCustomers cu ON cu.HierarchyNum = ald.LAST_SHPG_LOC_CD
 WHERE CustomerHierarchy = 'UNKNOWN'
 
-/*
+    /*
 Create temp table of business units based off of shipment volume
 Will pivot in next step
 
@@ -1973,17 +2072,17 @@ SELECT * FROM ##tblBUWeightRaw WHERE LD_LEG_ID = 516629280
 SELECT * FROM USCTTDEV.dbo.tblActualLoadDetail WHERE LD_LEG_ID = 516629280
 SELECT * FROM ##tblActualBusinessUnits WHERE LD_LEG_ID = 516629280
 */
-DROP TABLE IF EXISTS ##tblBUWeightRaw
-CREATE TABLE ##tblBUWeightRaw
-( 
-LD_LEG_ID                     NVARCHAR(100),
-OBBU                          NVARCHAR(100),
-TOTALVOLUME					  NUMERIC(18,9),
-TOTALWEIGHT					  NUMERIC(18,9),
-COUNT						  INT
-)
-DECLARE @BUWeightRawQuery NVARCHAR(MAX)
-SET @BUWeightRawQuery = 'SELECT DISTINCT
+    DROP TABLE IF EXISTS ##tblBUWeightRaw
+    CREATE TABLE ##tblBUWeightRaw
+    (
+        LD_LEG_ID   NVARCHAR(100),
+        OBBU        NVARCHAR(100),
+        TOTALVOLUME NUMERIC(18,9),
+        TOTALWEIGHT NUMERIC(18,9),
+        COUNT       INT
+    )
+    DECLARE @BUWeightRawQuery NVARCHAR(MAX)
+    SET @BUWeightRawQuery = 'SELECT DISTINCT
     ld_leg_id,
     ob_bu as OBBU,
     CAST(ROUND(CASE WHEN sum(vol)>0 THEN sum(vol) else .01 END,2) AS NUMERIC(18,2)) as TotalVolume,
@@ -2474,10 +2573,10 @@ FROM
     group by ld_leg_id, ob_bu
     order by ld_leg_id ASC'
 
-	INSERT INTO ##tblBUWeightRaw
-	EXEC (@BUWeightRawQuery) AT NAJDAPRD
+    INSERT INTO ##tblBUWeightRaw
+    EXEC (@BUWeightRawQuery) AT NAJDAPRD
 
-/*
+    /*
 Create temp table for Aggregated Actual Rate Load Details
 
 SELECT * FROM ##tblBUWeightRaw WHERE LD_LEG_ID = 517072170
@@ -2486,32 +2585,37 @@ SELECT * FROM ##tblBUWeightPivot WHERE LD_LEG_ID = 517072170
 SELECT * FROM ##tblActualLoadDetailsALD WHERE LD_LEG_ID = 517072170
 SELECT * FROM USCTTDEV.dbo.tblActualLoadDetail WHERE LD_LEG_ID = 516629280
 */
-DROP TABLE IF EXISTS ##tblBUWeightPivot
-CREATE TABLE ##tblBUWeightPivot
-(
-	LD_LEG_ID NVARCHAR(15),
-	ConsumerWeight NUMERIC(18,2),
-	KCPWeight NUMERIC(18,2),
-	NonWovenWeight NUMERIC(18,2),
-	UnknownWeight NUMERIC(18,2),
-	ConsumerVolume NUMERIC(18,2),
-	KCPVolume NUMERIC(18,2),
-	NonWovenVolume NUMERIC(18,2),
-	UnknownVolume NUMERIC(18,2),
-	OrderCount INT,
-	BUCount INT,
-	TotalWeight NUMERIC(18,2),
-	TotalVolume NUMERIC(18,2)
-)
+    DROP TABLE IF EXISTS ##tblBUWeightPivot
+    CREATE TABLE ##tblBUWeightPivot
+    (
+        LD_LEG_ID      NVARCHAR(15),
+        ConsumerWeight NUMERIC(18,2),
+        KCPWeight      NUMERIC(18,2),
+        NonWovenWeight NUMERIC(18,2),
+        UnknownWeight  NUMERIC(18,2),
+        ConsumerVolume NUMERIC(18,2),
+        KCPVolume      NUMERIC(18,2),
+        NonWovenVolume NUMERIC(18,2),
+        UnknownVolume  NUMERIC(18,2),
+        OrderCount     INT,
+        BUCount        INT,
+        TotalWeight    NUMERIC(18,2),
+        TotalVolume    NUMERIC(18,2)
+    )
 
-/*
+    /*
 Insert Unique LD_LEG_ID's into ##tblBUWeightPivot
 */
-INSERT INTO ##tblBUWeightPivot (LD_LEG_ID)
-SELECT DISTINCT LD_LEG_ID from ##tblBUWeightRaw
-ORDER BY LD_LEG_ID ASC
+    INSERT INTO ##tblBUWeightPivot
+        (LD_LEG_ID)
+    SELECT
+        DISTINCT
+        LD_LEG_ID
+    FROM
+        ##tblBUWeightRaw
+    ORDER BY LD_LEG_ID ASC
 
-UPDATE ##tblBUWeightPivot
+    UPDATE ##tblBUWeightPivot
 SET ConsumerWeight = CONSUMER.TOTALWEIGHT,
 ConsumerVolume = CONSUMER.TOTALVOLUME,
 KCPWeight = KCP.TOTALWEIGHT,
@@ -2525,104 +2629,115 @@ OrderCount = OTHER.ORDERCOUNT,
 TotalWeight = OTHER.TOTALWEIGHT,
 TotalVolume = OTHER.TOTALVOLUME
 
-FROM ##tblBUWeightPivot BUWP
-LEFT JOIN 
-(
-	SELECT LD_LEG_ID,
-	OBBU,
-	SUM(TOTALWEIGHT) AS TOTALWEIGHT,
-	SUM(TOTALVOLUME) AS TOTALVOLUME
-	FROM ##tblBUWeightRaw
-	WHERE OBBU = 'CONSUMER'
-	GROUP BY LD_LEG_ID,
+FROM
+        ##tblBUWeightPivot BUWP
+        LEFT JOIN
+        (
+	SELECT
+            LD_LEG_ID,
+            OBBU,
+            SUM(TOTALWEIGHT) AS TOTALWEIGHT,
+            SUM(TOTALVOLUME) AS TOTALVOLUME
+        FROM
+            ##tblBUWeightRaw
+        WHERE OBBU = 'CONSUMER'
+        GROUP BY LD_LEG_ID,
 	OBBU
 
 ) AS CONSUMER
- ON CONSUMER.LD_LEG_ID = BUWP.LD_LEG_ID
-LEFT JOIN
-(
-	SELECT LD_LEG_ID,
-	OBBU,
-	SUM(TOTALWEIGHT) AS TOTALWEIGHT,
-	SUM(TOTALVOLUME) AS TOTALVOLUME
-	FROM ##tblBUWeightRaw
-	WHERE OBBU = 'KCP'
-	GROUP BY LD_LEG_ID,
+        ON CONSUMER.LD_LEG_ID = BUWP.LD_LEG_ID
+        LEFT JOIN
+        (
+	SELECT
+            LD_LEG_ID,
+            OBBU,
+            SUM(TOTALWEIGHT) AS TOTALWEIGHT,
+            SUM(TOTALVOLUME) AS TOTALVOLUME
+        FROM
+            ##tblBUWeightRaw
+        WHERE OBBU = 'KCP'
+        GROUP BY LD_LEG_ID,
 	OBBU
 
 ) AS KCP
- ON KCP.LD_LEG_ID = BUWP.LD_LEG_ID
-LEFT JOIN
-(
-	SELECT LD_LEG_ID,
-	OBBU,
-	SUM(TOTALWEIGHT) AS TOTALWEIGHT,
-	SUM(TOTALVOLUME) AS TOTALVOLUME
-	FROM ##tblBUWeightRaw
-	WHERE OBBU = 'NON-WOVENS'
-	GROUP BY LD_LEG_ID,
+        ON KCP.LD_LEG_ID = BUWP.LD_LEG_ID
+        LEFT JOIN
+        (
+	SELECT
+            LD_LEG_ID,
+            OBBU,
+            SUM(TOTALWEIGHT) AS TOTALWEIGHT,
+            SUM(TOTALVOLUME) AS TOTALVOLUME
+        FROM
+            ##tblBUWeightRaw
+        WHERE OBBU = 'NON-WOVENS'
+        GROUP BY LD_LEG_ID,
 	OBBU
 
 ) AS NW
- ON NW.LD_LEG_ID = BUWP.LD_LEG_ID
- LEFT JOIN
-(
-	SELECT LD_LEG_ID,
-	OBBU,
-	SUM(TOTALWEIGHT) AS TOTALWEIGHT,
-	SUM(TOTALVOLUME) AS TOTALVOLUME
-	FROM ##tblBUWeightRaw
-	WHERE OBBU = 'UNKNOWN'
-	GROUP BY LD_LEG_ID,
+        ON NW.LD_LEG_ID = BUWP.LD_LEG_ID
+        LEFT JOIN
+        (
+	SELECT
+            LD_LEG_ID,
+            OBBU,
+            SUM(TOTALWEIGHT) AS TOTALWEIGHT,
+            SUM(TOTALVOLUME) AS TOTALVOLUME
+        FROM
+            ##tblBUWeightRaw
+        WHERE OBBU = 'UNKNOWN'
+        GROUP BY LD_LEG_ID,
 	OBBU
 
 ) AS UK
- ON UK.LD_LEG_ID = BUWP.LD_LEG_ID
-  LEFT JOIN
-(
-	SELECT LD_LEG_ID,
-	COUNT(OBBU) AS OBBUCount,
-	SUM(COUNT) AS ORDERCOUNT,
-    SUM(TOTALWEIGHT) AS TOTALWEIGHT,
-	SUM(TOTALVOLUME) AS TOTALVOLUME
-	FROM ##tblBUWeightRaw
-	GROUP BY LD_LEG_ID
+        ON UK.LD_LEG_ID = BUWP.LD_LEG_ID
+        LEFT JOIN
+        (
+	SELECT
+            LD_LEG_ID,
+            COUNT(OBBU) AS OBBUCount,
+            SUM(COUNT) AS ORDERCOUNT,
+            SUM(TOTALWEIGHT) AS TOTALWEIGHT,
+            SUM(TOTALVOLUME) AS TOTALVOLUME
+        FROM
+            ##tblBUWeightRaw
+        GROUP BY LD_LEG_ID
 ) AS OTHER
- ON OTHER.LD_LEG_ID = BUWP.LD_LEG_ID
+        ON OTHER.LD_LEG_ID = BUWP.LD_LEG_ID
 
-/*
+    /*
 Drop column from ##tblActualLoadDetailsALD if it exists
 If it doesn't exist, then add it to the table
 */
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS ConsumerWeight
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS KCPWeight
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS NonWovenWeight
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS UnknownWeight
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS ConsumerVolume
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS KCPVolume
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS NonWovenVolume
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS UnknownVolume
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS OrderCount
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS BUCount
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS TotalWeight
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS TotalVolume
-ALTER TABLE ##tblActualLoadDetailsALD ADD ConsumerWeight NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD KCPWeight NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD NonWovenWeight NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD UnknownWeight NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD ConsumerVolume NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD KCPVolume NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD NonWovenVolume NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD UnknownVolume NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD OrderCount INT
-ALTER TABLE ##tblActualLoadDetailsALD ADD BUCount INT
-ALTER TABLE ##tblActualLoadDetailsALD ADD TotalWeight NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD TotalVolume NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS ConsumerWeight
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS KCPWeight
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS NonWovenWeight
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS UnknownWeight
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS ConsumerVolume
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS KCPVolume
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS NonWovenVolume
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS UnknownVolume
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS OrderCount
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS BUCount
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS TotalWeight
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS TotalVolume
+    ALTER TABLE ##tblActualLoadDetailsALD ADD ConsumerWeight NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD KCPWeight NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD NonWovenWeight NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD UnknownWeight NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD ConsumerVolume NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD KCPVolume NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD NonWovenVolume NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD UnknownVolume NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD OrderCount INT
+    ALTER TABLE ##tblActualLoadDetailsALD ADD BUCount INT
+    ALTER TABLE ##tblActualLoadDetailsALD ADD TotalWeight NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD TotalVolume NUMERIC(18,2)
 
-/*
+    /*
 Update ##tblActualLoadDetailsALD with data from ##tblBUWeightPivot
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET ConsumerWeight = buwp.ConsumerWeight,
 KCPWeight = buwp.KCPWeight,
 NonWovenWeight = buwp.NonWovenWeight,
@@ -2635,49 +2750,50 @@ OrderCount = buwp.OrderCount,
 BUCount = buwp.BUCount,
 TotalWeight = CASE WHEN buwp.Totalweight <= .01 THEN .01 ELSE buwp.Totalweight END,
 TotalVolume = buwp.TotalVolume
-FROM ##tblActualLoadDetailsALD ald
-INNER JOIN ##tblBUWeightPivot buwp ON ald.LD_LEG_ID = buwp.LD_LEG_ID
+FROM
+        ##tblActualLoadDetailsALD ald
+        INNER JOIN ##tblBUWeightPivot buwp ON ald.LD_LEG_ID = buwp.LD_LEG_ID
 
-/*
+    /*
 Update ##tblActualLoadDetailsALD with Final Cost Calculations; weight by BU
 SELECT TOP 10 * FROM ##tblActualLoadDetailsALD
 */
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS TotalCost
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS ConsumerTotalCost
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS ConsumerLinehaulCost
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS ConsumerFuelCost
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS ConsumerAccessorialsCost
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS KCPTotalCost
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS KCPLinehaulCost
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS KCPFuelCost
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS KCPAccessorialsCost
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS NonWovenTotalCost
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS NonWovenLinehaulCost
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS NonWovenFuelCost
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS NonWovenAccessorialsCost
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS UnknownTotalCost
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS UnknownLinehaulCost
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS UnknownFuelCost
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS UnknownAccessorialsCost
-ALTER TABLE ##tblActualLoadDetailsALD ADD TotalCost NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD ConsumerTotalCost NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD ConsumerLinehaulCost NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD ConsumerFuelCost NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD ConsumerAccessorialsCost NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD KCPTotalCost NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD KCPLinehaulCost NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD KCPFuelCost NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD KCPAccessorialsCost NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD NonWovenTotalCost NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD NonWovenLinehaulCost NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD NonWovenFuelCost NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD NonWovenAccessorialsCost NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD UnknownTotalCost NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD UnknownLinehaulCost NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD UnknownFuelCost NUMERIC(18,2)
-ALTER TABLE ##tblActualLoadDetailsALD ADD UnknownAccessorialsCost NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS TotalCost
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS ConsumerTotalCost
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS ConsumerLinehaulCost
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS ConsumerFuelCost
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS ConsumerAccessorialsCost
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS KCPTotalCost
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS KCPLinehaulCost
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS KCPFuelCost
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS KCPAccessorialsCost
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS NonWovenTotalCost
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS NonWovenLinehaulCost
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS NonWovenFuelCost
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS NonWovenAccessorialsCost
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS UnknownTotalCost
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS UnknownLinehaulCost
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS UnknownFuelCost
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS UnknownAccessorialsCost
+    ALTER TABLE ##tblActualLoadDetailsALD ADD TotalCost NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD ConsumerTotalCost NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD ConsumerLinehaulCost NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD ConsumerFuelCost NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD ConsumerAccessorialsCost NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD KCPTotalCost NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD KCPLinehaulCost NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD KCPFuelCost NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD KCPAccessorialsCost NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD NonWovenTotalCost NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD NonWovenLinehaulCost NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD NonWovenFuelCost NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD NonWovenAccessorialsCost NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD UnknownTotalCost NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD UnknownLinehaulCost NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD UnknownFuelCost NUMERIC(18,2)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD UnknownAccessorialsCost NUMERIC(18,2)
 
-/*
+    /*
 Update Total Cost - Sum of linehaul, accessorials, fuel, repo, ZUSB
 If there are actuals costs, the use Actuals
 Else if there are PreRate costs, use PreRate
@@ -2686,7 +2802,7 @@ SELECT * FROM ##tblActualLoadDetailsALD WHERE PreRateCharge <> 'YES' AND ActualR
 
 Update 4/23/2021 per Jeff Perrot - Adding Repo back into Linehaul means removing that bucket from Total Cost
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET TotalCost = 
 CASE WHEN ActualRateCharge = 'Yes' THEN
 ISNULL(CONVERT(NUMERIC(18,2),Act_Linehaul),0)
@@ -2710,29 +2826,30 @@ CASE WHEN ISNULL(CONVERT(NUMERIC(18,2),PreRate_Linehaul),0) > ISNULL(CONVERT(NUM
 +CASE WHEN ISNULL(CONVERT(NUMERIC(18,2),PreRate_ZUSB),0) > ISNULL(CONVERT(NUMERIC(18,2),Act_ZUSB),0) THEN ISNULL(CONVERT(NUMERIC(18,2),PreRate_ZUSB),0) ELSE ISNULL(CONVERT(NUMERIC(18,2),Act_ZUSB),0) END
 
 END
-FROM ##tblActualLoadDetailsALD
+FROM
+        ##tblActualLoadDetailsALD
 
-/*
+    /*
 6/2/2021 -  Manually update linehaul costs due to carrier manager accidentally putting costs in that were 100x higher
 SELECT ald.LD_LEG_ID, ald.PreRate_Linehaul, ald.Act_Linehaul, ald.Act_Accessorials, ald.Act_Fuel, ald.Act_ZUSB, ald.ACTL_CHGD_AMT_DLR, ald.TotalCost FROM ##tblActualLoadDetailsALD ald
 WHERE LD_LEG_ID IN ('521800692','521800702','521800714','521800716','521800721','521805740','521805741')
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET PreRate_Linehaul = ROUND(2.7 * [FIXD_ITNR_DIST],2),
 Act_Linehaul = ROUND(2.7 * [FIXD_ITNR_DIST],2),
 TotalCost = ROUND(2.7 * [FIXD_ITNR_DIST],2) + COALESCE(Act_Accessorials,0) + COALESCE(Act_Fuel,0),
 ACTL_CHGD_AMT_DLR = ROUND(2.7 * [FIXD_ITNR_DIST],2) + COALESCE(Act_Accessorials,0) + COALESCE(Act_Fuel,0)
 WHERE LD_LEG_ID IN ('521800692','521800702','521800714','521800716','521800721','521805740','521805741')
-AND Act_Linehaul > 10000
-AND Act_ZUSB IS NULL
+        AND Act_Linehaul > 10000
+        AND Act_ZUSB IS NULL
 
-/*
+    /*
 Now that we've got total cost, let's split out by the difference business units
 If there's less than a volume (cube) of 2, then use Weight
 
 SELECT * FROM ##tblActualLoadDetailsALD WHERE ConsumerWeight = 0
 */
-UPDATE ##tblActualLoadDetailsALD SET
+    UPDATE ##tblActualLoadDetailsALD SET
 /*
 Total Cost
 */
@@ -2762,64 +2879,78 @@ KCPAccessorialsCost = (CASE WHEN TOT_VOL < 2 THEN (KCPWeight/TotalWeight)*Act_Ac
 NonWovenAccessorialsCost = (CASE WHEN TOT_VOL < 2 THEN (NonWovenWeight/TotalWeight)*Act_Accessorials ELSE (NonWovenVolume/TotalVolume)*Act_Accessorials END),
 UnknownAccessorialsCost = (CASE WHEN TOT_VOL < 2 THEN (UnknownWeight/TotalWeight)*Act_Accessorials ELSE (UnknownVolume/TotalVolume)*Act_Accessorials END)
 
-/*
+    /*
 Update ##tblActualLoadDetailsALD with FRAN marker
 SELECT TOP 10 * FROM ##tblActualLoadDetailsALD
 */
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS FRAN
-ALTER TABLE ##tblActualLoadDetailsALD ADD FRAN NVARCHAR(20)
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS FRAN
+    ALTER TABLE ##tblActualLoadDetailsALD ADD FRAN NVARCHAR(20)
 
-/*
+    /*
 If on the audit table as 'FRAN', and also 'OPEN' in srvc_cd, then mark FRAN as 'FRAN - Tendered' else 'FRAN - Attempted'
 Also, yo dawg... I see you like FRAN, so I put a FRAN in your FRAN so you can FRAN while you FRAN
 UPDATE 3/16/2020 - Jeff Perrot only wants to see where it went through the process, and was tendered.
 Change FRAN - Tendered to just FRAN, and FRAN - Attempted to null
 'Updated FRAN to use Thomas' table
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET FRAN = (CASE WHEN ald.srvc_cd='OPEN' THEN 'FRAN' ELSE NULL END )
-FROM ##tblActualLoadDetailsALD ald
-INNER JOIN USCTTDEV.dbo.tblAuditLoadLeg alls ON alls.LD_LEG_ID = ald.LD_LEG_ID
-AND alls.LD_CARR_CD = 'FRAN'
+FROM
+        ##tblActualLoadDetailsALD ald
+        INNER JOIN USCTTDEV.dbo.tblAuditLoadLeg alls ON alls.LD_LEG_ID = ald.LD_LEG_ID
+            AND alls.LD_CARR_CD = 'FRAN'
 
-/*
+    /*
 Update ##tblActualLoadDetailsALD with RFT marker
 */
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS RFT
-ALTER TABLE ##tblActualLoadDetailsALD ADD RFT NVARCHAR(30)
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS RFT
+    ALTER TABLE ##tblActualLoadDetailsALD ADD RFT NVARCHAR(30)
 
-/*
+    /*
 Update ##tblActualLoadDetailsALD to match the ManuallyTouchedReason from tblRFTDetailDataHistorical, which matches the Tableau reason
 SELECT TOP 10 * FROM USCTTDEV.dbo.tblRFTDetailDataHistoricalNew
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET RFT = rft.FirstFailure
-FROM ##tblActualLoadDetailsALD ald
-	INNER JOIN (
-		SELECT rf.*, SUM(cnt.Count) as Count FROM (
-			SELECT DISTINCT LOAD_NUMBER, FirstFailure
-			from USCTTDEV.dbo.tblRFTDetailDataHistoricalNew
+FROM
+        ##tblActualLoadDetailsALD ald
+        INNER JOIN (
+		SELECT
+            rf.*,
+            SUM(cnt.Count) AS Count
+        FROM
+            (
+			SELECT
+                DISTINCT
+                LOAD_NUMBER,
+                FirstFailure
+            FROM
+                USCTTDEV.dbo.tblRFTDetailDataHistoricalNew
 			) rf
-				INNER JOIN (
-					SELECT DISTINCT LOAD_NUMBER, 1 as Count 
-					from USCTTDEV.dbo.tblRFTDetailDataHistoricalNew 
+            INNER JOIN (
+					SELECT
+                DISTINCT
+                LOAD_NUMBER,
+                1 AS Count
+            FROM
+                USCTTDEV.dbo.tblRFTDetailDataHistoricalNew 
 					) cnt ON
 						cnt.load_Number = rf.LOAD_NUMBER
-						WHERE rf.FirstFailure <> 'Automated'
-						GROUP BY rf.LOAD_NUMBER, rf.FirstFailure						
+        WHERE rf.FirstFailure <> 'Automated'
+        GROUP BY rf.LOAD_NUMBER, rf.FirstFailure						
 					) rft ON
 			rft.LOAD_NUMBER = ald.LD_LEG_ID
 
-/*
+    /*
 Update ##tblActualLoadDetailsALD with AwardLane and AwardCarrier
 SELECT * FROM ##tblActualLoadDetailsALD
 */
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS AwardLane
-ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS AwardCarrier
-ALTER TABLE ##tblActualLoadDetailsALD ADD AwardLane NVARCHAR(1)
-ALTER TABLE ##tblActualLoadDetailsALD ADD AwardCarrier NVARCHAR(1)
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS AwardLane
+    ALTER TABLE ##tblActualLoadDetailsALD DROP COLUMN IF EXISTS AwardCarrier
+    ALTER TABLE ##tblActualLoadDetailsALD ADD AwardLane NVARCHAR(1)
+    ALTER TABLE ##tblActualLoadDetailsALD ADD AwardCarrier NVARCHAR(1)
 
-/*
+    /*
 Commenting out Thomas' old method of Award Lane/Carrier, since he's not keeping up those tables anymore
 Also, he's moved his data to the historical rates table anyway
 
@@ -2846,44 +2977,63 @@ WHERE SHPD_DTT BETWEEN awards.RATEEFF and awards.RATEEXP
 */
 
 
-/*
+    /*
 Update Award Lane to Y if date exists in USCTTDEV.dbo.tblAwardRatesHistorical
 SELECT * FROM USCTTDEV.dbo.tblAwardRatesHistorical ORDER BY Lane ASC, EffectiveDate ASC , ExpirationDate ASC
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET AwardLane = 'Y'
-FROM ##tblActualLoadDetailsALD ald
-INNER JOIN (
-SELECT DISTINCT LaneID, Lane, ORIG_CITY_STATE, DEST_CITY_STATE, EffectiveDate, ExpirationDate
-FROM USCTTDEV.dbo.tblAwardRatesHistorical) lane ON lane.lane = ald.Lane
-WHERE CAST(CASE WHEN ald.SHPD_DTT IS NULL THEN ald.STRD_DTT ELSE ald.SHPD_DTT END AS DATE) BETWEEN lane.EffectiveDate and lane.ExpirationDate
+FROM
+        ##tblActualLoadDetailsALD ald
+        INNER JOIN (
+SELECT
+            DISTINCT
+            LaneID,
+            Lane,
+            ORIG_CITY_STATE,
+            DEST_CITY_STATE,
+            EffectiveDate,
+            ExpirationDate
+        FROM
+            USCTTDEV.dbo.tblAwardRatesHistorical) lane ON lane.lane = ald.Lane
+WHERE CAST(CASE WHEN ald.SHPD_DTT IS NULL THEN ald.STRD_DTT ELSE ald.SHPD_DTT END AS DATE) BETWEEN lane.EffectiveDate AND lane.ExpirationDate
 
-/*
+    /*
 Update Award Carrer to Y if date exists in USCTTDEV.dbo.tblAwardRatesHistorical
 SELECT * FROM USCTTDEV.dbo.tblAwardRatesHistorical ORDER BY Lane ASC, EffectiveDate ASC , ExpirationDate ASC
 SELECT * F
 */
-UPDATE ##tblActualLoadDetailsALD
+    UPDATE ##tblActualLoadDetailsALD
 SET AwardCarrier = 'Y'
-FROM ##tblActualLoadDetailsALD ald
-INNER JOIN (
-SELECT DISTINCT LaneID, Lane, ORIG_CITY_STATE, DEST_CITY_STATE, SCAC, EffectiveDate, ExpirationDate
-FROM USCTTDEV.dbo.tblAwardRatesHistorical) lane ON lane.lane = ald.Lane
-AND lane.SCAC = ald.SRVC_CD
-WHERE CAST(CASE WHEN ald.SHPD_DTT IS NULL THEN ald.STRD_DTT ELSE ald.SHPD_DTT END AS DATE) BETWEEN lane.EffectiveDate and lane.ExpirationDate
+FROM
+        ##tblActualLoadDetailsALD ald
+        INNER JOIN (
+SELECT
+            DISTINCT
+            LaneID,
+            Lane,
+            ORIG_CITY_STATE,
+            DEST_CITY_STATE,
+            SCAC,
+            EffectiveDate,
+            ExpirationDate
+        FROM
+            USCTTDEV.dbo.tblAwardRatesHistorical) lane ON lane.lane = ald.Lane
+            AND lane.SCAC = ald.SRVC_CD
+WHERE CAST(CASE WHEN ald.SHPD_DTT IS NULL THEN ald.STRD_DTT ELSE ald.SHPD_DTT END AS DATE) BETWEEN lane.EffectiveDate AND lane.ExpirationDate
 
-/*
+    /*
 Set current time variable
 SELECT TOP 100 * FROM ##tblActualLoadDetailsALD
 */
-DECLARE @now AS DATETIME
-SET @now = GETDATE()
+    DECLARE @now AS DATETIME
+    SET @now = GETDATE()
 
-/*
+    /*
 Update All Fields on USCTTDEV.dbo.tblActualLoadDetail to match ##tblActualLoadDetailsALD
 SELECT TOP 20 * FROM ##tblActualLoadDetailsALD WHERE PreRate_ZSPT IS NOT NULL OR Act_ZSPT IS NOT NULL
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET CARR_CD = aldt.CARR_CD,
 NAME = aldt.NAME,
 SRVC_CD = aldt.SRVC_CD,
@@ -2983,10 +3133,11 @@ AwardLane = aldt.AwardLane,
 AwardCarrier = aldt.AwardCarrier,
 Spacemaker = aldt.SPACEMAKER,
 LastUpdated = @now
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-INNER JOIN ##tblActualLoadDetailsALD aldt ON CAST(ald.LD_LEG_ID AS INT) = CAST(aldt.LD_LEG_ID AS INT)
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
+        INNER JOIN ##tblActualLoadDetailsALD aldt ON CAST(ald.LD_LEG_ID AS INT) = CAST(aldt.LD_LEG_ID AS INT)
 
-/*
+    /*
 Delete from temp table, which will leave only lines that need to be appended
 SELECT * INTO ##tblActualLoadDetailsALDBackup FROM (SELECT * FROM ##tblActualLoadDetailsALD) DATA
 DROP TABLE IF EXISTS ##tblActualLoadDetailsALD
@@ -2995,351 +3146,362 @@ SELECT * INTO ##tblActualLoadDetailsALD FROM (SELECT * FROM ##tblActualLoadDetai
 
 SELECT TOP 100 * from USCTTDEV.dbo.tblActualLoadDetail
 */
-DELETE ##tblActualLoadDetailsALD
-FROM ##tblActualLoadDetailsALD aldt
-INNER JOIN USCTTDEV.dbo.tblActualLoadDetail ald ON CAST(aldt.LD_LEG_ID AS INT) = CAST(ald.LD_LEG_ID AS INT)
+    DELETE ##tblActualLoadDetailsALD
+FROM
+        ##tblActualLoadDetailsALD aldt
+        INNER JOIN USCTTDEV.dbo.tblActualLoadDetail ald ON CAST(aldt.LD_LEG_ID AS INT) = CAST(ald.LD_LEG_ID AS INT)
 WHERE aldt.LD_LEG_ID = ald.LD_LEG_ID
 
-/*
+    /*
 Append leftover records to USCTTDEV.dbo.tblActualLoadDetail
 */
-INSERT INTO USCTTDEV.dbo.tblActualLoadDetail
-(CARR_CD,
-NAME,
-SRVC_CD,
-SRVC_DESC,
-CUR_OPTLSTAT_ID,
-STATUS,
-CRTD_DTT,
-SHPD_DTT,
-STRD_DTT,
-DLVY_DTT,
-LD_LEG_ID,
-FRST_SHPG_LOC_CD,
-FRST_SHPG_LOC_NAME,
-FRST_CTY_NAME,
-FRST_STA_CD,
-FRST_PSTL_CD,
-FRST_CTRY_CD,
-LAST_SHPG_LOC_CD,
-LAST_SHPG_LOC_NAME,
-LAST_CTY_NAME,
-LAST_STA_CD,
-LAST_PSTL_CD,
-LAST_CTRY_CD,
-EQMT_TYP,
-FIXD_ITNR_DIST,
-TOT_TOT_PCE,
-TOT_SCLD_WGT,
-TOT_VOL,
-ACTL_CHGD_AMT_DLR,
-CORP1_ID,
-MARKETPLACE_CATCHALL,
-STOPS,
-SHIP_CONDITION,
-PreRate_Accessorials,
-PreRate_Fuel,
-PreRate_Linehaul,
-PreRate_Repo,
-PreRate_ZUSB,
-PreRate_ZSPT,
-PreRateCharge,
-Act_Accessorials,
-Act_Fuel,
-Act_Linehaul,
-Act_Repo,
-Act_ZUSB,
-Act_ZSPT,
-ActualRateCharge,
-Drop_It,
-OrderType,
-CarrierManager,
-Region,
-BU,
-ShipMode,
-/*
+    INSERT INTO USCTTDEV.dbo.tblActualLoadDetail
+        (CARR_CD,
+        NAME,
+        SRVC_CD,
+        SRVC_DESC,
+        CUR_OPTLSTAT_ID,
+        STATUS,
+        CRTD_DTT,
+        SHPD_DTT,
+        STRD_DTT,
+        DLVY_DTT,
+        LD_LEG_ID,
+        FRST_SHPG_LOC_CD,
+        FRST_SHPG_LOC_NAME,
+        FRST_CTY_NAME,
+        FRST_STA_CD,
+        FRST_PSTL_CD,
+        FRST_CTRY_CD,
+        LAST_SHPG_LOC_CD,
+        LAST_SHPG_LOC_NAME,
+        LAST_CTY_NAME,
+        LAST_STA_CD,
+        LAST_PSTL_CD,
+        LAST_CTRY_CD,
+        EQMT_TYP,
+        FIXD_ITNR_DIST,
+        TOT_TOT_PCE,
+        TOT_SCLD_WGT,
+        TOT_VOL,
+        ACTL_CHGD_AMT_DLR,
+        CORP1_ID,
+        MARKETPLACE_CATCHALL,
+        STOPS,
+        SHIP_CONDITION,
+        PreRate_Accessorials,
+        PreRate_Fuel,
+        PreRate_Linehaul,
+        PreRate_Repo,
+        PreRate_ZUSB,
+        PreRate_ZSPT,
+        PreRateCharge,
+        Act_Accessorials,
+        Act_Fuel,
+        Act_Linehaul,
+        Act_Repo,
+        Act_ZUSB,
+        Act_ZSPT,
+        ActualRateCharge,
+        Drop_It,
+        OrderType,
+        CarrierManager,
+        Region,
+        BU,
+        ShipMode,
+        /*
 Year,
 Month,
 Week_Beginning,
 */
-Origin_Zone,
-Dest_Zone,
-Lane,
-OriginPlant,
-DestinationPlant,
-CustomerHierarchy,
-CustomerGroup,
-ConsumerWeight,
-KCPWeight,
-NonWovenWeight,
-UnknownWeight,
-ConsumerVolume,
-KCPVolume,
-NonWovenVolume,
-UnknownVolume,
-OrderCount,
-BUCount,
-TotalWeight,
-TotalVolume,
-TotalCost,
-ConsumerTotalCost,
-ConsumerLinehaulCost,
-ConsumerFuelCost,
-ConsumerAccessorialsCost,
-KCPTotalCost,
-KCPLinehaulCost,
-KCPFuelCost,
-KCPAccessorialsCost,
-NonWovenTotalCost,
-NonWovenLinehaulCost,
-NonWovenFuelCost,
-NonWovenAccessorialsCost,
-UnknownTotalCost,
-UnknownLinehaulCost,
-UnknownFuelCost,
-UnknownAccessorialsCost,
-FRAN,
-RFT,
-AwardLane,
-AwardCarrier,
-Spacemaker,
-AddedOn,
-LastUpdated)
-SELECT aldt.CARR_CD,
-aldt.NAME,
-aldt.SRVC_CD,
-aldt.SRVC_DESC,
-aldt.CUR_OPTLSTAT_ID,
-aldt.STATUS,
-aldt.CRTD_DTT,
-aldt.SHPD_DTT,
-aldt.STRD_DTT,
-aldt.DLVY_DTT,
-aldt.LD_LEG_ID,
-aldt.FRST_SHPG_LOC_CD,
-aldt.FRST_SHPG_LOC_NAME,
-aldt.FRST_CTY_NAME,
-aldt.FRST_STA_CD,
-aldt.FRST_PSTL_CD,
-aldt.FRST_CTRY_CD,
-aldt.LAST_SHPG_LOC_CD,
-aldt.LAST_SHPG_LOC_NAME,
-aldt.LAST_CTY_NAME,
-aldt.LAST_STA_CD,
-aldt.LAST_PSTL_CD,
-aldt.LAST_CTRY_CD,
-aldt.EQMT_TYP,
-aldt.FIXD_ITNR_DIST,
-aldt.TOT_TOT_PCE,
-aldt.TOT_SCLD_WGT,
-aldt.TOT_VOL,
-aldt.ACTL_CHGD_AMT_DLR,
-aldt.CORP1_ID,
-aldt.MARKETPLACE_CATCHALL,
-aldt.STOPS,
-aldt.SHIP_CONDITION,
-aldt.PreRate_Accessorials,
-aldt.PreRate_Fuel,
-aldt.PreRate_Linehaul,
-aldt.PreRate_Repo,
-aldt.PreRate_ZUSB,
-aldt.PreRate_ZSPT,
-aldt.PreRateCharge,
-aldt.Act_Accessorials,
-aldt.Act_Fuel,
-aldt.Act_Linehaul,
-aldt.Act_Repo,
-aldt.Act_ZUSB,
-aldt.Act_ZSPT,
-aldt.ActualRateCharge,
-aldt.Drop_It,
-aldt.OrderType,
-aldt.CarrierManager,
-aldt.Region,
-aldt.BU,
-aldt.ShipMode,
-/*
+        Origin_Zone,
+        Dest_Zone,
+        Lane,
+        OriginPlant,
+        DestinationPlant,
+        CustomerHierarchy,
+        CustomerGroup,
+        ConsumerWeight,
+        KCPWeight,
+        NonWovenWeight,
+        UnknownWeight,
+        ConsumerVolume,
+        KCPVolume,
+        NonWovenVolume,
+        UnknownVolume,
+        OrderCount,
+        BUCount,
+        TotalWeight,
+        TotalVolume,
+        TotalCost,
+        ConsumerTotalCost,
+        ConsumerLinehaulCost,
+        ConsumerFuelCost,
+        ConsumerAccessorialsCost,
+        KCPTotalCost,
+        KCPLinehaulCost,
+        KCPFuelCost,
+        KCPAccessorialsCost,
+        NonWovenTotalCost,
+        NonWovenLinehaulCost,
+        NonWovenFuelCost,
+        NonWovenAccessorialsCost,
+        UnknownTotalCost,
+        UnknownLinehaulCost,
+        UnknownFuelCost,
+        UnknownAccessorialsCost,
+        FRAN,
+        RFT,
+        AwardLane,
+        AwardCarrier,
+        Spacemaker,
+        AddedOn,
+        LastUpdated)
+    SELECT
+        aldt.CARR_CD,
+        aldt.NAME,
+        aldt.SRVC_CD,
+        aldt.SRVC_DESC,
+        aldt.CUR_OPTLSTAT_ID,
+        aldt.STATUS,
+        aldt.CRTD_DTT,
+        aldt.SHPD_DTT,
+        aldt.STRD_DTT,
+        aldt.DLVY_DTT,
+        aldt.LD_LEG_ID,
+        aldt.FRST_SHPG_LOC_CD,
+        aldt.FRST_SHPG_LOC_NAME,
+        aldt.FRST_CTY_NAME,
+        aldt.FRST_STA_CD,
+        aldt.FRST_PSTL_CD,
+        aldt.FRST_CTRY_CD,
+        aldt.LAST_SHPG_LOC_CD,
+        aldt.LAST_SHPG_LOC_NAME,
+        aldt.LAST_CTY_NAME,
+        aldt.LAST_STA_CD,
+        aldt.LAST_PSTL_CD,
+        aldt.LAST_CTRY_CD,
+        aldt.EQMT_TYP,
+        aldt.FIXD_ITNR_DIST,
+        aldt.TOT_TOT_PCE,
+        aldt.TOT_SCLD_WGT,
+        aldt.TOT_VOL,
+        aldt.ACTL_CHGD_AMT_DLR,
+        aldt.CORP1_ID,
+        aldt.MARKETPLACE_CATCHALL,
+        aldt.STOPS,
+        aldt.SHIP_CONDITION,
+        aldt.PreRate_Accessorials,
+        aldt.PreRate_Fuel,
+        aldt.PreRate_Linehaul,
+        aldt.PreRate_Repo,
+        aldt.PreRate_ZUSB,
+        aldt.PreRate_ZSPT,
+        aldt.PreRateCharge,
+        aldt.Act_Accessorials,
+        aldt.Act_Fuel,
+        aldt.Act_Linehaul,
+        aldt.Act_Repo,
+        aldt.Act_ZUSB,
+        aldt.Act_ZSPT,
+        aldt.ActualRateCharge,
+        aldt.Drop_It,
+        aldt.OrderType,
+        aldt.CarrierManager,
+        aldt.Region,
+        aldt.BU,
+        aldt.ShipMode,
+        /*
 aldt.Year,
 aldt.Month,
 aldt.Week_Beginning,
 */
-aldt.Origin_Zone,
-aldt.Dest_Zone,
-aldt.Lane,
-aldt.OriginPlant,
-aldt.DestinationPlant,
-aldt.CustomerHierarchy,
-aldt.CustomerGroup,
-aldt.ConsumerWeight,
-aldt.KCPWeight,
-aldt.NonWovenWeight,
-aldt.UnknownWeight,
-aldt.ConsumerVolume,
-aldt.KCPVolume,
-aldt.NonWovenVolume,
-aldt.UnknownVolume,
-aldt.OrderCount,
-aldt.BUCount,
-aldt.TotalWeight,
-aldt.TotalVolume,
-aldt.TotalCost,
-aldt.ConsumerTotalCost,
-aldt.ConsumerLinehaulCost,
-aldt.ConsumerFuelCost,
-aldt.ConsumerAccessorialsCost,
-aldt.KCPTotalCost,
-aldt.KCPLinehaulCost,
-aldt.KCPFuelCost,
-aldt.KCPAccessorialsCost,
-aldt.NonWovenTotalCost,
-aldt.NonWovenLinehaulCost,
-aldt.NonWovenFuelCost,
-aldt.NonWovenAccessorialsCost,
-aldt.UnknownTotalCost,
-aldt.UnknownLinehaulCost,
-aldt.UnknownFuelCost,
-aldt.UnknownAccessorialsCost,
-aldt.FRAN,
-aldt.RFT,
-aldt.AwardLane,
-aldt.AwardCarrier,
-aldt.Spacemaker,
-@now,
-@now
-FROM ##tblActualLoadDetailsALD aldt
-LEFT JOIN USCTTDEV.dbo.tblActualLoadDetail ald ON aldt.LD_LEG_ID = ald.LD_LEG_ID
-WHERE ald.LD_LEG_ID IS NULL
-ORDER BY LD_LEG_ID ASC
+        aldt.Origin_Zone,
+        aldt.Dest_Zone,
+        aldt.Lane,
+        aldt.OriginPlant,
+        aldt.DestinationPlant,
+        aldt.CustomerHierarchy,
+        aldt.CustomerGroup,
+        aldt.ConsumerWeight,
+        aldt.KCPWeight,
+        aldt.NonWovenWeight,
+        aldt.UnknownWeight,
+        aldt.ConsumerVolume,
+        aldt.KCPVolume,
+        aldt.NonWovenVolume,
+        aldt.UnknownVolume,
+        aldt.OrderCount,
+        aldt.BUCount,
+        aldt.TotalWeight,
+        aldt.TotalVolume,
+        aldt.TotalCost,
+        aldt.ConsumerTotalCost,
+        aldt.ConsumerLinehaulCost,
+        aldt.ConsumerFuelCost,
+        aldt.ConsumerAccessorialsCost,
+        aldt.KCPTotalCost,
+        aldt.KCPLinehaulCost,
+        aldt.KCPFuelCost,
+        aldt.KCPAccessorialsCost,
+        aldt.NonWovenTotalCost,
+        aldt.NonWovenLinehaulCost,
+        aldt.NonWovenFuelCost,
+        aldt.NonWovenAccessorialsCost,
+        aldt.UnknownTotalCost,
+        aldt.UnknownLinehaulCost,
+        aldt.UnknownFuelCost,
+        aldt.UnknownAccessorialsCost,
+        aldt.FRAN,
+        aldt.RFT,
+        aldt.AwardLane,
+        aldt.AwardCarrier,
+        aldt.Spacemaker,
+        @now,
+        @now
+    FROM
+        ##tblActualLoadDetailsALD aldt
+        LEFT JOIN USCTTDEV.dbo.tblActualLoadDetail ald ON aldt.LD_LEG_ID = ald.LD_LEG_ID
+    WHERE ald.LD_LEG_ID IS NULL
+    ORDER BY LD_LEG_ID ASC
 
-/*
+    /*
 Update 4/23/2021 per email from Jeff Perrot
 Add Act_Repo back to linehaul costs should they not already be in there
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail 
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail 
 SET Act_Linehaul = Act_Linehaul + COALESCE(Act_Repo,0)
 WHERE Act_Linehaul <> Act_Linehaul + COALESCE(Act_Repo,0)
-AND TotalCost <> (COALESCE(Act_Accessorials,0) + COALESCE(Act_Fuel,0) + COALESCE(Act_Linehaul,0) + COALESCE(Act_ZUSB,0))
+        AND TotalCost <> (COALESCE(Act_Accessorials,0) + COALESCE(Act_Fuel,0) + COALESCE(Act_Linehaul,0) + COALESCE(Act_ZUSB,0))
 
-/*
+    /*
 Execute USB to ALD Stored Procedure
 3/25/2021
 */
-EXEC USCTTDEV.dbo.sp_USBankToActualLoadDetail
+    EXEC USCTTDEV.dbo.sp_USBankToActualLoadDetail
 
-/*
+    /*
 Update Actual Load Details with new city names, when there's something weird
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET DestCity =
               CASE
                 WHEN zc.ZONE IS NOT NULL AND
-                  zc.CityName IS NOT NULL THEN zc.UpdatedCityName
+        zc.CityName IS NOT NULL THEN zc.UpdatedCityName
                 ELSE ald.LAST_CTY_NAME
               END
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-LEFT JOIN USCTTDEV.dbo.tblZoneCities zc
-  ON zc.Zone = ald.Dest_Zone
-  AND zc.CityName = ald.LAST_CTY_NAME
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
+        LEFT JOIN USCTTDEV.dbo.tblZoneCities zc
+        ON zc.Zone = ald.Dest_Zone
+            AND zc.CityName = ald.LAST_CTY_NAME
 
-/*
+    /*
 9/9/2020 Update CARR_CD due to bad data in TMS
 Replace CMCU CARR_CD to CYLI
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail 
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail 
 SET CARR_CD = 'CYLI',
 Name = 'Crowley Logistics, Inc.'
-WHERE (SRVC_CD = 'CYLI' OR  SRVC_CD = 'CWGY')
-UPDATE USCTTDEV.dbo.tblOperationalMetrics
+WHERE (SRVC_CD = 'CYLI' OR SRVC_CD = 'CWGY')
+    UPDATE USCTTDEV.dbo.tblOperationalMetrics
 SET CARR_CD = 'CYLI'
-WHERE (SRVC_CD = 'CYLI' OR  SRVC_CD = 'CWGY')
+WHERE (SRVC_CD = 'CYLI' OR SRVC_CD = 'CWGY')
 
-/*
+    /*
 Update Actual Load Detail Broker Flag
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET Broker = ca.Broker
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-INNER JOIN USCTTDEV.dbo.tblCarriers ca
-  ON ca.SRVC_DESC = ald.SRVC_DESC
-  AND ca.CARR_CD = ald.CARR_CD
-WHERE CONVERT(date, ald.LastUpdated) =
-CONVERT(date, GETDATE())
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
+        INNER JOIN USCTTDEV.dbo.tblCarriers ca
+        ON ca.SRVC_DESC = ald.SRVC_DESC
+            AND ca.CARR_CD = ald.CARR_CD
+WHERE CONVERT(DATE, ald.LastUpdated) =
+CONVERT(DATE, GETDATE())
 
-/*
+    /*
 Update tblBidAppLanes with current year's volume
 */
-UPDATE USCTTDEV.dbo.tblBidAppLanes
+    UPDATE USCTTDEV.dbo.tblBidAppLanes
 SET CurrentVolume = CASE WHEN vol.lane IS NULL THEN NULL ELSE vol.CurrentVol END
-FROM USCTTDEV.dbo.tblBidAppLanes bal
-LEFT JOIN (SELECT DISTINCT
-  ald.Origin_Zone,
-  ald.Dest_Zone,
-  CASE
+FROM
+        USCTTDEV.dbo.tblBidAppLanes bal
+        LEFT JOIN (SELECT
+            DISTINCT
+            ald.Origin_Zone,
+            ald.Dest_Zone,
+            CASE
     WHEN ald.EQMT_TYP LIKE '%TC' THEN ald.Origin_Zone + '-' + ald.Dest_Zone + '(TC)'
     ELSE ald.Origin_Zone + '-' + ald.Dest_Zone
   END AS Lane,
-  COUNT(DISTINCT ald.LD_LEG_ID) AS CurrentVol
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-WHERE YEAR((CASE
+            COUNT(DISTINCT ald.LD_LEG_ID) AS CurrentVol
+        FROM
+            USCTTDEV.dbo.tblActualLoadDetail ald
+        WHERE YEAR((CASE
   WHEN ald.SHPD_DTT IS NULL THEN ald.STRD_DTT
   ELSE ald.SHPD_DTT
 END)) = YEAR(GETDATE())
-AND ald.CUR_OPTLSTAT_ID BETWEEN 300 and 345
-AND ald.ShipMode <> 'LTL'
-GROUP BY ald.Origin_Zone,
+            AND ald.CUR_OPTLSTAT_ID BETWEEN 300 AND 345
+            AND ald.ShipMode <> 'LTL'
+        GROUP BY ald.Origin_Zone,
          ald.Dest_Zone,
          CASE
            WHEN ald.EQMT_TYP LIKE '%TC' THEN ald.Origin_Zone + '-' + ald.Dest_Zone + '(TC)'
            ELSE ald.Origin_Zone + '-' + ald.Dest_Zone
          END) vol ON vol.Lane = bal.Lane
 
-/*
+    /*
 Update Bid App Rates with current year's volume
 */
-UPDATE USCTTDEV.dbo.tblBidAppRates
+    UPDATE USCTTDEV.dbo.tblBidAppRates
 SET CurrentVolume = CASE WHEN vol.Lane IS NULL THEN NULL ELSE vol.CurrentVol END
-FROM USCTTDEV.dbo.tblBidAppRates bar
-LEFT JOIN(
-SELECT DISTINCT
-  ald.Origin_Zone,
-  ald.Dest_Zone,
-  ald.SRVC_CD,
-  CASE
+FROM
+        USCTTDEV.dbo.tblBidAppRates bar
+        LEFT JOIN(
+SELECT
+            DISTINCT
+            ald.Origin_Zone,
+            ald.Dest_Zone,
+            ald.SRVC_CD,
+            CASE
     WHEN ald.EQMT_TYP LIKE '%TC' THEN ald.Origin_Zone + '-' + ald.Dest_Zone + '(TC)'
     ELSE ald.Origin_Zone + '-' + ald.Dest_Zone
   END AS Lane,
-  COUNT(DISTINCT ald.LD_LEG_ID) AS CurrentVol
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-WHERE YEAR((CASE
+            COUNT(DISTINCT ald.LD_LEG_ID) AS CurrentVol
+        FROM
+            USCTTDEV.dbo.tblActualLoadDetail ald
+        WHERE YEAR((CASE
   WHEN ald.SHPD_DTT IS NULL THEN ald.STRD_DTT
   ELSE ald.SHPD_DTT
 END)) = YEAR(GETDATE())
-AND ald.CUR_OPTLSTAT_ID BETWEEN 300 and 345
-AND ald.ShipMode <> 'LTL'
-GROUP BY ald.Origin_Zone,
+            AND ald.CUR_OPTLSTAT_ID BETWEEN 300 AND 345
+            AND ald.ShipMode <> 'LTL'
+        GROUP BY ald.Origin_Zone,
          ald.Dest_Zone,
 		 ald.SRVC_CD,
          CASE
            WHEN ald.EQMT_TYP LIKE '%TC' THEN ald.Origin_Zone + '-' + ald.Dest_Zone + '(TC)'
            ELSE ald.Origin_Zone + '-' + ald.Dest_Zone END
-		   ) vol on vol.Lane = bar.Lane AND vol.SRVC_CD = bar.SCAC
+		   ) vol ON vol.Lane = bar.Lane AND vol.SRVC_CD = bar.SCAC
 
-/*
+    /*
 Update USCTTDEV.dbo.tblActualLoadDetail
 Where the EQMT_TYP is Intermodal, but the distance is less than 600
 since it's probably an Intermodal equipment but actually used OTR
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET SHIPMODE = 'TRUCK'
 WHERE EQMT_TYP = '53IM'
-AND FIXD_ITNR_DIST < 600
-AND SHIPMODE = 'INTERMODAL'
-AND SRVC_CD <> 'FECD'
+        AND FIXD_ITNR_DIST < 600
+        AND SHIPMODE = 'INTERMODAL'
+        AND SRVC_CD <> 'FECD'
 
-/*
+    /*
 Updates for KC Romeoville Origin Zone
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET Origin_Zone = CASE
                 WHEN SUBSTRING(ald.FRST_SHPG_LOC_CD, 1, 4) IN (
                     '2358',
@@ -3353,225 +3515,277 @@ SET Origin_Zone = CASE
                 ELSE
                     ald.Origin_Zone
             END
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
 WHERE SUBSTRING(ald.FRST_SHPG_LOC_CD, 1, 4) IN ('2292','2323','2358','2474')
-AND ald.Origin_Zone = 'ILROMEOV'
+        AND ald.Origin_Zone = 'ILROMEOV'
 
-/*
+    /*
 Add missing customer hierarchies to customer table
 */
-INSERT INTO USCTTDEV.dbo.tblCustomers (Hierarchy, HierarchyNum, AddedOn)
-  SELECT
-    LAST_SHPG_LOC_NAME,
-    CustomerHierarchy,
-    GETDATE()
-  FROM (SELECT DISTINCT
-    ald.LAST_SHPG_LOC_NAME,
-    ald.CustomerGroup,
-    ald.CustomerHierarchy,
-    COUNT(DISTINCT LD_LEG_ID) AS Count,
-    ROW_NUMBER() OVER (PARTITION BY ald.CustomerHierarchy ORDER BY COUNT(DISTINCT ald.LD_LEG_ID) DESC) AS Row
-  FROM USCTTDEV.dbo.tblActualLoadDetail ald
-  LEFT JOIN USCTTDEV.dbo.tblCustomers c
-    ON c.HierarchyNum = CustomerHierarchy
-  WHERE SUBSTRING(CustomerHierarchy, 1, 1) = '5'
-  AND c.HierarchyNum IS NULL
-  GROUP BY ald.LAST_SHPG_LOC_NAME,
+    INSERT INTO USCTTDEV.dbo.tblCustomers
+        (Hierarchy, HierarchyNum, AddedOn)
+    SELECT
+        LAST_SHPG_LOC_NAME,
+        CustomerHierarchy,
+        GETDATE()
+    FROM
+        (SELECT
+            DISTINCT
+            ald.LAST_SHPG_LOC_NAME,
+            ald.CustomerGroup,
+            ald.CustomerHierarchy,
+            COUNT(DISTINCT LD_LEG_ID) AS Count,
+            ROW_NUMBER() OVER (PARTITION BY ald.CustomerHierarchy ORDER BY COUNT(DISTINCT ald.LD_LEG_ID) DESC) AS Row
+        FROM
+            USCTTDEV.dbo.tblActualLoadDetail ald
+            LEFT JOIN USCTTDEV.dbo.tblCustomers c
+            ON c.HierarchyNum = CustomerHierarchy
+        WHERE SUBSTRING(CustomerHierarchy, 1, 1) = '5'
+            AND c.HierarchyNum IS NULL
+        GROUP BY ald.LAST_SHPG_LOC_NAME,
            ald.CustomerGroup,
            ald.CustomerHierarchy) customers
-  LEFT JOIN USCTTDEV.dbo.tblCustomers c
-    ON c.HierarchyNum = customers.CustomerHierarchy
-  WHERE c.HierarchyNum IS NULL
-  AND customers.Row = 1
+        LEFT JOIN USCTTDEV.dbo.tblCustomers c
+        ON c.HierarchyNum = customers.CustomerHierarchy
+    WHERE c.HierarchyNum IS NULL
+        AND customers.Row = 1
 
-/*
+    /*
 Update state names where they don't match
 */
-UPDATE USCTTDEV.dbo.tblRegionalAssignments
+    UPDATE USCTTDEV.dbo.tblRegionalAssignments
 SET StateName = st.STA_NAME
-FROM USCTTDEV.dbo.tblRegionalAssignments ra
-INNER JOIN (SELECT * FROM OPENQUERY(NAJDAPRD,'SELECT * FROM NAJDAADM.STATE_R')) st ON ra.Country = st.CTRY_CD
-AND ra.StateAbbv = st.STA_CD
+FROM
+        USCTTDEV.dbo.tblRegionalAssignments ra
+        INNER JOIN (SELECT
+            *
+        FROM
+            OPENQUERY(NAJDAPRD,'SELECT * FROM NAJDAADM.STATE_R')) st ON ra.Country = st.CTRY_CD
+            AND ra.StateAbbv = st.STA_CD
 WHERE ra.StateName <> st.STA_NAME
 
-/*
+    /*
 If it's on the Actual Load Detail table, but not on the raw data, delete from table
 Note: This is probably due to the load being cancelled, or move to PKG or some other excluded equipment type
 */
-DELETE FROM USCTTDEV.dbo.tblActualLoadDetail
+    DELETE FROM USCTTDEV.dbo.tblActualLoadDetail
 WHERE YEAR(
 CASE WHEN DLVY_DTT IS NOT NULL THEN DLVY_DTT
 WHEN SHPD_DTT IS NOT NULL THEN SHPD_DTT
 WHEN STRD_DTT IS NOT NULL THEN STRD_DTT
-WHEN CRTD_DTT IS NOT NULL THEN STRD_DTT END) >= YEAR(GETDATE()) - 2 
-AND LD_LEG_ID NOT IN (SELECT DISTINCT LD_LEG_ID FROM ##tblActualLoadDetailsRaw)
+WHEN CRTD_DTT IS NOT NULL THEN STRD_DTT END) >= YEAR(GETDATE()) - 2
+        AND LD_LEG_ID NOT IN (SELECT
+            DISTINCT
+            LD_LEG_ID
+        FROM
+            ##tblActualLoadDetailsRaw)
 
-/*
+    /*
 Update the Actual Load Detail table itself, just in case it was missed when doing the temp table
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET AwardLane = 'Y'
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-INNER JOIN (
-SELECT DISTINCT LaneID, Lane, ORIG_CITY_STATE, DEST_CITY_STATE, EffectiveDate, ExpirationDate
-FROM USCTTDEV.dbo.tblAwardRatesHistorical) lane ON lane.lane = ald.Lane
-WHERE CAST(CASE WHEN ald.SHPD_DTT IS NULL THEN ald.STRD_DTT ELSE ald.SHPD_DTT END AS DATE) BETWEEN lane.EffectiveDate and lane.ExpirationDate
-AND ald.AwardLane IS NULL
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
+        INNER JOIN (
+SELECT
+            DISTINCT
+            LaneID,
+            Lane,
+            ORIG_CITY_STATE,
+            DEST_CITY_STATE,
+            EffectiveDate,
+            ExpirationDate
+        FROM
+            USCTTDEV.dbo.tblAwardRatesHistorical) lane ON lane.lane = ald.Lane
+WHERE CAST(CASE WHEN ald.SHPD_DTT IS NULL THEN ald.STRD_DTT ELSE ald.SHPD_DTT END AS DATE) BETWEEN lane.EffectiveDate AND lane.ExpirationDate
+        AND ald.AwardLane IS NULL
 
-/*
+    /*
 Update the Actual Load Detail table itself, just in case it was missed when doing the temp table
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET AwardCarrier = 'Y'
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-INNER JOIN (
-SELECT DISTINCT LaneID, Lane, ORIG_CITY_STATE, DEST_CITY_STATE, SCAC, EffectiveDate, ExpirationDate
-FROM USCTTDEV.dbo.tblAwardRatesHistorical) lane ON lane.lane = ald.Lane
-AND lane.SCAC = ald.SRVC_CD
-WHERE CAST(CASE WHEN ald.SHPD_DTT IS NULL THEN ald.STRD_DTT ELSE ald.SHPD_DTT END AS DATE) BETWEEN lane.EffectiveDate and lane.ExpirationDate
-AND ald.AwardCarrier IS NULL
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
+        INNER JOIN (
+SELECT
+            DISTINCT
+            LaneID,
+            Lane,
+            ORIG_CITY_STATE,
+            DEST_CITY_STATE,
+            SCAC,
+            EffectiveDate,
+            ExpirationDate
+        FROM
+            USCTTDEV.dbo.tblAwardRatesHistorical) lane ON lane.lane = ald.Lane
+            AND lane.SCAC = ald.SRVC_CD
+WHERE CAST(CASE WHEN ald.SHPD_DTT IS NULL THEN ald.STRD_DTT ELSE ald.SHPD_DTT END AS DATE) BETWEEN lane.EffectiveDate AND lane.ExpirationDate
+        AND ald.AwardCarrier IS NULL
 
-/*
+    /*
 Update Actual Load Detail table with Weighted RPM data
 Note LOTS of gymnastics be found here!
 
 UPDATE USCTTDEV.dbo.tblActualLoadDetail SET WeightedAwardRPM = NULL
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET WeightedAwardRPM = weighted.WeightedCUR_RPM
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-INNER JOIN (SELECT DISTINCT arh.Lane,
-arh.LaneID,
-/*arh.Mode,
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
+        INNER JOIN (SELECT
+            DISTINCT
+            arh.Lane,
+            arh.LaneID,
+            /*arh.Mode,
 arh.Equipment,*/
-CAST(ROUND(
+            CAST(ROUND(
         SUM((arh.CUR_RPM - (CASE WHEN arh.Equipment = '53IM' THEN 0 ELSE 0 END)) * arh.AWARD_PCT) / SUM(arh.AWARD_PCT), 
         2
       ) AS NUMERIC(18,2)) AS WeightedCUR_RPM,
-/*CAST(ROUND(
+            /*CAST(ROUND(
         SUM((arh.[Rate Per Mile] - (CASE WHEN arh.Equipment = '53IM' THEN .15 ELSE 0 END)) * arh.AWARD_PCT) / SUM(arh.AWARD_PCT), 
         2
       )AS NUMERIC(18,2)) AS WeightedRPM,*/
-SUM(AWARD_PCT) AS AwardPercent,
-MIN(dates.EffectiveDate) AS EffectiveDate,
-dates.ExpirationDate
-FROM USCTTDEV.dbo.tblAwardRatesHistorical arh
-INNER JOIN (
-SELECT DISTINCT
-  arh.Lane,
-  arh.EffectiveDate,
-  MAX(Expiration.ExpirationDate) AS ExpirationDate
-FROM USCTTDEV.dbo.tblAwardRatesHistorical arh
-INNER JOIN (SELECT DISTINCT
-  Lane,
-  EffectiveDate,
-  ExpirationDate
-FROM USCTTDEV.dbo.tblAwardRatesHistorical) Expiration
-  ON arh.Lane = Expiration.Lane
-  AND arh.EffectiveDate = Expiration.EffectiveDate
-  AND arh.ExpirationDate <= Expiration.ExpirationDate
-  AND arh.EffectiveDate <= Expiration.ExpirationDate
-GROUP BY arh.Lane,
+            SUM(AWARD_PCT) AS AwardPercent,
+            MIN(dates.EffectiveDate) AS EffectiveDate,
+            dates.ExpirationDate
+        FROM
+            USCTTDEV.dbo.tblAwardRatesHistorical arh
+            INNER JOIN (
+SELECT
+                DISTINCT
+                arh.Lane,
+                arh.EffectiveDate,
+                MAX(Expiration.ExpirationDate) AS ExpirationDate
+            FROM
+                USCTTDEV.dbo.tblAwardRatesHistorical arh
+                INNER JOIN (SELECT
+                    DISTINCT
+                    Lane,
+                    EffectiveDate,
+                    ExpirationDate
+                FROM
+                    USCTTDEV.dbo.tblAwardRatesHistorical) Expiration
+                ON arh.Lane = Expiration.Lane
+                    AND arh.EffectiveDate = Expiration.EffectiveDate
+                    AND arh.ExpirationDate <= Expiration.ExpirationDate
+                    AND arh.EffectiveDate <= Expiration.ExpirationDate
+            GROUP BY arh.Lane,
          arh.EffectiveDate,
          expiration.EffectiveDate
 )dates ON dates.Lane = arh.Lane
-/*AND arh.EffectiveDate >= dates.EffectiveDate
+                /*AND arh.EffectiveDate >= dates.EffectiveDate
 AND arh.ExpirationDate <= dates.ExpirationDate*/
-AND arh.ExpirationDate BETWEEN dates.EffectiveDate AND dates.ExpirationDate 
---WHERE arh.mode = 'IM'
---AND arh.LANE = 'GAAUGUST-5FL33811'
---WHERE arh.Lane = 'ALMOBILE-5CA92831'
-GROUP BY arh.Lane,
+                AND arh.ExpirationDate BETWEEN dates.EffectiveDate AND dates.ExpirationDate
+        --WHERE arh.mode = 'IM'
+        --AND arh.LANE = 'GAAUGUST-5FL33811'
+        --WHERE arh.Lane = 'ALMOBILE-5CA92831'
+        GROUP BY arh.Lane,
 arh.LaneID,
 /*arh.Mode,
 arh.Equipment,*/
 dates.ExpirationDate
 --ORDER BY Lane ASC, EffectiveDate ASC, ExpirationDate ASC
 ) weighted
-ON weighted.Lane = ald.Lane
-AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT ELSE ald.STRD_DTT END AS DATE) BETWEEN CAST(weighted.EffectiveDate AS DATE) and CAST(weighted.ExpirationDate AS DATE)
+        ON weighted.Lane = ald.Lane
+            AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT ELSE ald.STRD_DTT END AS DATE) BETWEEN CAST(weighted.EffectiveDate AS DATE) AND CAST(weighted.ExpirationDate AS DATE)
 WHERE (ald.WeightedAwardRPM IS NULL
-OR ald.WeightedAwardRPM <> weighted.WeightedCUR_RPM)
-AND ald.EQMT_TYp <> 'LTL'
+        OR ald.WeightedAwardRPM <> weighted.WeightedCUR_RPM)
+        AND ald.EQMT_TYp <> 'LTL'
 
-/*
+    /*
 10.28 - Per Jeff, delete WeightedAwardRPM if EQMT_TYP = LTL
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
-SET WeightedAwardRPM = Null
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
+SET WeightedAwardRPM = NULL
 WHERE EQMT_TYP = 'LTL'
-AND WeightedAwardRPM IS NOT NULL
+        AND WeightedAwardRPM IS NOT NULL
 
-/*
+    /*
 Update Actual Load Detail table to null if no longer in weighted award table
 This is probably due to a sourcing change on the load
 Note LOTS of gymnastics be found here!
 
 UPDATE USCTTDEV.dbo.tblActualLoadDetail SET WeightedAwardRPM = NULL
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET WeightedAwardRPM = NULL
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-LEFT JOIN (SELECT DISTINCT arh.Lane,
-arh.LaneID,
-/*arh.Mode,
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
+        LEFT JOIN (SELECT
+            DISTINCT
+            arh.Lane,
+            arh.LaneID,
+            /*arh.Mode,
 arh.Equipment,*/
-CAST(ROUND(
+            CAST(ROUND(
         SUM((arh.CUR_RPM - (CASE WHEN arh.Equipment = '53IM' THEN 0 ELSE 0 END)) * arh.AWARD_PCT) / SUM(arh.AWARD_PCT), 
         2
       ) AS NUMERIC(18,2)) AS WeightedCUR_RPM,
-/*CAST(ROUND(
+            /*CAST(ROUND(
         SUM((arh.[Rate Per Mile] - (CASE WHEN arh.Equipment = '53IM' THEN .15 ELSE 0 END)) * arh.AWARD_PCT) / SUM(arh.AWARD_PCT), 
         2
       )AS NUMERIC(18,2)) AS WeightedRPM,*/
-SUM(AWARD_PCT) AS AwardPercent,
-MIN(dates.EffectiveDate) AS EffectiveDate,
-dates.ExpirationDate
-FROM USCTTDEV.dbo.tblAwardRatesHistorical arh
-INNER JOIN (
-SELECT DISTINCT
-  arh.Lane,
-  arh.EffectiveDate,
-  MAX(Expiration.ExpirationDate) AS ExpirationDate
-FROM USCTTDEV.dbo.tblAwardRatesHistorical arh
-INNER JOIN (SELECT DISTINCT
-  Lane,
-  EffectiveDate,
-  ExpirationDate
-FROM USCTTDEV.dbo.tblAwardRatesHistorical) Expiration
-  ON arh.Lane = Expiration.Lane
-  AND arh.EffectiveDate = Expiration.EffectiveDate
-  AND arh.ExpirationDate <= Expiration.ExpirationDate
-  AND arh.EffectiveDate <= Expiration.ExpirationDate
-GROUP BY arh.Lane,
+            SUM(AWARD_PCT) AS AwardPercent,
+            MIN(dates.EffectiveDate) AS EffectiveDate,
+            dates.ExpirationDate
+        FROM
+            USCTTDEV.dbo.tblAwardRatesHistorical arh
+            INNER JOIN (
+SELECT
+                DISTINCT
+                arh.Lane,
+                arh.EffectiveDate,
+                MAX(Expiration.ExpirationDate) AS ExpirationDate
+            FROM
+                USCTTDEV.dbo.tblAwardRatesHistorical arh
+                INNER JOIN (SELECT
+                    DISTINCT
+                    Lane,
+                    EffectiveDate,
+                    ExpirationDate
+                FROM
+                    USCTTDEV.dbo.tblAwardRatesHistorical) Expiration
+                ON arh.Lane = Expiration.Lane
+                    AND arh.EffectiveDate = Expiration.EffectiveDate
+                    AND arh.ExpirationDate <= Expiration.ExpirationDate
+                    AND arh.EffectiveDate <= Expiration.ExpirationDate
+            GROUP BY arh.Lane,
          arh.EffectiveDate,
          expiration.EffectiveDate
 )dates ON dates.Lane = arh.Lane
-/*AND arh.EffectiveDate >= dates.EffectiveDate
+                /*AND arh.EffectiveDate >= dates.EffectiveDate
 AND arh.ExpirationDate <= dates.ExpirationDate*/
-AND arh.ExpirationDate BETWEEN dates.EffectiveDate AND dates.ExpirationDate 
---WHERE arh.mode = 'IM'
---AND arh.LANE = 'GAAUGUST-5FL33811'
---WHERE arh.Lane = 'ALMOBILE-5CA92831'
-GROUP BY arh.Lane,
+                AND arh.ExpirationDate BETWEEN dates.EffectiveDate AND dates.ExpirationDate
+        --WHERE arh.mode = 'IM'
+        --AND arh.LANE = 'GAAUGUST-5FL33811'
+        --WHERE arh.Lane = 'ALMOBILE-5CA92831'
+        GROUP BY arh.Lane,
 arh.LaneID,
 /*arh.Mode,
 arh.Equipment,*/
 dates.ExpirationDate
 --ORDER BY Lane ASC, EffectiveDate ASC, ExpirationDate ASC
 ) weighted
-ON weighted.Lane = ald.Lane
-AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT ELSE ald.STRD_DTT END AS DATE) BETWEEN CAST(weighted.EffectiveDate AS DATE) and CAST(weighted.ExpirationDate AS DATE)
+        ON weighted.Lane = ald.Lane
+            AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT ELSE ald.STRD_DTT END AS DATE) BETWEEN CAST(weighted.EffectiveDate AS DATE) AND CAST(weighted.ExpirationDate AS DATE)
 WHERE ald.WeightedAwardRPM IS NOT NULL
-AND weighted.Lane IS NULL
+        AND weighted.Lane IS NULL
 
-/*
+    /*
 Update with new e-Auction String, only where load was actually tendered to auction winner
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET FRAN = CASE WHEN ald.SRVC_CD = eAuction.AwardedSCAC THEN 'eAuction' ELSE NULL END
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-INNER JOIN (SELECT * FROM OPENQUERY(NAJDAPRD,'SELECT DISTINCT facbt.BID_LOAD_ID, 
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
+        INNER JOIN (SELECT
+            *
+        FROM
+            OPENQUERY(NAJDAPRD,'SELECT DISTINCT facbt.BID_LOAD_ID, 
 fablt.EXTL_LOAD_ID AS LD_LEG_ID,
 COUNT(DISTINCT facbt.SRVC_CD) as EligibleSCACCount, 
 SUM(CASE WHEN facbt.RATE_ADJ_AMT_DLR IS NOT NULL THEN 1 END) as UniqueBids, 
@@ -3603,56 +3817,65 @@ GROUP BY facbt.BID_LOAD_ID,
 fablt.EXTL_LOAD_ID
 ORDER BY facbt.BID_LOAD_ID ASC')) eAuction ON eAuction.LD_LEG_ID = ald.LD_LEG_ID
 
-/*
+    /*
 Update BUSegment
 SELECT TOP 10 * FROM ##tblShipmentItemsRaw
 */
 
 
-/*
+    /*
 INSERT NEW ITEMS INTO tblShipmentItems
 SELECT TOP 10 * FROM USCTTDEV.dbo.tblShipmentItems WHERE ShipmentItem = 'COTT,CLNC MR,BT,DISPLY,12PK,380'
 SELECT * FROM USCTTDEV.dbo.tblShipmentItems WHERE BUSegment IS NULL ORDER BY ID DESC
 
 SELECT ShipmentItem, COUNT(*) AS Count FROM USCTTDEV.dbo.tblShipmentItems GROUP BY ShipmentItem HAVING COUNT(*) > 1
 */
-INSERT INTO  USCTTDEV.dbo.tblShipmentItems (AddedOn, ShipmentItem, ItemSummaryCode)
-SELECT GETDATE() AS AddedOn, 
-itm_desc,
-LEFT(CASE
+    INSERT INTO  USCTTDEV.dbo.tblShipmentItems
+        (AddedOn, ShipmentItem, ItemSummaryCode)
+    SELECT
+        GETDATE() AS AddedOn,
+        itm_desc,
+        LEFT(CASE
     WHEN CHARINDEX(',', itm_desc) > 0 THEN
-        rtrim(left(itm_desc, CHARINDEX(',', itm_desc) - 1))
+        rtrim(LEFT(itm_desc, CHARINDEX(',', itm_desc) - 1))
     ELSE
-        null
+        NULL
 END,15) AS Type
-FROM OPENQUERY(NAJDAPRD,'SELECT DISTINCT sir.itm_desc FROM NAJDAADM.shipment_item_r sir') data
-LEFT JOIN USCTTDEV.dbo.tblShipmentItems si ON si.ShipmentItem = data.itm_desc
-WHERE si.ShipmentItem IS NULL
-ORDER BY itm_desc ASC
+    FROM
+        OPENQUERY(NAJDAPRD,'SELECT DISTINCT sir.itm_desc FROM NAJDAADM.shipment_item_r sir') data
+        LEFT JOIN USCTTDEV.dbo.tblShipmentItems si ON si.ShipmentItem = data.itm_desc
+    WHERE si.ShipmentItem IS NULL
+    ORDER BY itm_desc ASC
 
-/*
+    /*
 UPDATE Wadding
 */
-UPDATE USCTTDEV.dbo.tblShipmentItems
+    UPDATE USCTTDEV.dbo.tblShipmentItems
 SET BUSegment = 'Wadding'
 WHERE ShipmentItem LIKE 'WDD'
-AND BUSegment IS NULL
+        AND BUSegment IS NULL
 
-/*
+    /*
 Create Temp table with Shipment Item details
 SELECT TOP 10 * FROM ##tblShipmentItemsRaw ORDER BY LD_LEG_ID DESC
 */
 
-DROP TABLE IF EXISTS ##tblShipmentItemsRaw
-SELECT DISTINCT data.LD_LEG_ID, 
-SUM(data.qty) AS Qty, 
-SUM(data.weight) AS Weight,
-data.itm_desc,
-si.ItemSummaryCode,
-si.BUSegment
-INTO ##tblShipmentItemsRaw
-FROM USCTTDEV.dbo.tblShipmentItems si
-INNER JOIN (SELECT * FROM OPENQUERY(NAJDAPRD,'SELECT DISTINCT
+    DROP TABLE IF EXISTS ##tblShipmentItemsRaw
+    SELECT
+        DISTINCT
+        data.LD_LEG_ID,
+        SUM(data.qty) AS Qty,
+        SUM(data.weight) AS Weight,
+        data.itm_desc,
+        si.ItemSummaryCode,
+        si.BUSegment
+    INTO ##tblShipmentItemsRaw
+    FROM
+        USCTTDEV.dbo.tblShipmentItems si
+        INNER JOIN (SELECT
+            *
+        FROM
+            OPENQUERY(NAJDAPRD,'SELECT DISTINCT
     l.ld_leg_id,
     /*s.shpm_num,*/
     sir.itm_desc,
@@ -3701,12 +3924,12 @@ GROUP BY
     l.ld_leg_id,
     /*s.shpm_num,*/
     sir.itm_desc')) data ON data.itm_desc = si.ShipmentItem
-	GROUP BY data.LD_LEG_ID,
+    GROUP BY data.LD_LEG_ID,
 	data.itm_desc,
 	si.ItemSummaryCode,
 	si.BUSegment
 
-/*
+    /*
 Add ranking column
 SELECT TOP 10 * FROM ##tblShipmentItemsRaw ORDER BY LD_LEG_ID DESC, RANK ASC
 SELECT TOP 100 * FROM ##tblShipmentItemsRaw WHERE BUSegment = 'NFG' AND RANK > 10
@@ -3714,137 +3937,190 @@ SELECT * FROM ##tblShipmentItemsRaw WHERE LD_LEG_ID = '513494585' ORDER BY Rank 
 SELECT DISTINCT ItemSummaryCode FROM ##tblShipmentItemsRaw
 SELECT DISTINCT BUSegment FROM ##tblShipmentItemsRaw
 */
-IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Rank'	AND TABLE_NAME LIKE '##tblShipmentItemsRaw') ALTER TABLE ##tblShipmentItemsRaw ADD [Rank]	INT NULL			--Line item ranking
-UPDATE ##tblShipmentItemsRaw
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Rank' AND TABLE_NAME LIKE '##tblShipmentItemsRaw') ALTER TABLE ##tblShipmentItemsRaw ADD [Rank]	INT NULL
+    --Line item ranking
+    UPDATE ##tblShipmentItemsRaw
 SET [Rank] = ranking.Rank
-FROM ##tblShipmentItemsRaw sir
-INNER JOIN (SELECT LD_LEG_ID, Qty, Weight, itm_desc, ItemSummaryCode, BUSegment,
-ROW_NUMBER() OVER (PARTITION BY LD_LEG_ID ORDER BY Weight DESC, QTY DESC)  AS Rank
-FROM ##tblShipmentItemsRaw ) ranking ON ranking.LD_LEG_ID = sir.LD_LEG_ID
-AND ranking.itm_desc = sir.itm_desc
- AND ranking.qty = sir.qty
- AND ranking.weight = sir.weight
- AND COALESCE(ranking.ItemSummaryCode,'MISSING') = COALESCE(sir.ItemSummaryCode,'MISSING')
+FROM
+        ##tblShipmentItemsRaw sir
+        INNER JOIN (SELECT
+            LD_LEG_ID,
+            Qty,
+            Weight,
+            itm_desc,
+            ItemSummaryCode,
+            BUSegment,
+            ROW_NUMBER() OVER (PARTITION BY LD_LEG_ID ORDER BY Weight DESC, QTY DESC)  AS Rank
+        FROM
+            ##tblShipmentItemsRaw ) ranking ON ranking.LD_LEG_ID = sir.LD_LEG_ID
+            AND ranking.itm_desc = sir.itm_desc
+            AND ranking.qty = sir.qty
+            AND ranking.weight = sir.weight
+            AND COALESCE(ranking.ItemSummaryCode,'MISSING') = COALESCE(sir.ItemSummaryCode,'MISSING')
 
- /*
+    /*
  Create aggregate table for shipment items
  SELECT TOP 20 * FROM ##tblShipmentItemsAgg ORDER BY LD_LEG_ID ASC, Weight DESC 
  SELECT TOP 20 * FROM ##tblShipmentItemsAgg WHERE BUSegment = 'NFG' ORDER BY LD_LEG_ID ASC, Weight DESC  
 
  SELECT TOP 20 * FROM USCTTDEV.dbo.tblActualLoadDetail ORDER BY LD_LEG_ID DESC
  */
- DROP TABLE IF EXISTS ##tblShipmentItemsAgg
- SELECT LD_LEG_ID, SUM(QTY) AS QTY, SUM(Weight) AS Weight, BUSegment
- INTO ##tblShipmentItemsAgg
- FROM ##tblShipmentItemsRaw sir 
- GROUP BY LD_LEG_ID, BUSegment
+    DROP TABLE IF EXISTS ##tblShipmentItemsAgg
+    SELECT
+        LD_LEG_ID,
+        SUM(QTY) AS QTY,
+        SUM(Weight) AS Weight,
+        BUSegment
+    INTO ##tblShipmentItemsAgg
+    FROM
+        ##tblShipmentItemsRaw sir
+    GROUP BY LD_LEG_ID, BUSegment
 
-/*
+    /*
 Add ranking, and rank aggregates
 */
- IF NOT EXISTS (SELECT * FROM TempDB.INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = 'Rank'	AND TABLE_NAME LIKE '##tblShipmentItemsAgg') ALTER TABLE ##tblShipmentItemsAgg ADD [Rank]	INT NULL			--Line item ranking
- UPDATE ##tblShipmentItemsAgg
+    IF NOT EXISTS (SELECT
+        *
+    FROM
+        TempDB.INFORMATION_SCHEMA.COLUMNS
+    WHERE COLUMN_NAME = 'Rank' AND TABLE_NAME LIKE '##tblShipmentItemsAgg') ALTER TABLE ##tblShipmentItemsAgg ADD [Rank]	INT NULL
+    --Line item ranking
+    UPDATE ##tblShipmentItemsAgg
 SET [Rank] = ranking.Rank
-FROM ##tblShipmentItemsAgg sir
-INNER JOIN (SELECT LD_LEG_ID, Qty, Weight, BUSegment,
-ROW_NUMBER() OVER (PARTITION BY LD_LEG_ID ORDER BY Weight DESC, QTY DESC)  AS Rank
-FROM ##tblShipmentItemsAgg ) ranking ON ranking.LD_LEG_ID = sir.LD_LEG_ID
- AND ranking.qty = sir.qty
- AND ranking.weight = sir.weight
- AND COALESCE(ranking.BUSegment,'MISSING') = COALESCE(sir.BUSegment,'MISSING')
+FROM
+        ##tblShipmentItemsAgg sir
+        INNER JOIN (SELECT
+            LD_LEG_ID,
+            Qty,
+            Weight,
+            BUSegment,
+            ROW_NUMBER() OVER (PARTITION BY LD_LEG_ID ORDER BY Weight DESC, QTY DESC)  AS Rank
+        FROM
+            ##tblShipmentItemsAgg ) ranking ON ranking.LD_LEG_ID = sir.LD_LEG_ID
+            AND ranking.qty = sir.qty
+            AND ranking.weight = sir.weight
+            AND COALESCE(ranking.BUSegment,'MISSING') = COALESCE(sir.BUSegment,'MISSING')
 
- /*
+    /*
  Remove spaces in BU Segment
  SELECT DISTINCT BUSegment FROM tblShipmentItems
  */
- UPDATE USCTTDEV.dbo.tblShipmentItems
+    UPDATE USCTTDEV.dbo.tblShipmentItems
 SET BUSegment = REPLACE(BUSegment, ' ', '')
 WHERE BUSegment <> 'NON WOVENS'
-AND BUSegment LIKE '% %'
+        AND BUSegment LIKE '% %'
 
-/*
+    /*
 Update Actual Load Detail for Wadding loads
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET BUSegment =  wad.BUSegment
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-INNER JOIN (SELECT DISTINCT LD_LEG_ID, BUSegment FROM ##tblShipmentItemsRaw WHERE BUSegment = 'Wadding') wad ON wad.LD_LEG_ID = ald.LD_LEG_ID
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
+        INNER JOIN (SELECT
+            DISTINCT
+            LD_LEG_ID,
+            BUSegment
+        FROM
+            ##tblShipmentItemsRaw
+        WHERE BUSegment = 'Wadding') wad ON wad.LD_LEG_ID = ald.LD_LEG_ID
 WHERE ald.BUSegment IS NULL OR ald.BUSegment <> 'Wadding'
 
-/*
+    /*
 Update NFG from aggregate table, where Rank = 1
 */
- UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET BUSegment =  nfg.BUSegment
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-INNER JOIN (SELECT DISTINCT LD_LEG_ID, BUSegment FROM ##tblShipmentItemsRaw WHERE BUSegment = 'NFG' AND Rank = 1) nfg ON nfg.LD_LEG_ID = ald.LD_LEG_ID
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
+        INNER JOIN (SELECT
+            DISTINCT
+            LD_LEG_ID,
+            BUSegment
+        FROM
+            ##tblShipmentItemsRaw
+        WHERE BUSegment = 'NFG' AND Rank = 1) nfg ON nfg.LD_LEG_ID = ald.LD_LEG_ID
 WHERE ald.BUSegment IS NULL AND ald.BUSegment <> 'NFG'
 
-/*
+    /*
 Update to KCP where BU Is already KCP
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET BUSegment = REPLACE(BU,' ','')
-WHERE (BUSegment IS NULL AND BUSegment <> 'Wadding' AND BUSegment <> 'NFG') 
-AND BUSegment <> BU
-AND BU = 'KCP'
+WHERE (BUSegment IS NULL AND BUSegment <> 'Wadding' AND BUSegment <> 'NFG')
+        AND BUSegment <> BU
+        AND BU = 'KCP'
 
-/*
+    /*
 Update to NonWovens WHERE BU Is already NonWovens
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET BUSegment = REPLACE(BU,' ','')
-WHERE (BUSegment IS NULL AND BUSegment <> 'Wadding' AND BUSegment <> 'NFG' ) 
-AND BUSegment <> BU
-AND BU = 'NON WOVENS'
+WHERE (BUSegment IS NULL AND BUSegment <> 'Wadding' AND BUSegment <> 'NFG' )
+        AND BUSegment <> BU
+        AND BU = 'NON WOVENS'
 
-/*
+    /*
 Update leftovers to whatever is Rank 1 on the aggregate table
 SELECT * FROM USCTTDEV.dbo.tblActualLoadDetail WHERE BUSegment IS NULL
 */
- UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET BUSegment =  REPLACE(rankings.BUSegment,' ','')
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-INNER JOIN (SELECT DISTINCT LD_LEG_ID, BUSegment FROM ##tblShipmentItemsRaw WHERE Rank = 1) rankings ON rankings.LD_LEG_ID = ald.LD_LEG_ID
-/*WHERE ald.BUSegment IS NULL*/
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
+        INNER JOIN (SELECT
+            DISTINCT
+            LD_LEG_ID,
+            BUSegment
+        FROM
+            ##tblShipmentItemsRaw
+        WHERE Rank = 1) rankings ON rankings.LD_LEG_ID = ald.LD_LEG_ID
+    /*WHERE ald.BUSegment IS NULL*/
 
-/*
+    /*
 Remove any extra spacings
 */
- UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET BUSegment = REPLACE(BUSegment, ' ', '')
 WHERE BUSegment <> 'NON WOVENS'
-AND BUSegment LIKE '% %'
+        AND BUSegment LIKE '% %'
 
-/*
+    /*
 Update Dedicated Fleet Flag
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET Dedicated =
                CASE
                  WHEN ca.Dedicated = 'Y' THEN 'Y'
                  ELSE NULL
                END
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-LEFT JOIN USCTTDEV.dbo.tblCarriers ca ON ca.CARR_CD = ald.CARR_CD
-	AND ca.SRVC_CD = ald.SRVC_CD
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
+        LEFT JOIN USCTTDEV.dbo.tblCarriers ca ON ca.CARR_CD = ald.CARR_CD
+            AND ca.SRVC_CD = ald.SRVC_CD
 
-/*
+    /*
 Update LiveLoad flag where the last appointment made was for a Live Load
 SELECT * FROM USCTTDEV.dbo.tblActualLoadDetail where liveload = 'y'
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET LiveLoad =
               CASE
                 WHEN data.LOAD_NUMBER IS NOT NULL OR ca.LiveLoad = 'Y' THEN 'Y'
                 ELSE NULL
               END
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-LEFT JOIN USCTTDEV.dbo.tblCarriers ca ON ca.SRVC_CD = ald.SRVC_CD
-AND ca.CARR_CD = ald.CARR_CD
-LEFT JOIN (SELECT
-  *
-FROM OPENQUERY(NAJDAPRD, '
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
+        LEFT JOIN USCTTDEV.dbo.tblCarriers ca ON ca.SRVC_CD = ald.SRVC_CD
+            AND ca.CARR_CD = ald.CARR_CD
+        LEFT JOIN (SELECT
+            *
+        FROM
+            OPENQUERY(NAJDAPRD, '
 SELECT DISTINCT aph.LOAD_NUMBER, aph.APPOINTMENT_CHANGE_TIME, aph.LIVE_LOAD
 FROM NAI2PADM.ABPP_OTC_APPOINTMENTHISTORY aph
 INNER JOIN(
@@ -3858,51 +4134,59 @@ GROUP BY aph.LOAD_NUMBER) data
 WHERE aph.LIVE_LOAD = ''Y''
 GROUP BY aph.LOAD_NUMBER, aph.APPOINTMENT_CHANGE_TIME, aph.LIVE_LOAD
 ')) data
-  ON data.LOAD_NUMBER = ald.LD_LEG_ID
+        ON data.LOAD_NUMBER = ald.LD_LEG_ID
 
 
 
- /*
+    /*
 FRAN Update with Thomas's table, should it be null
 Logic in email from Thomas on 6/17/2020
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET FRAN = 'FRAN'
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-INNER JOIN(
-SELECT audt.LD_LEG_ID FROM 
-USCTTDEV.dbo.tblAuditLoadLeg audt
-INNER JOIN (
-	SELECT DISTINCT audt.LD_LEG_ID, MAX(audt.AUDT_LD_LEG_ID) AS MaxID
-	FROM USCTTDEV.dbo.tblAuditLoadLeg audt
-	WHERE LD_CARR_CD = 'FRAN'
-	GROUP BY audt.LD_LEG_ID) maxed ON maxed.LD_LEG_ID = audt.LD_LEG_ID
-AND maxed.MaxID = audt.AUDT_LD_LEG_ID
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
+        INNER JOIN(
+SELECT
+            audt.LD_LEG_ID
+        FROM
+            USCTTDEV.dbo.tblAuditLoadLeg audt
+            INNER JOIN (
+	SELECT
+                DISTINCT
+                audt.LD_LEG_ID,
+                MAX(audt.AUDT_LD_LEG_ID) AS MaxID
+            FROM
+                USCTTDEV.dbo.tblAuditLoadLeg audt
+            WHERE LD_CARR_CD = 'FRAN'
+            GROUP BY audt.LD_LEG_ID) maxed ON maxed.LD_LEG_ID = audt.LD_LEG_ID
+                AND maxed.MaxID = audt.AUDT_LD_LEG_ID
 /*WHERE LD_CARR_CD = 'FRAN'*/) fran ON fran.LD_LEG_ID = ald.LD_LEG_ID
 WHERE ald.SRVC_CD = 'OPEN'
-AND ald.FRAN IS NULL
+        AND ald.FRAN IS NULL
 
-/*
+    /*
 Update Rate Type
 Updated to add HJBM to Spot per MS Teams message from Jeff Perrot 2/26/21
 Logic in email from Jeff Perrot on 5/29/2020
 10/8/2020 - Updated to include Repo, per Lynlee Robinson
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET RateType =
               CASE
 			  WHEN SRVC_CD = 'HJBM' THEN 'Spot'
                 WHEN FRAN IS NOT NULL THEN 'Spot'
                 WHEN Act_ZSPT IS NOT NULL AND
-                  Act_ZSPT <> 0 THEN 'Spot'
+        Act_ZSPT <> 0 THEN 'Spot'
 				WHEN Act_Repo IS NOT NULL AND
-                  Act_Repo <> 0 THEN 'Spot'
+        Act_Repo <> 0 THEN 'Spot'
                 WHEN SRVC_CD = 'OPEN' THEN 'Spot'
                 ELSE 'Contract'
               END
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-/*WHERE CONVERT(date, ald.LastUpdated) = CONVERT(date, GETDATE())*/
-/*AND (RateType <>
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
+    /*WHERE CONVERT(date, ald.LastUpdated) = CONVERT(date, GETDATE())*/
+    /*AND (RateType <>
                 CASE
                   WHEN FRAN IS NOT NULL THEN 'Spot'
                   WHEN Act_ZSPT IS NOT NULL AND
@@ -3912,15 +4196,19 @@ FROM USCTTDEV.dbo.tblActualLoadDetail ald
                 END
 OR ald.RateType IS NULL)*/
 
-/*
+    /*
 Update RateType to "Spot' if it went on eAuction process and is still marked as contract
 3/25/2021 - Added
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET RateType = 'Spot'
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-INNER JOIN (
-SELECT * FROM OPENQUERY(NAJDAPRD,'SELECT DISTINCT fablt.BID_LOAD_ID,
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
+        INNER JOIN (
+SELECT
+            *
+        FROM
+            OPENQUERY(NAJDAPRD,'SELECT DISTINCT fablt.BID_LOAD_ID,
 fablt.EXTL_LOAD_ID AS LD_LEG_ID,
 bids.TotalBids As BidCount,
 bids.TotalBidders As EligibleToBidCount,
@@ -3996,29 +4284,30 @@ END,
 awards.TotalBid,
 awards.CARR_CD,
 awards.SRVC_CD')FinalStatus
-WHERE FinalStatus.FinalLoadParticipation = 'Awarded'
+        WHERE FinalStatus.FinalLoadParticipation = 'Awarded'
 ) eAuction ON eAuction.LD_LEG_ID = ald.LD_LEG_ID
-AND eAuction.WinningCarrier = ald.CARR_CD
-AND eAuction.WinningService = ald.SRVC_CD
+            AND eAuction.WinningCarrier = ald.CARR_CD
+            AND eAuction.WinningService = ald.SRVC_CD
 WHERE ald.RateType <> 'Spot'
 
-/*
+    /*
 New 1/20/2021 - Per Regina Black
 Update SCEF flag to match what exists on USCTTDEV.dbo.tblCustomers
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET SCEF = cu.SCEF
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
-INNER JOIN USCTTDEV.dbo.tblCustomers cu ON cu.HierarchyNum = LEFT(ald.LAST_SHPG_LOC_CD,8)
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
+        INNER JOIN USCTTDEV.dbo.tblCustomers cu ON cu.HierarchyNum = LEFT(ald.LAST_SHPG_LOC_CD,8)
 WHERE LEFT(ald.LAST_SHPG_LOC_CD,1) = '5'
 
-/*
+    /*
 Update 2/3/2021
 In mid-January, duplicate rates were added to the historic rates tables with the same effective/expiration dates
 New logic will update if the date is between the effective/expiration date OR the effective date
 This joins by lane
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET AwardLane = 
 
 /*
@@ -4041,42 +4330,59 @@ THEN 'Y'
 If neither, make null
 */
 ELSE NULL END
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
 
-/*
+        /*
 For when the ship date is BETWEEN the effective date and expiration date
 */
-LEFT JOIN (
-SELECT DISTINCT LaneID, Lane, ORIG_CITY_STATE, DEST_CITY_STATE, CAST(EffectiveDate AS DATE) AS EffectiveDate, CAST(ExpirationDate AS DATE) AS ExpirationDate
-FROM USCTTDEV.dbo.tblAwardRatesHistorical
+        LEFT JOIN (
+SELECT
+            DISTINCT
+            LaneID,
+            Lane,
+            ORIG_CITY_STATE,
+            DEST_CITY_STATE,
+            CAST(EffectiveDate AS DATE) AS EffectiveDate,
+            CAST(ExpirationDate AS DATE) AS ExpirationDate
+        FROM
+            USCTTDEV.dbo.tblAwardRatesHistorical
 ) laneaward ON laneaward.Lane = ald.Lane
-AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+            AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
 WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
 ELSE ald.CRTD_DTT END AS DATE) >= laneaward.EffectiveDate AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
 WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
 ELSE ald.CRTD_DTT END AS DATE) <= laneaward.ExpirationDate
 
-/*
+        /*
 For when the ship date IS the effective date
 */
-LEFT JOIN (
-SELECT DISTINCT LaneID, Lane, ORIG_CITY_STATE, DEST_CITY_STATE, CAST(EffectiveDate AS DATE) AS EffectiveDate, CAST(ExpirationDate AS DATE) AS ExpirationDate
-FROM USCTTDEV.dbo.tblAwardRatesHistorical
+        LEFT JOIN (
+SELECT
+            DISTINCT
+            LaneID,
+            Lane,
+            ORIG_CITY_STATE,
+            DEST_CITY_STATE,
+            CAST(EffectiveDate AS DATE) AS EffectiveDate,
+            CAST(ExpirationDate AS DATE) AS ExpirationDate
+        FROM
+            USCTTDEV.dbo.tblAwardRatesHistorical
 ) laneawarddos ON laneaward.Lane = ald.Lane
-AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+            AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
 WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
 ELSE ald.CRTD_DTT END AS DATE) = CAST(laneawarddos.EffectiveDate AS DATE)
 
 WHERE CAST(ald.LastUpdated AS DATE) = CAST(GETDATE() AS DATE)
 
 
-/*
+    /*
 Update 2/3/2021
 In mid-January, duplicate rates were added to the historic rates tables with the same effective/expiration dates
 New logic will update if the date is between the effective/expiration date OR the effective date
 This joins by lane and SCAC
 */
-UPDATE USCTTDEV.dbo.tblActualLoadDetail
+    UPDATE USCTTDEV.dbo.tblActualLoadDetail
 SET AwardCarrier = 
 
 /*
@@ -4084,8 +4390,8 @@ If the date is BETWEEN effective/expiration
 */
 CASE WHEN CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
 WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
-ELSE ald.CRTD_DTT END AS DATE) BETWEEN CAST(laneaward.EffectiveDate AS DATE)  AND CAST(laneaward.ExpirationDate AS DATE) 
-AND ald.SRVC_CD = laneaward.SCAC THEN 'Y'
+ELSE ald.CRTD_DTT END AS DATE) BETWEEN CAST(laneaward.EffectiveDate AS DATE)  AND CAST(laneaward.ExpirationDate AS DATE)
+        AND ald.SRVC_CD = laneaward.SCAC THEN 'Y'
 
 /*
 If the date IS the effective
@@ -4093,52 +4399,71 @@ If the date IS the effective
 WHEN CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
 WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
 ELSE ald.CRTD_DTT END AS DATE) = CAST(laneawarddos.EffectiveDate AS DATE)
-AND ald.SRVC_CD = laneawarddos.SCAC
+        AND ald.SRVC_CD = laneawarddos.SCAC
 THEN 'Y'
 
 /*
 If neither, make null
 */
 ELSE NULL END
-FROM USCTTDEV.dbo.tblActualLoadDetail ald
+FROM
+        USCTTDEV.dbo.tblActualLoadDetail ald
 
-/*
+        /*
 For when the ship date is BETWEEN the effective date and expiration date
 */
-LEFT JOIN (
-SELECT DISTINCT LaneID, Lane, SCAC, ORIG_CITY_STATE, DEST_CITY_STATE, CAST(EffectiveDate AS DATE) AS EffectiveDate, CAST(ExpirationDate AS DATE) AS ExpirationDate
-FROM USCTTDEV.dbo.tblAwardRatesHistorical
+        LEFT JOIN (
+SELECT
+            DISTINCT
+            LaneID,
+            Lane,
+            SCAC,
+            ORIG_CITY_STATE,
+            DEST_CITY_STATE,
+            CAST(EffectiveDate AS DATE) AS EffectiveDate,
+            CAST(ExpirationDate AS DATE) AS ExpirationDate
+        FROM
+            USCTTDEV.dbo.tblAwardRatesHistorical
 ) laneaward ON laneaward.Lane = ald.Lane
-AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+            AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
 WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
 ELSE ald.CRTD_DTT END AS DATE) >= laneaward.EffectiveDate AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
 WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
 ELSE ald.CRTD_DTT END AS DATE) <= laneaward.ExpirationDate
-AND laneaward.SCAC = ald.SRVC_CD
+            AND laneaward.SCAC = ald.SRVC_CD
 
-/*
+        /*
 For when the ship date IS the effective date
 */
-LEFT JOIN (
-SELECT DISTINCT LaneID, Lane, SCAC, ORIG_CITY_STATE, DEST_CITY_STATE, CAST(EffectiveDate AS DATE) AS EffectiveDate, CAST(ExpirationDate AS DATE) AS ExpirationDate
-FROM USCTTDEV.dbo.tblAwardRatesHistorical
+        LEFT JOIN (
+SELECT
+            DISTINCT
+            LaneID,
+            Lane,
+            SCAC,
+            ORIG_CITY_STATE,
+            DEST_CITY_STATE,
+            CAST(EffectiveDate AS DATE) AS EffectiveDate,
+            CAST(ExpirationDate AS DATE) AS ExpirationDate
+        FROM
+            USCTTDEV.dbo.tblAwardRatesHistorical
 ) laneawarddos ON laneaward.Lane = ald.Lane
-AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+            AND CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
 WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
 ELSE ald.CRTD_DTT END AS DATE) = CAST(laneawarddos.EffectiveDate AS DATE)
-AND laneawarddos.SCAC = ald.SRVC_CD
+            AND laneawarddos.SCAC = ald.SRVC_CD
 
 WHERE CAST(ald.LastUpdated AS DATE) = CAST(GETDATE() AS DATE)
 
-/*
+    /*
 Execute Bid App Add and Update
 */
-EXEC USCTTDEV.dbo.sp_BidAppAddAndUpdate
+    EXEC USCTTDEV.dbo.sp_BidAppAddAndUpdate
 
-/*
+    /*
 Don't really need to do this, but I do it anyway because I like clean temp tables
 */
-DROP TABLE IF EXISTS
+    DROP TABLE IF EXISTS
 ##tblActualBusinessUnits,
 ##tblActualLoadDetailsALD,
 ##tblActualLoadDetailsPRLD,

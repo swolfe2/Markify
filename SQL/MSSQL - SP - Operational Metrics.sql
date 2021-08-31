@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_OperationalMetrics]    Script Date: 8/20/2021 8:31:11 AM ******/
+/****** Object:  StoredProcedure [dbo].[sp_OperationalMetrics]    Script Date: 8/30/2021 3:00:03 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -11,6 +11,7 @@ GO
 -- Create date: <9/6/2019>
 -- Last modified: <8/20/2021>
 -- Description:	<Executes Tim Zoppa's query against Oracle, loads to temp table, then appends/updates dbo.tblOperationalMetrics>
+-- 8/30/2021 - SW - Update SHIP_DATE to only include load_leg_r.SHPD_DTT value, or null when not there
 -- 8/20/2021 - SW - Update to include COMPLETION_DATE_TIME Per Jeff Perrot, wanting to measure when the loads are actually picked up. Also added PICKUP_TIME  using logic from him.
 -- 4/27/2021 - SW - Update to include the first pickup appointment from/to times for Tableau Reporting
 -- 3/30/2021 - SW - Update to include START_DTT for Tableau reporting
@@ -1542,15 +1543,17 @@ SELECT
     cps.carr_departed_pick_datetime,
     CASE
         WHEN llr.shpd_dtt IS NULL THEN
-            trunc(cps.pick_appointment_datetime)
+            /*trunc(cps.pick_appointment_datetime)*/
+			null
         ELSE
             llr.shpd_dtt
     END AS ship_date,
     CASE
         WHEN llr.shpd_dtt IS NULL THEN
-            TO_CHAR(cps.pick_appointment_datetime - 1, ''D'')
+            /*TO_CHAR(cps.pick_appointment_datetime - 1, ''D'')
             || ''-''
-            || TO_CHAR(cps.pick_appointment_datetime, ''DY'')
+            || TO_CHAR(cps.pick_appointment_datetime, ''DY'')*/
+			null
         ELSE
             TO_CHAR(llr.shpd_dtt - 1, ''D'')
             || ''-''
@@ -1558,13 +1561,15 @@ SELECT
     END AS ship_dow,
     CASE
         WHEN llr.shpd_dtt IS NULL THEN
-            trunc(cps.pick_appointment_datetime, ''IW'')
+            /*trunc(cps.pick_appointment_datetime, ''IW'')*/
+			null
         ELSE
             trunc(llr.shpd_dtt, ''IW'')
     END AS ship_week,
     CASE
         WHEN llr.shpd_dtt IS NULL THEN
-            trunc(cps.pick_appointment_datetime, ''MM'')
+            /*trunc(cps.pick_appointment_datetime, ''MM'')*/
+			null
         ELSE
             trunc(llr.shpd_dtt, ''MM'')
     END AS ship_month,
@@ -1678,7 +1683,7 @@ FROM
                                                           AND latr.destination_id = llr.last_shpg_loc_cd
                                                           AND llr.strd_dtt BETWEEN latr.from_date AND latr.TO_DATE
 WHERE
-    llr.cur_optlstat_id BETWEEN 315 AND 350
+    llr.cur_optlstat_id BETWEEN 300 AND 350
     AND llr.eqmt_typ IN (
         ''48FT'',
         ''53FT'',
@@ -1814,33 +1819,37 @@ GROUP BY
     cps.pick_appointment_datetime,
     cps.carr_departed_pick_datetime,
     CASE
-            WHEN llr.shpd_dtt IS NULL THEN
-                trunc(cps.pick_appointment_datetime)
-            ELSE
-                llr.shpd_dtt
-        END,
+        WHEN llr.shpd_dtt IS NULL THEN
+            /*trunc(cps.pick_appointment_datetime)*/
+			null
+        ELSE
+            llr.shpd_dtt
+    END,
     CASE
-            WHEN llr.shpd_dtt IS NULL THEN
-                TO_CHAR(cps.pick_appointment_datetime - 1, ''D'')
-                || ''-''
-                || TO_CHAR(cps.pick_appointment_datetime, ''DY'')
-            ELSE
-                TO_CHAR(llr.shpd_dtt - 1, ''D'')
-                || ''-''
-                || TO_CHAR(llr.shpd_dtt, ''DY'')
-        END,
+        WHEN llr.shpd_dtt IS NULL THEN
+            /*TO_CHAR(cps.pick_appointment_datetime - 1, ''D'')
+            || ''-''
+            || TO_CHAR(cps.pick_appointment_datetime, ''DY'')*/
+			null
+        ELSE
+            TO_CHAR(llr.shpd_dtt - 1, ''D'')
+            || ''-''
+            || TO_CHAR(llr.shpd_dtt, ''DY'')
+    END,
     CASE
-            WHEN llr.shpd_dtt IS NULL THEN
-                trunc(cps.pick_appointment_datetime, ''IW'')
-            ELSE
-                trunc(llr.shpd_dtt, ''IW'')
-        END,
+        WHEN llr.shpd_dtt IS NULL THEN
+            /*trunc(cps.pick_appointment_datetime, ''IW'')*/
+			null
+        ELSE
+            trunc(llr.shpd_dtt, ''IW'')
+    END,
     CASE
-            WHEN llr.shpd_dtt IS NULL THEN
-                trunc(cps.pick_appointment_datetime, ''MM'')
-            ELSE
-                trunc(llr.shpd_dtt, ''MM'')
-        END,
+        WHEN llr.shpd_dtt IS NULL THEN
+            /*trunc(cps.pick_appointment_datetime, ''MM'')*/
+			null
+        ELSE
+            trunc(llr.shpd_dtt, ''MM'')
+    END,
     los.last_stop_base_appt_datetime,
     los.last_stop_final_appt_datetime,
     TO_CHAR(los.last_stop_final_appt_datetime - 1, ''D'')
@@ -2688,5 +2697,124 @@ WHEN SHIP_DATE < CARR_ARRIVED_AT_DATETIME THEN SHIP_DATE
 WHEN SHIP_DATE IS NOT NULL THEN SHIP_DATE
 WHEN CARR_ARRIVED_AT_DATETIME IS NOT NULL THEN CARR_ARRIVED_AT_DATETIME
 ELSE NULL END
+
+    /*
+Update RateType to "Spot' if it went on eAuction process and is still marked as contract
+8/27/2021
+*/
+    UPDATE USCTTDEV.dbo.tblOperationalMetrics
+SET RateType = 'Spot'
+FROM
+        USCTTDEV.dbo.tblOperationalMetrics om
+        INNER JOIN (
+SELECT
+            *
+        FROM
+            OPENQUERY(NAJDAPRD,'SELECT DISTINCT fablt.BID_LOAD_ID,
+fablt.EXTL_LOAD_ID AS LD_LEG_ID,
+bids.TotalBids As BidCount,
+bids.TotalBidders As EligibleToBidCount,
+CASE WHEN bids.TotalBids = 0 THEN ''No Participation''
+WHEN awards.BID_LOAD_ID IS NULL THEN ''Not Awarded''
+WHEN awards.BID_LOAD_ID IS NOT NULL THEN ''Awarded''
+END AS FinalLoadParticipation,
+awards.TotalBid AS WinningBid,
+awards.CARR_CD AS WinningCarrier,
+awards.SRVC_CD AS WinningService
+FROM najdafa.tm_frht_auction_bid_ld_t fablt
+
+/*
+This query contains all of the details about awarded loads
+*/
+LEFT JOIN (
+SELECT DISTINCT facbt.BID_LOAD_ID, 
+fablt.EXTL_LOAD_ID AS LD_LEG_ID,
+facbt.BID_RESPONSE_ENU,
+facbt.RATE_ADJ_AMT_DLR,
+facbt.RATE_ADJ_AWARD_AMT_DLR,
+facbt.CONTRACT_AMT_DLR,
+CASE WHEN facbt.RATE_ADJ_AWARD_AMT_DLR IS NULL THEN facbt.RATE_ADJ_AMT_DLR ELSE facbt.RATE_ADJ_AWARD_AMT_DLR END + facbt.CONTRACT_AMT_DLR AS TotalBid,
+facbt.CARR_CD,
+facbt.SRVC_CD,
+Options.TotalBidders
+FROM najdafa.tm_frht_auction_car_bid_t facbt
+INNER JOIN najdafa.tm_frht_auction_bid_ld_t fablt ON fablt.bid_load_id = facbt.bid_load_id
+LEFT JOIN (SELECT DISTINCT facbt.BID_LOAD_ID, COUNT(*) AS TotalBidders
+FROM najdafa.tm_frht_auction_car_bid_t facbt
+WHERE facbt.BID_RESPONSE_ENU IS NOT NULL
+GROUP BY facbt.BID_LOAD_ID) Options ON Options.BID_LOAD_ID = facbt.BID_LOAD_ID
+WHERE facbt.BID_RESPONSE_ENU = ''LOAD_AWARDED''
+)awards ON awards.bid_load_id = fablt.BID_LOAD_ID
+AND awards.LD_LEG_ID = fablt.EXTL_LOAD_ID
+
+/*
+This query contains the total bid/participation count
+*/
+LEFT JOIN(
+SELECT DISTINCT facbt.BID_LOAD_ID, 
+COUNT(*) AS TotalBidders,
+SUM(CASE WHEN facbt.RATE_ADJ_AMT_DLR IS NOT NULL THEN 1
+WHEN facbt.RATE_ADJ_AWARD_AMT_DLR IS NOT NULL THEN 1
+ELSE 0 END) AS TotalBids
+FROM najdafa.tm_frht_auction_car_bid_t facbt
+GROUP BY facbt.BID_LOAD_ID
+ORDER BY facbt.BID_LOAD_ID ASC
+) bids ON bids.bid_load_id = fablt.BID_LOAD_ID
+
+/*
+Only use the most recent BID_LOAD_ID details
+*/
+INNER JOIN (
+SELECT MAX (fablt.BID_LOAD_ID) AS MaxID,
+fablt.EXTL_LOAD_ID AS LD_LEG_ID
+FROM najdafa.tm_frht_auction_bid_ld_t fablt
+GROUP BY fablt.EXTL_LOAD_ID
+) maxID ON maxID.MaxID = fablt.BID_LOAD_ID
+
+WHERE fablt.AUCTION_ENTRY_DTT >= ''2020-03-01''
+
+GROUP BY 
+fablt.BID_LOAD_ID,
+fablt.EXTL_LOAD_ID,
+CASE WHEN awards.BID_LOAD_ID IS NOT NULL THEN awards.TotalBidders END,
+bids.TotalBids,
+bids.TotalBidders,
+CASE WHEN bids.TotalBids = 0 THEN ''No Participation''
+WHEN awards.BID_LOAD_ID IS NULL THEN ''Not Awarded''
+WHEN awards.BID_LOAD_ID IS NOT NULL THEN ''Awarded''
+END,
+awards.TotalBid,
+awards.CARR_CD,
+awards.SRVC_CD')FinalStatus
+        WHERE FinalStatus.FinalLoadParticipation = 'Awarded'
+) eAuction ON eAuction.LD_LEG_ID = om .LD_LEG_ID
+            AND eAuction.WinningCarrier = om .CARR_CD
+            AND eAuction.WinningService = om .SRVC_CD
+WHERE om .RateType <> 'Spot'
+
+    /*
+Update UNKNOWN Rate type to "Contract" since it didn't appear in the above query and still isn't on ALD
+*/
+    UPDATE USCTTDEV.dbo.tblOperationalMetrics
+SET RateType = 'Contract'
+WHERE RateType = 'UNKNOWN'
+        AND CAST(LastUpdated AS DATE) = CAST(GETDATE() AS DATE)
+
+    /*
+Update Null order type if it wasn't on ALD when it ran
+*/
+    UPDATE USCTTDEV.dbo.tblOperationalMetrics
+SET OrderType = 
+CASE WHEN CORP1_ID = 'RM' THEN 'RM-INBOUND'
+WHEN CORP1_ID = 'RF' THEN 'RF-INBOUND' 
+WHEN SUBSTRING(LAST_SHPG_LOC_CD,1,1) = 'R' THEN 'RETURNS'
+WHEN SUBSTRING(LAST_SHPG_LOC_CD,1,1) = '1' THEN 'INTERMILL'
+WHEN SUBSTRING(LAST_SHPG_LOC_CD,1,1) = '2' THEN 'INTERMILL'
+WHEN SUBSTRING(LAST_SHPG_LOC_CD,1,1) = '5' THEN 'CUSTOMER'
+WHEN SUBSTRING(LAST_SHPG_LOC_CD,1,1) = '9' THEN 'CUSTOMER'
+WHEN LAST_SHPG_LOC_CD LIKE '%HUB%' THEN 'CUSTOMER'
+ELSE NULL
+END
+WHERE CAST(LastUpdated AS DATE) = CAST(GETDATE() AS DATE)
 
 END
