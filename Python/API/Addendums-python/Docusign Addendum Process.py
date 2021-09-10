@@ -633,8 +633,7 @@ def getDocusignAPIToken():
     def printer(response):
         print(response)
 
-    def getuser(access_token):
-        base_path = "https://na2.docusign.net/restapi"
+    def getuser(access_token, base_path):
         api_client = utils.create_api_client(
             base_path=base_path, access_token=access_token
         )
@@ -646,7 +645,7 @@ def getDocusignAPIToken():
 
     if processType == "Production":
         authorization_server = "prod_authorization_server"
-        base_path = "https://www.docusign.net/restapi"
+        base_path = "https://na2.docusign.net/restapi"
         userID = "prod_user_id"
         private_key_file = "prod_private_key_file"
     else:
@@ -697,7 +696,7 @@ def getDocusignAPIToken():
     base_uri = response["accounts"][0]["base_uri"] + "/restapi"
     # base_uri = base_uri.replace("na2", "na3")
 
-    getuser(ds_access_token)
+    getuser(ds_access_token, base_path)
 
 
 # set global variables

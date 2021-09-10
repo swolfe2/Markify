@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_OperationalMetrics]    Script Date: 8/30/2021 3:00:03 PM ******/
+/****** Object:  StoredProcedure [dbo].[sp_OperationalMetrics]    Script Date: 9/10/2021 11:58:08 AM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -2798,7 +2798,7 @@ Update UNKNOWN Rate type to "Contract" since it didn't appear in the above query
     UPDATE USCTTDEV.dbo.tblOperationalMetrics
 SET RateType = 'Contract'
 WHERE RateType = 'UNKNOWN'
-        AND CAST(LastUpdated AS DATE) = CAST(GETDATE() AS DATE)
+        AND CAST(LastUpdated AS DATE) >= CAST(GETDATE() - 30 AS DATE)
 
     /*
 Update Null order type if it wasn't on ALD when it ran
@@ -2813,8 +2813,11 @@ WHEN SUBSTRING(LAST_SHPG_LOC_CD,1,1) = '2' THEN 'INTERMILL'
 WHEN SUBSTRING(LAST_SHPG_LOC_CD,1,1) = '5' THEN 'CUSTOMER'
 WHEN SUBSTRING(LAST_SHPG_LOC_CD,1,1) = '9' THEN 'CUSTOMER'
 WHEN LAST_SHPG_LOC_CD LIKE '%HUB%' THEN 'CUSTOMER'
-ELSE NULL
+ELSE 'CUSTOMER'
 END
-WHERE CAST(LastUpdated AS DATE) = CAST(GETDATE() AS DATE)
+FROM
+        USCTTDEV.dbo.tblOperationalMetrics om
+WHERE om.OrderType IS NULL
+/*WHERE CAST(LastUpdated AS DATE) = CAST(GETDATE() AS DATE)*/
 
 END

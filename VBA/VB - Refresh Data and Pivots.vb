@@ -41,6 +41,15 @@ For i = 1 to 2
         End If
     Next
 
+    'Refresh specific LO
+    Application.StatusBar = "Refreshing View Service Tariff Cross Ref"
+    wb.Worksheets("View Service Tariff Cross Ref").ListObjects("Table_USTWAS03_tfr0nedb_MD_Service_TM_Tariff_Xref").QueryTable.Refresh BackgroundQuery:=False  
+
+    Application.StatusBar = "Refreshing Manage Addendum Status"
+    wb.Worksheets("Manage Addendum Status").Unprotect
+    wb.Worksheets("Manage Addendum Status").ListObjects("Table_ExternalData_1").QueryTable.Refresh BackgroundQuery:=False
+    wb.Worksheets("Manage Addendum Status").Protect
+
     'Refresh all pivots
     For Each ws In wb.Worksheets
         For Each pt In ws.PivotTables
