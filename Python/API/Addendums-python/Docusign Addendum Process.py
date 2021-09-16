@@ -49,9 +49,44 @@ def globalVariables():
     # processType = "Testing"
 
 
+def deleteXLSXFromProcess():
+    # See if file already exists in Addendums-Sent directory. If so, delete the .xlsx copy from Addendums-Pending
+    addendumsToProcessFolder = (
+        "\\\\IN00AAP024\\Contract Data\\Production\\Addendums To Process\\"
+    )
+    for filename in os.listdir(addendumsToProcessFolder):
+        # Get the filename without extension
+        fileNameNoExtension = os.path.basename(filename).split(".")[0]
+
+        # Get text character positions in file name for parsing
+        markerA = filename.find("-")
+
+        # Parse carier
+        carrier = filename[0:markerA]
+        finalFilepath = sentDir + carrier + "\\" + fileNameNoExtension + ".xlsx"
+        if os.path.isfile(finalFilepath) or os.path.isfile(
+            finalFilepath.replace(".xlsx", ".pdf")
+        ):
+            print(
+                addendumsToProcessFolder
+                + filename
+                + " already exists in "
+                + carrier
+                + "'s Addendums-Sent folder. Deleting from Addendums-Pending folder."
+            )
+            if os.path.isfile(pendingDir + fileNameNoExtension + ".xlsx"):
+                os.remove(pendingDir + fileNameNoExtension + ".xlsx")
+            if os.path.isfile(pendingDir + fileNameNoExtension + ".pdf"):
+                os.remove(pendingDir + fileNameNoExtension + ".pdf")
+            if os.path.isfile(addendumsToProcessFolder + fileNameNoExtension + ".xlsx"):
+                os.remove(addendumsToProcessFolder + fileNameNoExtension + ".xlsx")
+
+
 # Convert all of the Addendums-Pending .xlsx files to .pdf
 def convertXLSXtoPDF():
+
     # See if file already exists in Addendums-Sent directory. If so, delete the .pdf copy and the .xlsx copy from Addendums-Pending
+    deleteXLSXFromProcess()
 
     for filename in os.listdir(pendingDir):
         # Get the filename without extension
@@ -83,6 +118,16 @@ def convertXLSXtoPDF():
                 os.remove(pendingDir + fileNameNoExtension + ".xlsx")
             if os.path.isfile(pendingDir + fileNameNoExtension + ".pdf"):
                 os.remove(pendingDir + fileNameNoExtension + ".pdf")
+            if os.path.isfile(
+                "\\\\IN00AAP024\\Contract Data\\Production\\Addendums To Process\\"
+                + fileNameNoExtension
+                + ".xlsx"
+            ):
+                os.remove(
+                    "\\\\IN00AAP024\\Contract Data\\Production\\Addendums To Process\\"
+                    + fileNameNoExtension
+                    + ".xlsx"
+                )
 
     # Loop through all addendum files, and convert them to .pdf
     for filename in os.listdir(pendingDir):
@@ -107,7 +152,7 @@ def convertXLSXtoPDF():
     global fileCount
     fileCount = 0
     for filename in os.listdir(pendingDir):
-        if filename.endswith(".pdf"):
+        if filename.endswith(".pdf") and "TEST" not in filename:
             fileCount += 1
 
 
@@ -236,6 +281,8 @@ def processAddendums():
         Document 1: PDF Version of Addendum that was previously made
         DocuSign will convert all of the documents to the PDF format.
         """
+        global docusignFile
+        docusignFile = args["filepath"]
 
         # Create the envelope definition
         env = EnvelopeDefinition(
@@ -503,13 +550,13 @@ def processAddendums():
         env.status = "sent"
 
         # open file for writing
-        f = open(r"C:\Users\U15405\Desktop\env.txt", "w")
+        # f = open(r"C:\Users\U15405\Desktop\env.txt", "w")
 
         # write file
-        f.write(str(env))
+        # f.write(str(env))
 
         # close file
-        f.close()
+        # f.close()
 
         # Send the envelope with arguements
         sendEnvelope(env)
@@ -536,12 +583,7 @@ def processAddendums():
         )
         envelope_id = results.envelope_id
 
-        print(
-            "Envelope ID: "
-            + {"envelope_id": envelope_id}
-            + " successfully made for "
-            + args["email_subject"]
-        )
+        print("Envelope ID: " + envelope_id + " successfully made for " + docusignFile)
 
         return {"envelope_id": envelope_id}
 
@@ -571,7 +613,8 @@ def processAddendums():
             + """.<br> 
         <p style="color:red">This is to help you review the rates and you don’t need to return via DocuSign.</p>
         Thanks, <br><br>
-        -Strategy & Analysis
+        -Strategy & Analysis <br>
+        <p><b><i><span style="background-color:yellow">This email address only sends outbound emails, and replies will not be viewed.</span></i></b></p>
         """
         )
 
@@ -816,6 +859,7 @@ convertXLSXtoPDF()
 
 # If there are no files to process, quit entire script
 if fileCount == 0:
+    print("No pending new addendums to send through Docusign. Quitting!")
     quit()
 
 # Get token for Docusign API, which will be good for the day
