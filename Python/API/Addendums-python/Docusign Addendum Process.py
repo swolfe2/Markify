@@ -51,6 +51,39 @@ def globalVariables():
 
 # Convert all of the Addendums-Pending .xlsx files to .pdf
 def convertXLSXtoPDF():
+    # See if file already exists in Addendums-Sent directory. If so, delete the .pdf copy and the .xlsx copy from Addendums-Pending
+
+    for filename in os.listdir(pendingDir):
+        # Get the filename without extension
+        fileNameNoExtension = os.path.basename(filename).split(".")[0]
+
+        # Get text character positions in file name for parsing
+        markerA = filename.find("-")
+
+        # Parse carier
+        carrier = filename[0:markerA]
+        if os.path.isfile(
+            pendingDir.replace(
+                "Addendums-Pending",
+                "Addendums-Sent\\" + carrier + "\\" + fileNameNoExtension + ".xlsx",
+            )
+        ) or os.path.isfile(
+            pendingDir.replace(
+                "Addendums-Pending",
+                "Addendums-Sent\\" + carrier + "\\" + fileNameNoExtension + ".pdf",
+            )
+        ):
+            print(
+                filename
+                + " already exists in "
+                + carrier
+                + "'s Addendums-Sent folder. Deleting from Addendums-Pending folder."
+            )
+            if os.path.isfile(pendingDir + fileNameNoExtension + ".xlsx"):
+                os.remove(pendingDir + fileNameNoExtension + ".xlsx")
+            if os.path.isfile(pendingDir + fileNameNoExtension + ".pdf"):
+                os.remove(pendingDir + fileNameNoExtension + ".pdf")
+
     # Loop through all addendum files, and convert them to .pdf
     for filename in os.listdir(pendingDir):
         if filename.endswith(".xlsx"):
@@ -152,7 +185,7 @@ def addendumsNotMoved():
     # Intialize counter
     i = 0
     for filename in os.listdir(pendingDir):
-        if filename.endswith(".pdf"):
+        if filename.endswith(".pdf") and "TEST" not in filename:
             i += 1
 
     if i >= 1:
@@ -206,7 +239,7 @@ def processAddendums():
 
         # Create the envelope definition
         env = EnvelopeDefinition(
-            email_subject="Please Docusign: Addendum "
+            email_subject="Please Docusign: Addendum - "
             + args["carrier"]
             + "-"
             + args["scac"]
@@ -367,21 +400,12 @@ def processAddendums():
                 routing_order="2",
             )
 
-            # Add the K-C Representative for Signature in group 4
-            kcSigner = Signer(
-                email="Purvi.Naik@kcc.com",
-                name="K-C Representative",
-                recipient_id="4",
-                routing_order="3",
-                tabs=Tabs(sign_here_tabs=[kcSignature]),
-            )
-
             # Add the Carrier Representative for Signature in group 3
             carrierSigner1 = Signer(
                 email=args["docusignEmail1"],
                 name=args["carrier"] + " Representative",
-                recipient_id="5",
-                routing_order="4",
+                recipient_id="4",
+                routing_order="3",
                 tabs=Tabs(sign_here_tabs=[carrierSignature1]),
             )
 
@@ -389,9 +413,18 @@ def processAddendums():
             carrierSigner2 = Signer(
                 email=args["docusignEmail2"],
                 name=args["carrier"] + " Representative",
+                recipient_id="5",
+                routing_order="3",
+                tabs=Tabs(sign_here_tabs=[carrierSignature2]),
+            )
+
+            # Add the K-C Representative for Signature in group 4
+            kcSigner = Signer(
+                email="Purvi.Naik@kcc.com",
+                name="K-C Representative",
                 recipient_id="6",
                 routing_order="4",
-                tabs=Tabs(sign_here_tabs=[carrierSignature2]),
+                tabs=Tabs(sign_here_tabs=[kcSignature]),
             )
 
             # CC Sharepoint in group 5
@@ -442,7 +475,7 @@ def processAddendums():
                         email=args["cc" + str(ccID)],
                         name="Carrier Carbon Copy " + str(ccID + 1),
                         recipient_id=str(ccID + 1 + 10),
-                        routing_order="4",
+                        routing_order="3",
                     )
                 )
                 ccID += 1
@@ -502,7 +535,50 @@ def processAddendums():
             account_id=account_id, envelope_definition=args
         )
         envelope_id = results.envelope_id
+
+        print(
+            "Envelope ID: "
+            + {"envelope_id": envelope_id}
+            + " successfully made for "
+            + args["email_subject"]
+        )
+
         return {"envelope_id": envelope_id}
+
+    def sendExcelFile(
+        filename, carrier, scac, docusignEmail, ccAddresses, addendumNumber
+    ):
+        # Kill any previously running Outlook applications
+        killOutlook()
+
+        # Convert back to Excel file structure
+        filename = filename.replace(".pdf", ".xlsx")
+
+        print("Sending " + filename + " to " + carrier)
+        outlook = win32.Dispatch("outlook.application")
+        mail = outlook.CreateItem(0)
+        mail.To = docusignEmail
+        mail.Cc = ccAddresses
+        mail.Bcc = "strategyandanalysis.ctt@kcc.com"
+        mail.SendUsingAccount = "strategyandanalysis.ctt@kcc.com"
+        mail.SentOnBehalfOfName = "strategyandanalysis.ctt@kcc.com"
+        mail.Subject = "Addendum - " + carrier + "-" + scac + "(" + addendumNumber + ")"
+        # mail.Body="Message body"
+        mail.HTMLBody = (
+            """Hello, <br><br>
+        Please see the attached for an Excel copy of addendum """
+            + addendumNumber
+            + """.<br> 
+        <p style="color:red">This is to help you review the rates and you don’t need to return via DocuSign.</p>
+        Thanks, <br><br>
+        -Strategy & Analysis
+        """
+        )
+
+        # To attach a file to the email (optional):
+        mail.Attachments.Add(filename)
+
+        mail.Send()
 
     def moveFileToSentFolder(pdfFile, carrier):
         # This will preserve the .pdf file by moving it to the carrier's completed folder, and will delete the .xlsx copy
@@ -520,8 +596,22 @@ def processAddendums():
             )
             os.makedirs(sentDir + carrier)
 
+        # Delete the .pdf file of aleardy exists
+        if os.path.exists(sentDir + "\\" + carrier + pdfFile):
+            print(
+                ".pdf Addendum already exists for "
+                + carrier
+                + ". Deleting previous file, and replacing with new."
+            )
+            os.remove(sentDir + "\\" + carrier + pdfFile)
+
         # Move the .pdf file
-        print("Moving file now Addendums-Pending to Addendums-Sent for " + carrier)
+        print(
+            "Moving "
+            + pdfFile
+            + " now Addendums-Pending to Addendums-Sent for "
+            + carrier
+        )
         move(pendingDir + pdfFile, sentDir + "\\" + carrier)
 
         # Delete the .xlsx file
@@ -531,7 +621,7 @@ def processAddendums():
 
     # Begin processing addendums
     for filename in os.listdir(pendingDir):
-        if filename.endswith(".pdf"):
+        if filename.endswith(".pdf") and "TEST" not in filename:
 
             # Create dictionary for Docusign Details
             docusignDetails = {}
@@ -602,7 +692,7 @@ def processAddendums():
             # Set individual
             seq = ccAddresses.split(";")
             ccList = seq[0:]
-            ccListCount = len(ccList)
+            # ccListCount = len(ccList)
 
             ccCount = 0
             # Loop through CC's, and load each into separate variable and add to global dictionary
@@ -615,14 +705,30 @@ def processAddendums():
                 if docusignDetails["processType"] == "Testing":
                     docusignDetails[ccNumber] = "steve.wolfe@kcc.com"
                 else:
-                    docusignDetails[ccNumber] = ccAddress
-                ccCount += 1
+                    if ccList[int(value)] != "":
+                        docusignDetails[ccNumber] = ccAddress
+                        ccCount += 1
 
             # Append total number of CC's to Docusign Details Dictionary
-            docusignDetails["ccCount"] = ccListCount
+            docusignDetails["ccCount"] = ccCount
+
+            # If we're testing, overwrite To/ccAddresses
+            if docusignDetails["processType"] == "Testing":
+                docusignEmail = "steve.wolfe@kcc.com"
+                ccAddresses = "strategyandanalysis.ctt@kcc.com"
 
             # Create the docusign envelope
             makeAndSendEnvelope(docusignDetails)
+
+            # Send .xlsx copy of file
+            sendExcelFile(
+                pendingDir + filename,
+                carrier,
+                scac,
+                docusignEmail,
+                ccAddresses,
+                addendumNumber,
+            )
 
             # Move the .pdf copy to the Addendums-Sent folder for the carrier, and delete the Excel copy
             moveFileToSentFolder(filename, carrier)
@@ -639,7 +745,7 @@ def getDocusignAPIToken():
         )
         authApi = AuthenticationApi(api_client)
         loginInfo = authApi.login(callback=printer)
-        print(loginInfo)
+        # print(loginInfo)
 
     global base_path
 
@@ -721,4 +827,7 @@ processAddendums()
 # Check to make sure Addendums-Pend
 addendumsNotMoved()
 
-print("Done")
+# Kill the Outlook process
+killOutlook()
+
+print("Processed " + str(fileCount) + " addendums! A pretty good day's work!")
