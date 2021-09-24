@@ -173,7 +173,8 @@ def sharepointEmails():
 def missingEmail(carrier, filepath):
     outlook = win32.Dispatch("outlook.application")
     mail = outlook.CreateItem(0)
-    mail.To = "Steve.Wolfe@kcc.com"
+    mail.To = "schrysan@kcc.com; jbhook@kcc.com; scarpent@kcc.com; slindsey@kcc.com"
+    mail.Cc = "Regina.S.Black@kcc.com; Steve.Wolfe@kcc.com"
     mail.SendUsingAccount = "strategyandanalysis.ctt@kcc.com"
     mail.SentOnBehalfOfName = "strategyandanalysis.ctt@kcc.com"
     mail.Subject = "Rate Loading: Missing Carrier Email"
@@ -425,8 +426,8 @@ def processAddendums():
             # Mimic Template Order
             # CC Carrier Manager in group 1
             ccCM = CarbonCopy(
-                email="schrysan@kcc.com",
-                name="Stelios Chrysandreas",
+                email="CarrierManagementTeam.Addendums@kcc.com",
+                name="K-C Carrier Management",
                 recipient_id="1",
                 routing_order="1",
             )
