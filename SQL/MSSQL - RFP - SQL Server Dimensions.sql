@@ -101,7 +101,7 @@ FROM
         ROW_NUMBER() OVER (PARTITION BY zones.ZIP ORDER BY zones.LoadCount DESC) AS RowNumber
     FROM
         (
-                                                                                                                                                                                                                    SELECT
+                                                                                                                                                                                                                                                                                                                                SELECT
                 DISTINCT
                 ald.LAST_PSTL_CD AS Zip,
                 ald.Dest_Zone AS Zone,
@@ -225,7 +225,7 @@ SELECT
             1 AS RowNumber
         FROM
             (
-                                                        SELECT
+                                                                                                                                                                                                                                                                                                                    SELECT
                     "3dig" AS LAST_PSTL_CDShort,
                     "5dig" AS LAST_PSTL_CD,
                     1 AS LoadCount
@@ -423,7 +423,7 @@ SELECT
         CanadaAgg.LoadCount,
         ROW_NUMBER() OVER (PARTITION BY CanadaAgg.Zip3 ORDER BY CanadaAgg.LoadCount DESC) AS RowNumber
     FROM(
-            SELECT
+                                                                                                                        SELECT
                 DISTINCT
                 Origin_Zone AS Zone,
                 LEFT(FRST_PSTL_CD,3) AS Zip3,
@@ -455,26 +455,37 @@ ORDER BY CanadaAgg.Zip3 ASC,  CanadaAgg.RowNumber ASC
 
 /*
 Get Unique Lanes by Month
+/*52929*/
 */
 WITH
     CurrentYearLanes
     (
+        Origin_Zone,
+        Dest_Zone,
         Lane,
-        TheMonth
+        TheMonth,
+        TheQuarter,
+        TheYear
     )
     AS
-    
+
     (
         SELECT
             DISTINCT
+            ald.Origin_Zone,
+            ald.Dest_Zone,
             ald.Lane,
-            da.TheMonth
+            da.TheMonth,
+            da.TheQuarter,
+            da.TheYear
         FROM
             USCTTDEV.dbo.tblActualLoadDetail ald
 CROSS JOIN (
 SELECT
                 DISTINCT
-                da.TheMonth
+                da.TheMonth,
+                da.TheQuarter,
+                da.TheYear
             FROM
                 USCTTDEV.dbo.tblDates da
             WHERE da.TheYear = 2021
@@ -486,10 +497,12 @@ ELSE ald.CRTD_DTT END AS DATE) <= CAST(GETDATE() AS DATE)
 WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
 ELSE ald.CRTD_DTT END) = YEAR(GETDATE())
             AND ald.EQMT_TYP <> 'LTL'
-            AND ald.Lane = 'ALALEXAN-5AL36610'
+        /*AND ald.Lane = 'ALALEXAN-5AL36610'*/
     ),
     CurrentYearActuals
     (
+        Origin_Zone,
+        Dest_Zone,
         Lane,
         Month,
         LoadCount,
@@ -511,7 +524,7 @@ ELSE ald.CRTD_DTT END) = YEAR(GETDATE())
         DedicatedLoadCount
     )
     AS
-    
+
     (
         /*
 Get lane count volumes by specific types
@@ -520,6 +533,8 @@ SELECT TOP 10 * FROM USCTTDEV.dbo.tblActualLoadDetail
 
         SELECT
             DISTINCT
+            ald.Origin_Zone,
+            ald.Dest_Zone,
             ald.Lane,
             MONTH(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
 WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
@@ -558,17 +573,21 @@ ELSE ald.CRTD_DTT END) = YEAR(GETDATE())
         /*AND ald.Lane = 'ALALEXAN-5AL36610'*/
 
         GROUP BY 
+ald.Origin_Zone,
+ald.Dest_Zone,
 ald.Lane,
 MONTH(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
 WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
 ELSE ald.CRTD_DTT END)
     )
 
-
-
 SELECT
+    cyl.Origin_Zone,
+    cyl.Dest_Zone,
     cyl.Lane,
     cyl.TheMonth,
+    cyl.TheQuarter,
+    cyl.TheYear,
     COALESCE(cya.LoadCount,0) AS LoadCount,
     COALESCE(cya.IntermillCount,0) AS IntermillCount,
     COALESCE(cya.CustomerCount,0) AS CustomerCount,
@@ -592,3 +611,245 @@ FROM
         AND cya.Month = cyl.TheMonth
 
 ORDER BY cyl.Lane ASC, cyl.TheMonth ASC
+
+/*
+Get unique Dest Zones by ranking of load counts
+2004
+*/
+WITH
+    DestZoneInfo
+    (
+        Dest_Zone,
+        LAST_CTRY_CD,
+        LAST_CTY_NAME,
+        LAST_STA_CD,
+        LAST_PSTL_CD,
+        LoadCount,
+        Ranking
+    )
+    AS
+
+    (
+        SELECT
+            DISTINCT
+            ald.Dest_Zone,
+            ald.LAST_CTRY_CD,
+            ald.LAST_CTY_NAME,
+            ald.LAST_STA_CD,
+            CASE WHEN ald.LAST_CTRY_CD = 'USA' THEN SUBSTRING(ald.LAST_PSTL_CD,1,5) ELSE ald.LAST_PSTL_CD END AS LAST_PSTL_CD,
+            COUNT(DISTINCT ald.LD_LEG_ID) AS LoadCount,
+            ROW_NUMBER() OVER (PARTITION BY ald.Dest_Zone ORDER BY COUNT(DISTINCT ald.LD_LEG_ID) DESC) AS Ranking
+
+        FROM
+            USCTTDEV.dbo.tblActualLoadDetail ald
+        WHERE CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+ELSE ald.CRTD_DTT END AS DATE) <= CAST(GETDATE() AS DATE)
+
+            AND YEAR(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+ELSE ald.CRTD_DTT END) = YEAR(GETDATE())
+
+            AND ald.EQMT_TYP <> 'LTL'
+        GROUP BY 
+ald.Dest_Zone,
+ald.LAST_CTRY_CD,
+ald.LAST_CTY_NAME,
+ald.LAST_STA_CD,
+CASE WHEN ald.LAST_CTRY_CD = 'USA' THEN SUBSTRING(ald.LAST_PSTL_CD,1,5) ELSE ald.LAST_PSTL_CD END
+    )
+SELECT
+    *
+FROM
+    DestZoneInfo
+ORDER BY DestZoneInfo.Dest_Zone ASC, DestZoneInfo.Ranking ASC
+
+/*
+Get unique Origin Zones by ranking of load counts
+2004
+*/
+WITH
+    OriginZoneInfo
+    (
+        Origin_Zone,
+        FRST_CTRY_CD,
+        FRST_CTY_NAME,
+        FRST_STA_CD,
+        FRST_PSTL_CD,
+        LoadCount,
+        Ranking
+    )
+    AS
+
+    (
+        SELECT
+            DISTINCT
+            ald.Origin_Zone,
+            ald.FRST_CTRY_CD,
+            ald.FRST_CTY_NAME,
+            ald.FRST_STA_CD,
+            CASE WHEN ald.FRST_CTRY_CD = 'USA' THEN SUBSTRING(ald.FRST_PSTL_CD,1,5) ELSE ald.FRST_PSTL_CD END AS FRST_PSTL_CD,
+            COUNT(DISTINCT ald.LD_LEG_ID) AS LoadCount,
+            ROW_NUMBER() OVER (PARTITION BY ald.Origin_Zone ORDER BY COUNT(DISTINCT ald.LD_LEG_ID) DESC) AS Ranking
+
+        FROM
+            USCTTDEV.dbo.tblActualLoadDetail ald
+        WHERE CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+ELSE ald.CRTD_DTT END AS DATE) <= CAST(GETDATE() AS DATE)
+
+            AND YEAR(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+ELSE ald.CRTD_DTT END) = YEAR(GETDATE())
+
+            AND ald.EQMT_TYP <> 'LTL'
+        GROUP BY 
+ald.Origin_Zone,
+ald.FRST_CTRY_CD,
+ald.FRST_CTY_NAME,
+ald.FRST_STA_CD,
+CASE WHEN ald.FRST_CTRY_CD = 'USA' THEN SUBSTRING(ald.FRST_PSTL_CD,1,5) ELSE ald.FRST_PSTL_CD END
+    )
+SELECT
+    *
+FROM
+    OriginZoneInfo
+ORDER BY OriginZoneInfo.Origin_Zone ASC, OriginZoneInfo.Ranking ASC
+
+/*
+Get first place zone information by load count for current year
+*/
+
+WITH
+    OriginZoneInfo
+    (
+        Origin_Zone,
+        FRST_CTRY_CD,
+        FRST_CTY_NAME,
+        FRST_STA_CD,
+        FRST_PSTL_CD,
+        LoadCount,
+        Ranking
+    )
+    AS
+
+    (
+        SELECT
+            DISTINCT
+            ald.Origin_Zone,
+            ald.FRST_CTRY_CD,
+            ald.FRST_CTY_NAME,
+            ald.FRST_STA_CD,
+            CASE WHEN ald.FRST_CTRY_CD = 'USA' THEN SUBSTRING(ald.FRST_PSTL_CD,1,5) ELSE ald.FRST_PSTL_CD END AS FRST_PSTL_CD,
+            COUNT(DISTINCT ald.LD_LEG_ID) AS LoadCount,
+            ROW_NUMBER() OVER (PARTITION BY ald.Origin_Zone ORDER BY COUNT(DISTINCT ald.LD_LEG_ID) DESC) AS Ranking
+
+        FROM
+            USCTTDEV.dbo.tblActualLoadDetail ald
+        WHERE CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+ELSE ald.CRTD_DTT END AS DATE) <= CAST(GETDATE() AS DATE)
+
+            AND YEAR(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+ELSE ald.CRTD_DTT END) = YEAR(GETDATE())
+
+            AND ald.EQMT_TYP <> 'LTL'
+        GROUP BY 
+ald.Origin_Zone,
+ald.FRST_CTRY_CD,
+ald.FRST_CTY_NAME,
+ald.FRST_STA_CD,
+CASE WHEN ald.FRST_CTRY_CD = 'USA' THEN SUBSTRING(ald.FRST_PSTL_CD,1,5) ELSE ald.FRST_PSTL_CD END
+    )
+,
+
+    DestZoneInfo
+    (
+        Dest_Zone,
+        LAST_CTRY_CD,
+        LAST_CTY_NAME,
+        LAST_STA_CD,
+        LAST_PSTL_CD,
+        LoadCount,
+        Ranking
+    )
+    AS
+
+    (
+        SELECT
+            DISTINCT
+            ald.Dest_Zone,
+            ald.LAST_CTRY_CD,
+            ald.LAST_CTY_NAME,
+            ald.LAST_STA_CD,
+            CASE WHEN ald.LAST_CTRY_CD = 'USA' THEN SUBSTRING(ald.LAST_PSTL_CD,1,5) ELSE ald.LAST_PSTL_CD END AS LAST_PSTL_CD,
+            COUNT(DISTINCT ald.LD_LEG_ID) AS LoadCount,
+            ROW_NUMBER() OVER (PARTITION BY ald.Dest_Zone ORDER BY COUNT(DISTINCT ald.LD_LEG_ID) DESC) AS Ranking
+
+        FROM
+            USCTTDEV.dbo.tblActualLoadDetail ald
+        WHERE CAST(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+ELSE ald.CRTD_DTT END AS DATE) <= CAST(GETDATE() AS DATE)
+
+            AND YEAR(CASE WHEN ald.SHPD_DTT IS NOT NULL THEN ald.SHPD_DTT
+WHEN ald.STRD_DTT IS NOT NULL THEN ald.STRD_DTT
+ELSE ald.CRTD_DTT END) = YEAR(GETDATE())
+
+            AND ald.EQMT_TYP <> 'LTL'
+        GROUP BY 
+ald.Dest_Zone,
+ald.LAST_CTRY_CD,
+ald.LAST_CTY_NAME,
+ald.LAST_STA_CD,
+CASE WHEN ald.LAST_CTRY_CD = 'USA' THEN SUBSTRING(ald.LAST_PSTL_CD,1,5) ELSE ald.LAST_PSTL_CD END
+    )
+
+SELECT
+    ZoneAgg.Zone,
+    ZoneAgg.Country,
+    ZoneAgg.City,
+    ZoneAgg.State,
+    ZoneAgg.ZipCode
+FROM
+    (
+SELECT
+        DISTINCT
+        ZoneAgg.Zone,
+        ZoneAgg.Country,
+        ZoneAgg.City,
+        ZoneAgg.State,
+        ZoneAgg.ZipCode,
+        ZoneAgg.LoadCount,
+        ROW_NUMBER() OVER (PARTITION BY ZoneAgg.Zone ORDER BY ZoneAgg.LoadCount DESC) AS RowNumber
+    FROM
+        (
+                                                SELECT
+                DISTINCT
+                o.Origin_Zone AS Zone,
+                o.FRST_CTRY_CD AS Country,
+                o.FRST_CTY_NAME AS City,
+                o.FRST_STA_CD AS State,
+                o.FRST_PSTL_CD AS ZipCode,
+                o.LoadCount AS LoadCount
+            FROM
+                OriginZoneInfo o
+            WHERE o.Ranking = 1
+
+        UNION ALL
+
+            SELECT
+                DISTINCT
+                d.Dest_Zone AS Zone,
+                d.LAST_CTRY_CD AS Country,
+                d.LAST_CTY_NAME AS City,
+                d.LAST_STA_CD AS State,
+                d.LAST_PSTL_CD AS ZipCode,
+                d.LoadCount AS LoadCount
+            FROM
+                DestZoneInfo d
+            WHERE d.Ranking = 1) ZoneAgg
+) ZoneAgg
+WHERE ZoneAgg.RowNumber = 1
+ORDER BY ZoneAgg.Zone ASC, RowNumber ASC
