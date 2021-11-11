@@ -22,7 +22,6 @@ from win32com import client
 
 # Get token for Docusign API
 def getDocusignAPIToken():
-    
     def printer(response):
         print(response)
 
@@ -31,7 +30,7 @@ def getDocusignAPIToken():
             base_path=base_path, access_token=access_token
         )
         authApi = AuthenticationApi(api_client)
-        loginInfo = authApi.login(callback=printer)
+        # loginInfo = authApi.login(callback=printer)
         # print(loginInfo)
 
     global processType

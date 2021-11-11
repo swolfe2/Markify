@@ -1,6 +1,6 @@
 USE [USCTTDEV]
 GO
-/****** Object:  StoredProcedure [dbo].[sp_OperationalMetrics]    Script Date: 9/10/2021 11:58:08 AM ******/
+/****** Object:  StoredProcedure [dbo].[sp_OperationalMetrics]    Script Date: 11/4/2021 5:51:43 PM ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -9,8 +9,9 @@ GO
 -- =============================================
 -- Author:		<Steve Wolfe, steve.wolfe@kcc.com, Central Transportation Team>
 -- Create date: <9/6/2019>
--- Last modified: <8/20/2021>
+-- Last modified: <9/16/2021>
 -- Description:	<Executes Tim Zoppa's query against Oracle, loads to temp table, then appends/updates dbo.tblOperationalMetrics>
+-- 9/16/2021 - SW - Add END_DTT from LOAD_LEG_R to recorded data per Jeff Perrot
 -- 8/30/2021 - SW - Update SHIP_DATE to only include load_leg_r.SHPD_DTT value, or null when not there
 -- 8/20/2021 - SW - Update to include COMPLETION_DATE_TIME Per Jeff Perrot, wanting to measure when the loads are actually picked up. Also added PICKUP_TIME  using logic from him.
 -- 4/27/2021 - SW - Update to include the first pickup appointment from/to times for Tableau Reporting
@@ -1659,7 +1660,8 @@ SELECT
 	lar.corp1_id,
 	CASE WHEN LLR.RFRC_NUM16 IS NOT NULL THEN 1 ELSE 0 END AS TM_AUCT_CNT,
 	llr.crtd_dtt AS CREATE_DTT,
-	llr.strd_dtt AS START_DTT
+	llr.strd_dtt AS START_DTT,
+	llr.end_dtt AS END_DTT
 FROM
     najdaadm.load_leg_r               llr
     JOIN najdaadm.load_at_r                lar ON llr.frst_shpg_loc_cd = lar.shpg_loc_cd
@@ -1894,7 +1896,8 @@ GROUP BY
 	lar.corp1_id,
 	CASE WHEN LLR.RFRC_NUM16 IS NOT NULL THEN 1 ELSE 0 END,
 	llr.crtd_dtt,
-	llr.strd_dtt
+	llr.strd_dtt,
+	llr.end_dtt
     ) 
 '
 
@@ -1970,7 +1973,8 @@ Create Temp table
         CORP1_ID                      NVARCHAR(20),
         TM_AUCT_CNT                   INT,
         CREATE_DTT                    DATETIME,
-        START_DTT                     DATETIME
+        START_DTT                     DATETIME,
+        END_DTT                       DATETIME
     )
 
     /*
@@ -2051,7 +2055,8 @@ Create Temp table
         CORP1_ID,
         TM_AUCT_CNT,
         CREATE_DTT,
-        START_DTT)
+        START_DTT,
+        END_DTT)
     SELECT
         OMT.LD_LEG_ID,
         OMT.SALES_ORG,
@@ -2120,7 +2125,8 @@ Create Temp table
         OMT.CORP1_ID,
         OMT.TM_AUCT_CNT,
         OMT.CREATE_DTT,
-        OMT.START_DTT
+        OMT.START_DTT,
+        OMT.END_DTT
     FROM
         ##TBLOPERATIONALMETRICSTEMP AS OMT
         LEFT JOIN USCTTDEV.DBO.TBLOPERATIONALMETRICS OM
@@ -2207,7 +2213,8 @@ OM.CARR_ARRIVED_AT_DATETIME = OMT.CARR_ARRIVED_AT_DATETIME,
 OM.CORP1_ID = OMT.CORP1_ID,
 OM.TM_AUCT_CNT = OMT.TM_AUCT_CNT,
 OM.CREATE_DTT = OMT.CREATE_DTT,
-OM.START_DTT = OMT.START_DTT
+OM.START_DTT = OMT.START_DTT,
+OM.END_DTT = OMT.END_DTT
 FROM
         USCTTDEV.DBO.TBLOPERATIONALMETRICS AS OM
         INNER JOIN ##TBLOPERATIONALMETRICSTEMP AS OMT

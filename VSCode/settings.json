@@ -1,0 +1,103 @@
+{
+    "python.jediEnabled": false,
+    "terminal.integrated.shell.windows": "C:\\WINDOWS\\System32\\cmd.exe",
+    "mssql.connections": [
+        {
+            "server": "USTCAS98",
+            "database": "USCTTDEV",
+            "authenticationType": "Integrated",
+            "profileName": "USCTTDEV",
+            "password": ""
+        }
+    ],
+    "mssql.format.keywordCasing": "uppercase",
+    "mssql.format.placeSelectStatementReferencesOnNewLine": true,
+    "mssql.format.datatypeCasing": "uppercase",
+    "mssql.format.alignColumnDefinitionsInColumns": true,
+    "files.associations": {
+        "*.sql": "sql"
+    },
+    "python.testing.debugPort": 8888,
+    "python.testing.pytestEnabled": true,
+    "kite.showWelcomeNotificationOnStartup": false,
+    "workbench.iconTheme": "material-icon-theme",
+    "git.enableSmartCommit": true,
+    "git.autofetch": true,
+    "editor.largeFileOptimizations": false,
+    "python.languageServer": "Pylance",
+    "workbench.colorCustomizations": {},
+    "workbench.colorTheme": "Material Theme Darker High Contrast",
+    "oracledevtools.connectionConfiguration.configFilesFolder": "C:\\Users\\U15405\\Oracle\\network\\admin",
+    "oracledevtools.bookmarkFileFolder": "C:\\Users\\U15405\\Oracle\\oracle.oracledevtools",
+    "oracledevtools.connectionConfiguration.walletFileFolder": "C:\\Users\\U15405\\Oracle\\network\\admin",
+    "oracledevtools.connections": [
+        {
+            "authenticationType": 2,
+            "connectionType": 2,
+            "dBAPrivilege": "None",
+            "dataSource": "USTCL120:1522/NAJDAPRD",
+            "databaseHostName": "USTCL120",
+            "databasePortNumber": "1522",
+            "databaseServiceName": "NAJDAPRD",
+            "name": "JDA_REPORTING.NAJDAPRD",
+            "password": "BuildRept4User",
+            "passwordEmptyByUser": false,
+            "passwordSaved": true,
+            "userID": "JDA_REPORTING",
+            "tnsAdmin": "C:\\Users\\U15405\\Oracle\\network\\admin"
+        },
+        {
+            "authenticationType": 2,
+            "connectionType": 2,
+            "dBAPrivilege": "None",
+            "dataSource": "USTWL207:1522/NAJDAQAX",
+            "databaseHostName": "USTWL207",
+            "databasePortNumber": "1522",
+            "databaseServiceName": "NAJDAQAX",
+            "name": "JDA_REPORTING.NAJDAQAX",
+            "password": "BuildRept4User",
+            "passwordEmptyByUser": false,
+            "passwordSaved": true,
+            "userID": "JDA_REPORTING",
+            "tnsAdmin": "C:\\Users\\U15405\\Oracle\\network\\admin"
+        },
+        {
+            "authenticationType": 2,
+            "connectionType": 2,
+            "dBAPrivilege": "None",
+            "dataSource": "USTCL073:1522/NAJDABAP",
+            "databaseHostName": "USTCL073",
+            "databasePortNumber": "1522",
+            "databaseServiceName": "NAJDABAP",
+            "name": "JDA_REPORTING.NAJDABAP",
+            "password": "BuildRept4User",
+            "passwordEmptyByUser": false,
+            "passwordSaved": true,
+            "userID": "JDA_REPORTING",
+            "tnsAdmin": "C:\\Users\\U15405\\Oracle\\network\\admin"
+        }
+    ],
+    "jupyter.changeDirOnImportExport": false,
+    "notebook.output.textLineLimit": 0,
+    "workbench.editorAssociations": {
+        "*.ipynb": "jupyter-notebook"
+    },
+    "jupyter.interactiveWindowMode": "perFile",
+    "notebook.cellToolbarLocation": {
+        "default": "right",
+        "jupyter-notebook": "left"
+    },
+
+    "editor.formatOnSave": false,
+    
+    "python.formatting.provider": "black",
+    "[python]": {
+        "editor.formatOnSave": true
+    },
+    
+    "git.confirmSync": false,
+    "jupyter.askForKernelRestart": false,
+    "security.workspace.trust.untrustedFiles": "open",
+    "oracledevtools.download.otherFolder": "C:\\Users\\U15405\\downloads",
+    "window.zoomLevel": -1
+}
