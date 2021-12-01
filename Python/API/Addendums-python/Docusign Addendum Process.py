@@ -243,7 +243,7 @@ def addendums_not_moved():
     that something's wrong. All files should have been moved
     to the CARRIER's Addendums-Sent folder"""
     print(
-        "Looking through Addendums-Pending folder. There should be NO files in here at all."
+        "Looking through Addendums-Pending folder. There should be NO files in here at all. "
         "If there are any, going to send an email."
     )
 
