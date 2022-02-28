@@ -28,18 +28,12 @@ def global_variables():
     # Set starting directory
     global PENDING_DIR
     PENDING_DIR = (
-        "C:\\Users\\"
-        + CURRENT_USER_ID
-        + "\\Kimberly-Clark\\Rates and Pricing - Agreements\\Addendums-Pending\\"
+        "\\\\IN00AAP024\\Contract Data\\Production\\Addendums\\Addendums-Pending\\"
     )
 
     # Set finished directory
     global SENT_DIR
-    SENT_DIR = (
-        "C:\\Users\\"
-        + CURRENT_USER_ID
-        + "\\Kimberly-Clark\\Rates and Pricing - Agreements\\Addendums-Sent\\"
-    )
+    SENT_DIR = "\\\\IN00AAP024\\Contract Data\\Production\\Addendums\\Addendums-Sent\\"
 
     # Set the run type of the script
     global PROCESS_TYPE
@@ -103,6 +97,7 @@ def convert_xlsx_to_pdf():
 
         # Parse carier
         carrier_name = filename[0:marker_a]
+
         if os.path.isfile(
             PENDING_DIR.replace(
                 "Addendums-Pending",
@@ -143,9 +138,19 @@ def convert_xlsx_to_pdf():
                     + ".xlsx"
                 )
 
+    global FILE_COUNT
+    FILE_COUNT = 0
+    for filename in os.listdir(PENDING_DIR):
+        if (
+            filename.endswith(".xlsx")
+            and "TEST" not in filename
+            and filename[:2] != "~$"
+        ):
+            FILE_COUNT += 1
+
     # Loop through all addendum files, and convert them to .pdf
     for filename in os.listdir(PENDING_DIR):
-        if filename.endswith(".xlsx"):
+        if filename.endswith(".xlsx") and filename[:2] != "~$":
             filepath = PENDING_DIR + filename
             pdfpath = filepath.replace(".xlsx", ".pdf")
             if not os.path.isfile(pdfpath):
@@ -163,21 +168,11 @@ def convert_xlsx_to_pdf():
                 # Close workbook once complete
                 sheets.Close(False)
 
-    global FILE_COUNT
-    FILE_COUNT = 0
-    for filename in os.listdir(PENDING_DIR):
-        if filename.endswith(".pdf") and "TEST" not in filename:
-            FILE_COUNT += 1
-
 
 # Get Docusign Emails from Sharepoint file
 def get_sharepoint_emails():
-    """This gets"""
-    sharepoint_file = (
-        "C:\\Users\\"
-        + CURRENT_USER_ID
-        + "\\Kimberly-Clark\\Contracts & Pricing - Shared Documents\\Docusign Emails.xlsx"
-    )
+    """This gets all Emails from central Sharepoint file"""
+    sharepoint_file = "\\\\IN00AAP024\\Contract Data\\Production\\Automation\\Carrier Rate Change Import Process.xlsm"
     xl = pd.ExcelFile(sharepoint_file)
     df = xl.parse("Docusign Emails")
     global SHAREPOINT_EMAILS
