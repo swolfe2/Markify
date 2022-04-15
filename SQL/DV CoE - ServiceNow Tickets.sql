@@ -47,7 +47,28 @@ SELECT
   req.sys_updated_on, 
   CAST(req.sys_updated_on AS DATE) AS "Updated Date",
   CASE WHEN task.closed_at IS NOT NULL THEN task.closed_at ELSE req.closed_at END AS closed_at,
-  CAST(CASE WHEN task.closed_at IS NOT NULL THEN task.closed_at ELSE req.closed_at END AS DATE) AS "Closed Date"
+  CAST(CASE WHEN task.closed_at IS NOT NULL THEN task.closed_at ELSE req.closed_at END AS DATE) AS "Closed Date",
+  task.close_notes AS "Close Notes",
+  CASE WHEN task.close_notes LIKE '%{%' AND task.close_notes LIKE '%}%' THEN 
+  UPPER(
+	REPLACE(
+		REPLACE(	
+			REPLACE(
+				SUBSTRING(
+					task.close_notes, 
+					CHARINDEX('{', task.close_notes) + 1, 
+					LEN(task.close_notes) - CHARINDEX('{', task.close_notes) - CHARINDEX('}', REVERSE(task.close_notes))
+				),
+			'  ', ' '),
+		'| ', '|'),
+	' |','|')
+	)
+	ELSE
+		NULL
+	END AS Categories
+
+
+
 FROM 
   SNOWMIRROR.dbo.sc_req_item req 
   INNER JOIN (
@@ -116,3 +137,5 @@ WHERE
     GETDATE()
   ) -1
   /*AND task.task_effective_number = 'TASK0545566'*/
+  /*AND task.close_notes LIKE '%{%'*/
+  /*ORDER BY task.sys_updated_on DESC*/
