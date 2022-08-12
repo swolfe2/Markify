@@ -48,7 +48,10 @@ SELECT
   CAST(req.sys_updated_on AS DATE) AS "Updated Date",
   CASE WHEN task.closed_at IS NOT NULL THEN task.closed_at ELSE req.closed_at END AS closed_at,
   CAST(CASE WHEN task.closed_at IS NOT NULL THEN task.closed_at ELSE req.closed_at END AS DATE) AS "Closed Date",
-  task.close_notes AS "Close Notes",
+  task.close_notes AS "Close Notes"
+  /*
+  Commented out, will attempt text splitting in Power BI rather than T-SQL
+  ,
   CASE WHEN task.close_notes LIKE '%{%' AND task.close_notes LIKE '%}%' THEN 
   UPPER(
 	REPLACE(
@@ -65,7 +68,7 @@ SELECT
 	)
 	ELSE
 		NULL
-	END AS Categories
+	END AS Categories*/
 
 
 
