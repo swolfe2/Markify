@@ -18,6 +18,6 @@
     ],
     "python.testing.promptToConfigure": false,
     "jupyter.jupyterServerType": "local",
-    "python.linting.flake8Enabled": true,
+    "python.linting.flake8Enabled": false,
     "python.linting.enabled": true,
 }
