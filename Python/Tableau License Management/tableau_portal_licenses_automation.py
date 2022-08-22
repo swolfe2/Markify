@@ -176,6 +176,43 @@ def main():
         print("Closing Chrome browser window")
         page.close()
 
+    def scrape_table_paginate(page) -> list:
+        """Scrape the page for table data.
+
+        Args:
+            current_page: page object Playwright
+
+        Returns:
+            list of dictionaries containing license data
+        """
+
+        licenses = []
+
+        contents = page.content()
+        soup = BeautifulSoup(contents, "html.parser")
+
+        # site uses DataTables, with scrolling, default behavior creates two tables for header and body, here we find
+        # TDs since each has the same id as contained in the corresponding th
+        s_table = soup.find(
+            "table", {"id": re.compile("^tbl_Customer_Asset__c")}, "tbody"
+        )
+        s_rows = s_table.find_all("tr")
+
+        # process each row extracting all tds
+        for s_row in s_rows:
+            row_items = s_row.find_all("td")
+            if row_items:
+
+                # add item if id is present for dictionary, 'error' should not appear in results
+                row_data = {
+                    item.get("id", "error"): item.text
+                    for item in row_items
+                    if item.has_attr("id")
+                }
+                licenses.append(row_data)
+
+        return licenses
+
     def push_to_mssql(df):
         def clean_dataframe(df):
             # Change entire dataframe to object, because holy shit... why are the data types so damn difficult!
@@ -352,6 +389,15 @@ def main():
         try:
             print("Attempting to copy data table to memory")
             scrape_table(page)
+        except Exception as e_m:
+            send_email(str(e_m), "steve.wolfe@kcc.com", "", "scrape_table")
+            page.close()
+            sys.exit()
+
+            # Scrape the all license table
+        try:
+            print("Attempting to copy data table to memory")
+            scrape_table_paginate(page)
         except Exception as e_m:
             send_email(str(e_m), "steve.wolfe@kcc.com", "", "scrape_table")
             page.close()
