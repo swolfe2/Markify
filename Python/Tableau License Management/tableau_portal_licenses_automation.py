@@ -86,6 +86,9 @@ def main():
             + """</b></span> step at """
             + datetime.now().strftime("%m/%d/%Y %H:%M")
             + """.</p>
+        <p>The error message received by the program is:<br><i>"""
+            + error_message
+            + """</i>
         <p>Please perform a manual review, and correct any issues that may have occurred.</p>
         <p>Thank you,</p>"""
         )
@@ -176,40 +179,58 @@ def main():
         print("Closing Chrome browser window")
         page.close()
 
-    def scrape_table_paginate(page) -> list:
-        """Scrape the page for table data.
+    def scrape_table_paginate(page):
 
-        Args:
-            current_page: page object Playwright
-
-        Returns:
-            list of dictionaries containing license data
         """
-
+        Press the Export Data button and copy values to memory
+        Use pandas read_clipboard by tab deliminated
+        Check dataframe length values
+        """
         licenses = []
+        global DF_LICENSES_DOS
+        df_rows, df_columns = 0, 0
+        counter_value = 0
+        max_loops = 3
 
-        contents = page.content()
-        soup = BeautifulSoup(contents, "html.parser")
+        selector = "name=tbl_Customer_Asset__c_length"
+        page.wait_for_selector(selector)
 
-        # site uses DataTables, with scrolling, default behavior creates two tables for header and body, here we find
-        # TDs since each has the same id as contained in the corresponding th
-        s_table = soup.find(
-            "table", {"id": re.compile("^tbl_Customer_Asset__c")}, "tbody"
+        current_value = page.locator(selector).evaluate(
+            "sel => sel.options[sel.options.selectedIndex].textContent"
         )
-        s_rows = s_table.find_all("tr")
+        required_value = "500"
+        while current_value != required_value:
+            page.locator(selector).select_option(label=required_value)
+            page.wait_for_selector("div.tbl_Customer_Asset__c_paginate")
 
-        # process each row extracting all tds
-        for s_row in s_rows:
-            row_items = s_row.find_all("td")
-            if row_items:
+        while df_rows < 100 or df_columns < 10:
+            page.reload()
+            page.wait_for_selector("div.dt-buttons")
+            page.locator('"Export Data"').click()
+            page.wait_for_selector("div.dt-button-collection")
+            page.locator('"Copy"').click()
 
-                # add item if id is present for dictionary, 'error' should not appear in results
-                row_data = {
-                    item.get("id", "error"): item.text
-                    for item in row_items
-                    if item.has_attr("id")
-                }
-                licenses.append(row_data)
+            print("Data table copy attempt " + str(counter_value + 1))
+            DF_LICENSES_DOS = pd.read_clipboard(sep="\\t+")
+            DF_LICENSES_DOS.fillna("", inplace=True)
+            df_rows, df_columns = DF_LICENSES_DOS.shape
+            counter_value += 1
+            if counter_value == max_loops:
+                # If still not selected and > max_loops, send email and quit
+                send_email(
+                    "Could not copy to dataframe",
+                    "Steve.Wolfe@kcc.com",
+                    "",
+                    "scrape_table",
+                )
+                page.close()
+                sys.exit()
+
+        print("Dataframe rows/columns: " + str(df_rows) + "/" + str(df_columns))
+        print(DF_LICENSES_DOS)
+
+        print("Closing Chrome browser window")
+        page.close()
 
         return licenses
 
@@ -385,16 +406,16 @@ def main():
             page.close()
             sys.exit()
 
-        # Scrape the all license table
-        try:
-            print("Attempting to copy data table to memory")
-            scrape_table(page)
-        except Exception as e_m:
-            send_email(str(e_m), "steve.wolfe@kcc.com", "", "scrape_table")
-            page.close()
-            sys.exit()
+        # # Scrape the all license table
+        # try:
+        #     print("Attempting to copy data table to memory")
+        #     scrape_table(page)
+        # except Exception as e_m:
+        #     send_email(str(e_m), "steve.wolfe@kcc.com", "", "scrape_table")
+        #     page.close()
+        #     sys.exit()
 
-            # Scrape the all license table
+        # Scrape the all license table
         try:
             print("Attempting to copy data table to memory")
             scrape_table_paginate(page)
