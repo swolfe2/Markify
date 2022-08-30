@@ -25,18 +25,18 @@ Process steps overview:
 
 """
 
-import os
+# import os
 import sys
 from datetime import datetime
-from urllib.parse import quote_plus
 
 import pandas as pd
-import sqlalchemy
-import win32com.client as win32
 from playwright.sync_api import sync_playwright
-from turbodbc import connect, make_options
 
-from config import CRED_PW, CRED_UN
+import mssql_database  # module in folder
+from config import CRED_PW, CRED_UN  # module in folder
+from send_email import send_email  # module in folder
+
+# from urllib.parse import quote_plus
 
 
 def main():
@@ -50,57 +50,6 @@ def main():
     mode = "Production"
     # Comment out below for production
     mode = "Testing"
-
-    def send_email(error_message, to_address, cc_address, process_step):
-        """
-        This subprocess will allow an email message to be sent,
-        which will typically only be used for when something goes
-        wrong in the process. It will always originate from the same source.
-
-        Server name: smtp.office365.com
-        Port: 587
-        Encryption method: STARTTLS
-        """
-
-        def kill_outlook():
-            """
-            This subprocess will kill the Outlook applicaiton if currently open
-            """
-            win_management = win32.GetObject("winmgmts:")
-            for process in win_management.ExecQuery(
-                'select * from Win32_Process where Name="Outlook.exe"'
-            ):
-                # os.system("taskkill /pid /F /IM " + str(p.ProcessId))
-                os.kill(process.ProcessId, 9)
-
-        # Kill Outlook if it is currently open
-        kill_outlook()
-
-        # HTML email details
-        html_body = (
-            """
-        Hello,
-        <p>During today's run of the Python automation for Tableau Licesnses, the automation
-        failed at the <span style="background-color: #FFFF00"><b>"""
-            + process_step
-            + """</b></span> step at """
-            + datetime.now().strftime("%m/%d/%Y %H:%M")
-            + """.</p>
-        <p>The error message received by the program is:<br><i>"""
-            + error_message
-            + """</i>
-        <p>Please perform a manual review, and correct any issues that may have occurred.</p>
-        <p>Thank you,</p>"""
-        )
-
-        outlook_mail_item = 0x0
-        obj = win32.Dispatch("Outlook.Application")
-        new_mail = obj.CreateItem(outlook_mail_item)
-        new_mail.Subject = "Tableau License Automation Failure: " + error_message
-        new_mail.HTMLBody = html_body
-        new_mail.To = to_address
-        new_mail.Cc = cc_address
-        new_mail.Send()
 
     def select_all_licenses_report(page, div, selector):
         """
@@ -235,96 +184,10 @@ def main():
         return licenses
 
     def push_to_mssql(df):
-        def clean_dataframe(df):
-            # Change entire dataframe to object, because holy shit... why are the data types so damn difficult!
-            lst = list(df)
-            df[lst] = df[lst].astype(str)
-            return df
-
-        def sqlcol(df):
-            dtypedict = {}
-            for i, j in zip(df.columns, df.dtypes):
-                if "object" in str(j):
-                    dtypedict.update({i: "NVARCHAR(2000)"})
-
-                elif "datetime" in str(j):
-                    dtypedict.update({i: sqlalchemy.types.NVARCHAR(length=2000)})
-
-                elif "float" in str(j):
-                    dtypedict.update({i: sqlalchemy.types.NVARCHAR(length=2000)})
-
-                elif "int" in str(j):
-                    dtypedict.update({i: sqlalchemy.types.NVARCHAR(length=2000)})
-
-            return dtypedict
-
-        def create_temp_table(df, conn, db, temp_table, outputdict):
-            print("Creating temp table")
-            # This temp table contains the individual dataframe data
-            print(df.head())
-            # Ensure there is no temp table already on the temp database
-            with conn.cursor() as cursor:
-                cursor.execute(f"DROP TABLE IF EXISTS {temp_table}")
-                conn.commit()
-
-            # Create temp table, with default datatypes and standard headers
-            temp_sql_create = "CREATE TABLE " + temp_table + "("
-            for key, value in outputdict.items():
-                temp_sql_create += "[" + key + "] " + value + ", "
-            temp_sql_create += ")"
-            with conn.cursor() as cursor:
-                cursor.execute(temp_sql_create)
-                conn.commit()
-
-            # get the array of values
-            values = [df[col].values for col in df.columns]
-
-            # preparing columns
-            columns = "(["
-            columns += "], [".join(df.columns)
-            columns += "])"
-
-            # preparing value place holders
-            val_place_holder = ["?" for col in df.columns]
-            sql_val = "("
-            sql_val += ", ".join(val_place_holder)
-            sql_val += ")"
-
-            # writing sql query for turbodbc
-            sql = f"""
-            INSERT INTO {db}.{temp_table} {columns}
-            VALUES {sql_val}
-            """
-
-            # inserts data, for real
-            with conn.cursor() as cursor:
-                try:
-                    cursor.executemanycolumns(sql, values)
-                    conn.commit()
-                except Exception as e:
-                    conn.rollback()
-                    print("Failed to upload: " + str(e))
 
         server = "USTCAS24"
         db = "TableauLicenses"
         temp_table = "##tblTableauLicensesTemp"
-        temp_db_conn = connect(
-            driver="ODBC Driver 17 for SQL Server",
-            server=server,
-            database=db,
-            trusted_connection="YES",
-            encrypt="YES",
-            trustservercertificate="YES",
-        )
-
-        db_conn = connect(
-            driver="ODBC Driver 17 for SQL Server",
-            server=server,
-            database=db,
-            trusted_connection="YES",
-            encrypt="YES",
-            trustservercertificate="YES",
-        )
 
         # Get dataframe size
         count_row, count_col = (
@@ -346,14 +209,18 @@ def main():
                 df[col].fillna("", inplace=True)
 
         print("Creating temp table")
+
         # Create dictionary of columns and data types
-        outputdict = sqlcol(df)
+        outputdict = mssql_database.sqlcol(df)
 
         # Clean dataframe values up
-        clean_dataframe(df)
+        mssql_database.clean_dataframe(df)
+
+        # Connect to MSSQL database
+        conn = mssql_database.connect_to_database(server, db)
 
         # Create a temp table, and push values to it from dataframe
-        create_temp_table(df, temp_db_conn, db, temp_table, outputdict)
+        mssql_database.create_temp_table(df, db, conn, temp_table, outputdict)
 
         # Get End Time
         end_time = datetime.now()
@@ -406,23 +273,23 @@ def main():
             page.close()
             sys.exit()
 
-        # # Scrape the all license table
-        # try:
-        #     print("Attempting to copy data table to memory")
-        #     scrape_table(page)
-        # except Exception as e_m:
-        #     send_email(str(e_m), "steve.wolfe@kcc.com", "", "scrape_table")
-        #     page.close()
-        #     sys.exit()
-
         # Scrape the all license table
         try:
             print("Attempting to copy data table to memory")
-            scrape_table_paginate(page)
+            scrape_table(page)
         except Exception as e_m:
             send_email(str(e_m), "steve.wolfe@kcc.com", "", "scrape_table")
             page.close()
             sys.exit()
+
+        # # Scrape the all license table
+        # try:
+        #     print("Attempting to copy data table to memory")
+        #     scrape_table_paginate(page)
+        # except Exception as e_m:
+        #     send_email(str(e_m), "steve.wolfe@kcc.com", "", "scrape_table")
+        #     page.close()
+        #     sys.exit()
 
         # push to MSSQL
         push_to_mssql(DF_LICENSES)
