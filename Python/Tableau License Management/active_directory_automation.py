@@ -85,7 +85,7 @@ def create_dataframe():
     time_difference_days = int(divmod(time_difference.total_seconds(), 86400)[0])
 
     # If it has been more than max_days days since the file was modified, send email and stop process
-    max_days = 365
+    max_days = 3
     if time_difference_days > max_days:
         send_email(
             "It has been "
@@ -95,7 +95,7 @@ def create_dataframe():
             + " file was modified, which is more than the "
             + str(max_days)
             + " day limit allowed by the Tableau automation. Please ensure file is processing correctly.",
-            "steve.wolfe@kcc.com",
+            "steve.wolfe@kcc.com; ankit.kesharwani@kcc.com; mario.sarmiento@kcc.com",
             "",
             "Active Directory Automation - Flat File Modified Failure",
         )
