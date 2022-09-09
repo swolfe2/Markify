@@ -1,0 +1,8 @@
+clr==1.0.3
+Microsoft==0.1.2
+numpy==1.23.0
+pandas==1.4.3
+playwright==1.24.1
+pywin32==304
+SQLAlchemy==1.4.40
+turbodbc==4.5.5
