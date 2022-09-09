@@ -44,6 +44,12 @@ def push_to_mssql(df, conn):
     # Create a temp table, and push values to it from dataframe
     mssql_database.create_temp_table(df, conn, temp_table, outputdict)
 
+    # Clean the temp table by values
+    mssql_database.clean_temp_table(df, conn, temp_table)
+
+    # Execute Stored Procedure
+    mssql_database.run_stored_procedure(conn, "dbo.sp_ActiveDirectoryAutomation")
+
     # Get End Time
     end_time = datetime.now()
     total_seconds = (end_time - start_time).total_seconds()
