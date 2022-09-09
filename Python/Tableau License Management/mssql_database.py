@@ -4,6 +4,8 @@ import pandas as pd
 import sqlalchemy
 from turbodbc import connect, make_options
 
+from config import DB_NAME, MSSQL_SERVER  # module in folder
+
 
 def clean_dataframe(df):
     """
@@ -36,14 +38,14 @@ def sqlcol(df):
     return dtypedict
 
 
-def connect_to_database(server, db):
+def connect_to_database():
     """
     This will open a connection to a MSSQL database
     """
     conn = connect(
         driver="ODBC Driver 17 for SQL Server",
-        server=server,
-        database=db,
+        server=MSSQL_SERVER,
+        database=DB_NAME,
         trusted_connection="YES",
         encrypt="YES",
         trustservercertificate="YES",
@@ -51,7 +53,7 @@ def connect_to_database(server, db):
     return conn
 
 
-def create_temp_table(df, db, conn, temp_table, outputdict):
+def create_temp_table(df, conn, temp_table, outputdict):
     """
     This will create a temp table from a dataframe with connection to MSSQL
     """
@@ -89,7 +91,7 @@ def create_temp_table(df, db, conn, temp_table, outputdict):
 
     # writing sql query for turbodbc
     sql = f"""
-    INSERT INTO {db}.{temp_table} {columns}
+    INSERT INTO {DB_NAME}.{temp_table} {columns}
     VALUES {sql_val}
     """
 
@@ -101,3 +103,49 @@ def create_temp_table(df, db, conn, temp_table, outputdict):
         except Exception as e:
             conn.rollback()
             print("Failed to upload: " + str(e))
+
+
+def clean_temp_table(df, conn, temp_table):
+    """This will loop through all columns in the temp table, and update to null where they are certain values"""
+    for col in df.columns:
+
+        sqlCleanString = (
+            "UPDATE "
+            + temp_table
+            + " SET ["
+            + col
+            + "] = NULL WHERE ["
+            + col
+            + "] IN ('0', '0.0', 'nan', '1900-01-01', '')"
+        )
+        # cleans the previous head insert
+        with conn.cursor() as cursor:
+            cursor.execute(str(sqlCleanString))
+            conn.commit()
+        
+        """
+        if "Date" in col:
+            sqlCleanString = (
+                "UPDATE "
+                + temp_table
+                + " SET ["
+                + col
+                + "] = CONVERT(NVARCHAR(10), CONVERT(DATE, REPLACE(["
+                + col
+                + "],'.0',''), 103), 101)"
+            )
+            # cleans the previous head insert
+            with conn.cursor() as cursor:
+                cursor.execute(str(sqlCleanString))
+                conn.commit()
+        """
+
+
+# Runs stored procedure on MSSQL server to append new data to main table, and update existing rows
+def run_stored_procedure(conn, stored_procedure):
+    """This will run a specific MSSQL Stored Procedure"""
+    sqlSPString = "EXEC " + stored_procedure
+    # cleans the previous head insert
+    with conn.cursor() as cursor:
+        cursor.execute(str(sqlSPString))
+        conn.commit()

@@ -33,12 +33,12 @@ def send_email(error_message, to_address, cc_address, process_step):
     html_body = (
         """
         Hello,
-        <p>During today's run of the Python automation for Tableau Licesnses, the automation
+        <p>During today's run of the Python automation for Tableau Licenses, the automation
         failed at the <span style="background-color: #FFFF00"><b>"""
         + process_step
         + """</b></span> step at """
         + datetime.now().strftime("%m/%d/%Y %H:%M")
-        + """.</p>
+        + """(EST).</p>
         <p>The error message received by the program is:<br><i>"""
         + error_message
         + """</i>
@@ -49,7 +49,7 @@ def send_email(error_message, to_address, cc_address, process_step):
     outlook_mail_item = 0x0
     obj = win32.Dispatch("Outlook.Application")
     new_mail = obj.CreateItem(outlook_mail_item)
-    new_mail.Subject = "Tableau License Automation Failure: " + error_message
+    new_mail.Subject = "Tableau License Automation Failure: " + process_step
     new_mail.HTMLBody = html_body
     new_mail.To = to_address
     new_mail.Cc = cc_address

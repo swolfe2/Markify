@@ -33,7 +33,7 @@ import pandas as pd
 from playwright.sync_api import sync_playwright
 
 import mssql_database  # module in folder
-from config import CRED_PW, CRED_UN  # module in folder
+from config import CRED_PW, CRED_UN, DB_NAME, MSSQL_SERVER  # module in folder
 from send_email import send_email  # module in folder
 
 # from urllib.parse import quote_plus
@@ -100,7 +100,7 @@ def main():
         counter_value = 0
         max_loops = 3
         while df_rows < 100 or df_columns < 10:
-            page.reload()
+            # page.reload()
             page.wait_for_selector("div.dt-buttons")
             page.locator('"Export Data"').click()
             page.wait_for_selector("div.dt-button-collection")
@@ -176,17 +176,14 @@ def main():
                 sys.exit()
 
         print("Dataframe rows/columns: " + str(df_rows) + "/" + str(df_columns))
-        print(DF_LICENSES_DOS)
 
         print("Closing Chrome browser window")
         page.close()
 
         return licenses
 
-    def push_to_mssql(df):
+    def push_to_mssql(df, conn):
 
-        server = "USTCAS24"
-        db = "TableauLicenses"
         temp_table = "##tblTableauLicensesTemp"
 
         # Get dataframe size
@@ -216,11 +213,14 @@ def main():
         # Clean dataframe values up
         mssql_database.clean_dataframe(df)
 
-        # Connect to MSSQL database
-        conn = mssql_database.connect_to_database(server, db)
-
         # Create a temp table, and push values to it from dataframe
-        mssql_database.create_temp_table(df, db, conn, temp_table, outputdict)
+        mssql_database.create_temp_table(df, conn, temp_table, outputdict)
+
+        # Clean the temp table by values
+        mssql_database.clean_temp_table(df, conn, temp_table)
+
+        # Execute Stored Procedure
+        mssql_database.run_stored_procedure(conn, "dbo.sp_TableauPortalAutomation")
 
         # Get End Time
         end_time = datetime.now()
@@ -291,10 +291,13 @@ def main():
         #     page.close()
         #     sys.exit()
 
-        # push to MSSQL
-        push_to_mssql(DF_LICENSES)
+        # Connect to MSSQL
+        conn = mssql_database.connect_to_database()
 
-        print("We in here!")
+        # push to MSSQL
+        push_to_mssql(DF_LICENSES, conn)
+
+        print("Process Complete!")
 
 
 if __name__ == "__main__":
