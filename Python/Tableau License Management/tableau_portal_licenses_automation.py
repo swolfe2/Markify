@@ -42,10 +42,11 @@ def main():
     """
     url = "https://customer-portal.tableau.com/s/my-keys"
 
+    # Disable mode runs due to the Playwright browser needing to always be visible
     # Defaults to produciton runs
-    mode = "Production"
+    # mode = "Production"
     # Comment out below for production
-    mode = "Testing"
+    # mode = "Testing"
 
     def select_all_licenses_report(page, div, selector):
         """
@@ -234,10 +235,13 @@ def main():
     with sync_playwright() as p:
 
         # initiate new browser session
-        if mode == "Production":
-            browser = p.chromium.launch()
-        else:
-            browser = p.chromium.launch(headless=False, slow_mo=200)
+        # if mode == "Production":
+        #    browser = p.chromium.launch()
+        # else:
+        #    browser = p.chromium.launch(headless=False, slow_mo=200)
+
+        # Launch visible browser
+        browser = p.chromium.launch(headless=False, slow_mo=200)
 
         print("Opening Chome browser window")
         page = browser.new_page()
