@@ -1,3 +1,24 @@
+"""
+This process was created by Steve Wolfe - Data Visualization CoE
+
+Ensure that you have successfully pip installed requirements.txt!
+
+Required packages needed to work:
+https://pypi.org/project/pandas/ - version 1.4.3
+https://pypi.org/project/pywin32/ - version 304
+https://pypi.org/project/turbodbc/ - version 4.5.5
+
+Process was developed using Python Version 3.10.5
+
+Last update: 9/9/2022
+
+Process steps overview:
+1. Create dataframe from flat file
+2. Push dataframe to MSSQL server
+3. Execute MSSQL stored procedure
+
+"""
+
 import os
 import sys
 from datetime import datetime

@@ -1,19 +1,18 @@
 """
 This process was created by Steve Wolfe - Data Visualization CoE
 
+Ensure that you have successfully pip installed requirements.txt!
+
 Required packages needed to work:
 https://pypi.org/project/pandas/ - version 1.4.3
 https://pypi.org/project/playwright/ - version 1.24.1
+-Ensure browsers are installed https://playwright.dev/python/docs/cli#install-browsers
 https://pypi.org/project/pywin32/ - version 304
 https://pypi.org/project/turbodbc/ - version 4.5.5
 
 Process was developed using Python Version 3.10.5
 
-Last update: 8/16/2022
-
-TODO: Scrape table into pandas Dataframe
-TODO: Write subprocess to append dataframe to MSSQL
-TODO: Write subprocess to execute stored procedure
+Last update: 9/9/2022
 
 Process steps overview:
 1. Open new Chrome browser window with Playwright library
@@ -25,7 +24,6 @@ Process steps overview:
 
 """
 
-# import os
 import sys
 from datetime import datetime
 
@@ -35,8 +33,6 @@ from playwright.sync_api import sync_playwright
 import mssql_database  # module in folder
 from config import CRED_PW, CRED_UN, DB_NAME, MSSQL_SERVER  # module in folder
 from send_email import send_email  # module in folder
-
-# from urllib.parse import quote_plus
 
 
 def main():
