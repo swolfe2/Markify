@@ -4,7 +4,7 @@ import pandas as pd
 import sqlalchemy
 from turbodbc import connect, make_options
 
-from config import DB_NAME, MSSQL_SERVER  # module in folder
+from utils.config import DB_NAME, MSSQL_SERVER  # module in folder
 
 
 def clean_dataframe(df):
@@ -122,7 +122,7 @@ def clean_temp_table(df, conn, temp_table):
         with conn.cursor() as cursor:
             cursor.execute(str(sqlCleanString))
             conn.commit()
-        
+
         """
         if "Date" in col:
             sqlCleanString = (

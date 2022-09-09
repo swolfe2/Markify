@@ -30,9 +30,14 @@ from datetime import datetime
 import pandas as pd
 from playwright.sync_api import sync_playwright
 
-import mssql_database  # module in folder
-from config import CRED_PW, CRED_UN, DB_NAME, MSSQL_SERVER  # module in folder
-from send_email import send_email  # module in folder
+import utils.mssql_database as mssql_database  # module in utils folder
+from utils.config import (
+    CRED_PW,
+    CRED_UN,
+    DB_NAME,  # module in utils folder
+    MSSQL_SERVER,
+)
+from utils.send_email import send_email  # module in utils folder
 
 
 def main():

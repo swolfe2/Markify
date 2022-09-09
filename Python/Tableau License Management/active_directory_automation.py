@@ -25,9 +25,9 @@ from datetime import datetime
 
 import pandas as pd
 
-import mssql_database  # module in folder
-from config import DB_NAME, MSSQL_SERVER  # module in folder
-from send_email import send_email  # module in folder
+import utils.mssql_database as mssql_database  # module in utils folder
+from utils.config import DB_NAME, MSSQL_SERVER  # module in utils folder
+from utils.send_email import send_email  # module in utils folder
 
 
 def push_to_mssql(df, conn):
