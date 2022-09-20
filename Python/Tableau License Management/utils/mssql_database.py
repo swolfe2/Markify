@@ -145,7 +145,6 @@ def clean_temp_table(df, conn, temp_table):
 def execute_stored_procedure(conn, stored_procedure):
     """This will execute a specific MSSQL Stored Procedure"""
     sqlSPString = "EXEC " + stored_procedure
-    # cleans the previous head insert
     with conn.cursor() as cursor:
         cursor.execute(str(sqlSPString))
         conn.commit()
@@ -170,3 +169,11 @@ def execute_query_to_dictonary(conn, query):
         data_dict = df.to_dict("index")
 
         return data_dict
+
+
+# Executes T-SQL query on MSSQL server
+def execute_query(conn, query):
+    """This will execute a specific MSSQL T-SQL query"""
+    with conn.cursor() as cursor:
+        cursor.execute(str(query))
+        conn.commit()
