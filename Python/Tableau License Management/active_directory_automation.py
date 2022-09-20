@@ -106,7 +106,7 @@ def create_dataframe():
     time_difference_days = int(divmod(time_difference.total_seconds(), 86400)[0])
 
     # If it has been more than max_days days since the file was modified, send email and stop process
-    max_days = 3
+    max_days = -3
     if time_difference_days > max_days:
         error_message = (
             """It has been """
@@ -127,6 +127,24 @@ def create_dataframe():
             to=to_addresses,
             process_step=process_step,
         )
+
+        # Connect to MSSQL server
+        conn = mssql_database.connect_to_database()
+
+        query = (
+            """INSERT INTO TableauLicenses.dbo.tblSentEmails(SentOn, EmailType, StoredProcedure, LicenseNumber, ToAddresses, CCaddresses, BCCAddresses, Subject, Message)
+        SELECT GETDATE(),'"""
+            + process_step
+            + """','','','"""
+            + str(to_addresses).replace("'", "''")
+            + """','','','Tableau License Automation Failure: """
+            + process_step
+            + """','"""
+            + error_message
+            + """'"""
+        )
+
+        mssql_database.execute_query(conn, query)
         sys.exit()
 
     # Create dataframe from file data

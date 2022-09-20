@@ -264,12 +264,29 @@ def main():
             print("Selecting 'All Licenses Report'")
             select_all_licenses_report(page, div, selector)
         except Exception as e_m:
+            process_step = "select_all_licenses_report"
+            error_message = str(e_m)
             send_error_email(
-                error_message=str(e_m),
+                error_message=error_message,
                 to="steve.wolfe@kcc.com",
-                process_step="select_all_licenses_report",
+                process_step=process_step,
             )
             page.close()
+
+            # Connect to MSSQL server
+            conn = mssql_database.connect_to_database()
+
+            query = (
+                """INSERT INTO TableauLicenses.dbo.tblSentEmails(SentOn, EmailType, StoredProcedure, LicenseNumber, ToAddresses, CCaddresses, BCCAddresses, Subject, Message)
+            SELECT GETDATE(),'"""
+                + process_step
+                + """','','','steve.wolfe@kcc.com','','','Tableau License Automation Failure: """
+                + process_step
+                + """','"""
+                + error_message
+                + """'"""
+            )
+            mssql_database.execute_query(conn, query)
             sys.exit()
 
         # Scrape the all license table
@@ -277,12 +294,29 @@ def main():
             print("Attempting to copy data table to memory")
             scrape_table(page)
         except Exception as e_m:
+            process_step = "select_all_licenses_report"
+            error_message = str(e_m)
             send_error_email(
-                error_message=str(e_m),
+                error_message=error_message,
                 to="steve.wolfe@kcc.com",
-                process_step="scrape_table",
+                process_step=process_step,
             )
             page.close()
+
+            # Connect to MSSQL server
+            conn = mssql_database.connect_to_database()
+
+            query = (
+                """INSERT INTO TableauLicenses.dbo.tblSentEmails(SentOn, EmailType, StoredProcedure, LicenseNumber, ToAddresses, CCaddresses, BCCAddresses, Subject, Message)
+            SELECT GETDATE(),'"""
+                + process_step
+                + """','','','steve.wolfe@kcc.com','','','Tableau License Automation Failure: """
+                + process_step
+                + """','"""
+                + error_message
+                + """'"""
+            )
+            mssql_database.execute_query(conn, query)
             sys.exit()
 
         # # Scrape the all license table
