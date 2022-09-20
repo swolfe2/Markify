@@ -5,7 +5,7 @@ start /min "" "C:\Program Files\Python310\Python.exe" "C:\Users\%username%\Deskt
 if %ERRORLEVEL% neq 0 goto ProcessError-Python
 
 :ProcessError-Python
-Running Python Program -OneDrive
+ECHO Running Python Program -OneDrive
 start /min "" "C:\Program Files\Python310\Python.exe" "C:\Users\%username%\OneDrive - Kimberly-Clark\Desktop\Code\Python\Stay Awake\Stay Awake Forever.py"
 
 ECHO Regular version did not work, had to use OneDrive
