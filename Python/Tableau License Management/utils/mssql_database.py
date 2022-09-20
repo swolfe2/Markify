@@ -141,11 +141,32 @@ def clean_temp_table(df, conn, temp_table):
         """
 
 
-# Runs stored procedure on MSSQL server to append new data to main table, and update existing rows
-def run_stored_procedure(conn, stored_procedure):
-    """This will run a specific MSSQL Stored Procedure"""
+# Executes stored procedure on MSSQL server to append new data to main table, and update existing rows
+def execute_stored_procedure(conn, stored_procedure):
+    """This will execute a specific MSSQL Stored Procedure"""
     sqlSPString = "EXEC " + stored_procedure
     # cleans the previous head insert
     with conn.cursor() as cursor:
         cursor.execute(str(sqlSPString))
         conn.commit()
+
+
+# Executes a query on MSSQL Server, and loads rows into dictionary
+def execute_query_to_dictonary(conn, query):
+    """This will execute a specific query, and load the results into a Pandas dataframe and dictionary"""
+    with conn.cursor() as cursor:
+        cursor.execute(str(query))
+
+        # Get all rows into list
+        data = cursor.fetchall()
+
+        # Get all columns into list
+        columns = [column[0] for column in cursor.description]
+
+        # Create a dataframe from rows and columns
+        df = pd.DataFrame(data=data, columns=columns)
+
+        # Create a dictionary from the dataframe for faster iterations
+        data_dict = df.to_dict("index")
+
+        return data_dict
