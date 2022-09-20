@@ -27,7 +27,7 @@ import pandas as pd
 
 import utils.mssql_database as mssql_database  # module in utils folder
 from utils.config import DB_NAME, MSSQL_SERVER  # module in utils folder
-from utils.send_email import send_email  # module in utils folder
+from utils.send_email import send_error_email  # module in utils folder
 
 
 def push_to_mssql(df, conn):
@@ -69,7 +69,7 @@ def push_to_mssql(df, conn):
     mssql_database.clean_temp_table(df, conn, temp_table)
 
     # Execute Stored Procedure
-    mssql_database.run_stored_procedure(conn, "dbo.sp_ActiveDirectoryAutomation")
+    mssql_database.execute_stored_procedure(conn, "dbo.sp_ActiveDirectoryAutomation")
 
     # Get End Time
     end_time = datetime.now()
@@ -108,17 +108,24 @@ def create_dataframe():
     # If it has been more than max_days days since the file was modified, send email and stop process
     max_days = 3
     if time_difference_days > max_days:
-        send_email(
-            "It has been "
+        error_message = (
+            """It has been """
             + str(time_difference_days)
-            + " days since the "
+            + """ days since the """
             + full_file_path
-            + " file was modified, which is more than the "
+            + """ file was modified, which is more than the """
             + str(max_days)
-            + " day limit allowed by the Tableau automation. Please ensure file is processing correctly.",
-            "steve.wolfe@kcc.com; ankit.kesharwani@kcc.com; mario.sarmiento@kcc.com",
-            "",
-            "Active Directory Automation - Flat File Modified Failure",
+            + """ day limit allowed by the Tableau automation. Please ensure file is processing correctly."""
+        )
+
+        to_addresses = (
+            "steve.wolfe@kcc.com; ankit.kesharwani@kcc.com; mario.sarmiento@kcc.com"
+        )
+        process_step = "Active Directory Automation - Flat File Modified Failure"
+        send_error_email(
+            error_message=error_message,
+            to=to_addresses,
+            process_step=process_step,
         )
         sys.exit()
 

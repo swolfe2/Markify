@@ -31,13 +31,8 @@ import pandas as pd
 from playwright.sync_api import sync_playwright
 
 import utils.mssql_database as mssql_database  # module in utils folder
-from utils.config import (
-    CRED_PW,
-    CRED_UN,
-    DB_NAME,  # module in utils folder
-    MSSQL_SERVER,
-)
-from utils.send_email import send_email  # module in utils folder
+from utils.config import CRED_PW, CRED_UN
+from utils.send_email import send_error_email  # module in utils folder
 
 
 def main():
@@ -82,11 +77,10 @@ def main():
                     page.wait_for_selector(div)
             else:
                 # If still not selected and > max_loops, send email and quit
-                send_email(
-                    "Could not select the All Licenses Report",
-                    "Steve.Wolfe@kcc.com",
-                    "",
-                    "select_all_licenses_report",
+                send_error_email(
+                    error_message="Could not select the All Licenses Report",
+                    to="Steve.Wolfe@kcc.com",
+                    process_step="select_all_licenses_report",
                 )
                 page.close()
                 sys.exit()
@@ -115,17 +109,16 @@ def main():
             counter_value += 1
             if counter_value == max_loops:
                 # If still not selected and > max_loops, send email and quit
-                send_email(
-                    "Could not copy to dataframe",
-                    "Steve.Wolfe@kcc.com",
-                    "",
-                    "scrape_table",
+                send_error_email(
+                    error_message="Could not copy to dataframe",
+                    to="Steve.Wolfe@kcc.com",
+                    process_step="scrape_table",
                 )
                 page.close()
                 sys.exit()
 
         print("Dataframe rows/columns: " + str(df_rows) + "/" + str(df_columns))
-        print(DF_LICENSES)
+        # print(DF_LICENSES)
 
         print("Closing Chrome browser window")
         page.close()
@@ -168,11 +161,10 @@ def main():
             counter_value += 1
             if counter_value == max_loops:
                 # If still not selected and > max_loops, send email and quit
-                send_email(
-                    "Could not copy to dataframe",
-                    "Steve.Wolfe@kcc.com",
-                    "",
-                    "scrape_table",
+                send_error_email(
+                    error_message="Could not copy to dataframe",
+                    to="Steve.Wolfe@kcc.com",
+                    process_step="scrape_table",
                 )
                 page.close()
                 sys.exit()
@@ -222,13 +214,13 @@ def main():
         mssql_database.clean_temp_table(df, conn, temp_table)
 
         # Execute Stored Procedure
-        mssql_database.run_stored_procedure(conn, "dbo.sp_TableauPortalAutomation")
+        mssql_database.execute_stored_procedure(conn, "dbo.sp_TableauPortalAutomation")
 
         # Get End Time
         end_time = datetime.now()
         total_seconds = (end_time - start_time).total_seconds()
         # stop = (time.time() - start).total_seconds()
-        return print(
+        print(
             " Rows:"
             + str(count_row)
             + " Columns: "
@@ -248,7 +240,7 @@ def main():
         # Launch visible browser
         browser = p.chromium.launch(headless=False, slow_mo=200)
 
-        print("Opening Chome browser window")
+        print("Opening Chrome browser window")
         page = browser.new_page()
         page.goto(url)
 
@@ -272,8 +264,10 @@ def main():
             print("Selecting 'All Licenses Report'")
             select_all_licenses_report(page, div, selector)
         except Exception as e_m:
-            send_email(
-                str(e_m), "steve.wolfe@kcc.com", "", "select_all_licenses_report"
+            send_error_email(
+                error_message=str(e_m),
+                to="steve.wolfe@kcc.com",
+                process_step="select_all_licenses_report",
             )
             page.close()
             sys.exit()
@@ -283,7 +277,11 @@ def main():
             print("Attempting to copy data table to memory")
             scrape_table(page)
         except Exception as e_m:
-            send_email(str(e_m), "steve.wolfe@kcc.com", "", "scrape_table")
+            send_error_email(
+                error_message=str(e_m),
+                to="steve.wolfe@kcc.com",
+                process_step="scrape_table",
+            )
             page.close()
             sys.exit()
 
@@ -292,7 +290,7 @@ def main():
         #     print("Attempting to copy data table to memory")
         #     scrape_table_paginate(page)
         # except Exception as e_m:
-        #     send_email(str(e_m), "steve.wolfe@kcc.com", "", "scrape_table")
+        #     send_error_email(str(e_m), "steve.wolfe@kcc.com", "", "scrape_table")
         #     page.close()
         #     sys.exit()
 
