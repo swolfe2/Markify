@@ -277,10 +277,10 @@ def main():
             conn = mssql_database.connect_to_database()
 
             query = (
-                """INSERT INTO TableauLicenses.dbo.tblSentEmails(SentOn, EmailType, StoredProcedure, LicenseNumber, ToAddresses, CCaddresses, BCCAddresses, Subject, Message)
+                """INSERT INTO TableauLicenses.dbo.tblSentEmails(SentOn, EmailType, ToAddresses, Subject, Message)
             SELECT GETDATE(),'"""
                 + process_step
-                + """','','','steve.wolfe@kcc.com','','','Tableau License Automation Failure: """
+                + """','steve.wolfe@kcc.com','Tableau License Automation Failure: """
                 + process_step
                 + """','"""
                 + error_message
@@ -307,10 +307,10 @@ def main():
             conn = mssql_database.connect_to_database()
 
             query = (
-                """INSERT INTO TableauLicenses.dbo.tblSentEmails(SentOn, EmailType, StoredProcedure, LicenseNumber, ToAddresses, CCaddresses, BCCAddresses, Subject, Message)
+                """INSERT INTO TableauLicenses.dbo.tblSentEmails(SentOn, EmailType, ToAddresses, Subject, Message)
             SELECT GETDATE(),'"""
                 + process_step
-                + """','','','steve.wolfe@kcc.com','','','Tableau License Automation Failure: """
+                + """','steve.wolfe@kcc.com','Tableau License Automation Failure: """
                 + process_step
                 + """','"""
                 + error_message
