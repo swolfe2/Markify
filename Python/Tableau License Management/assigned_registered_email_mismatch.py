@@ -1,4 +1,5 @@
 import datetime
+from pathlib import Path
 
 import pandas as pd
 
@@ -13,8 +14,12 @@ def main():
 
     # Create a list of columns and data for iterating
     data_dict = mssql_database.execute_query_to_dictonary(
-        conn, "SELECT * FROM TableauLicenses.dbo.v_AssignedRegisteredEmailMismatch"
+        conn,
+        "SELECT * FROM TableauLicenses.dbo.v_AssignedRegisteredEmailMismatch WHERE EmailSentOn IS NULL",
     )
+
+    # Get current python file name, for MSSQL appends
+    current_filename = Path(__file__).name
 
     # Loop though list, and send email from variable values
     if len(data_dict) > 0:
@@ -26,19 +31,42 @@ def main():
         # Get specific fields from the data dictionary of the index
         for index in range(len(data_dict)):
 
-            KeyName = data_dict[index]["KeyName"]
-            PeriodEnd = str(data_dict[index]["PeriodEnd"])
-            AssignedUser = data_dict[index]["UserName"]
-            AssignedEmail = data_dict[index]["AssignedEmail"]
-            LastRegisteredUserName = data_dict[index]["LastRegisteredUserName"]
-            RegisteredEmail = data_dict[index]["RegisteredEmail"]
-            LastInstalled = str(data_dict[index]["LastInstalled"])
+            key_name = data_dict[index]["KeyName"]
+            period_end = str(data_dict[index]["PeriodEnd"])
+            assigned_user = data_dict[index]["UserName"]
+            assigned_email = data_dict[index]["AssignedEmail"].lower()
+            last_registered_user_name = data_dict[index]["LastRegisteredUserName"]
+            registered_email = data_dict[index]["RegisteredEmail"].lower()
+            last_installed = str(data_dict[index]["LastInstalled"])
 
-            RegisteredEmailManager = data_dict[index]["RegisteredEmailManager"]
-            AssignedEmailManager = data_dict[index]["AssignedEmailManager"]
+            if data_dict[index]["RegisteredEmailManager"] == None:
+                registered_email_manager = ""
+            else:
+                registered_email_manager = data_dict[index][
+                    "RegisteredEmailManager"
+                ].lower()
 
-            to = [RegisteredEmail, AssignedEmail]
-            cc = [RegisteredEmailManager, AssignedEmailManager]
+            if data_dict[index]["AssignedEmailManager"] == None:
+                assigned_email_manager = ""
+            else:
+                assigned_email_manager = data_dict[index][
+                    "AssignedEmailManager"
+                ].lower()
+
+            to_list = [registered_email, assigned_email]
+            to = str("; ".join(map(str, to_list)))
+            cc_list = [registered_email_manager, assigned_email_manager]
+            cc = str("; ".join(map(str, cc_list)))
+
+            # Calculate what the original Friday date would have been from where the email was previously sent
+            previously_sent = data_dict[index]["EmailSentOn"]
+
+            if previously_sent != None:
+                previous_friday = previously_sent + (
+                    datetime.timedelta((11 - today.weekday()) % 14)
+                )
+
+            html_greeting = "<p>Hello,</p>"
 
             html_body = (
                 """
@@ -46,48 +74,49 @@ def main():
                 <html>
                 <head>
                 <style>
-                #tableau_licenses {font-family: Arial, Helvetica, sans-serif;border-collapse: collapse;width: 60%;}
+                #tableau_licenses {font-family: Arial, Helvetica, sans-serif;border-collapse: collapse;width: 70%;}
                 #tableau_licenses td, #tableau_licenses th {border: 1px solid #ddd;padding: 5px;}
                 #tableau_licenses tr:nth-child(even){background-color: #D0D7F9;}
                 #tableau_licenses tr:hover {background-color: #0F2C87; color: white;}
                 #tableau_licenses th {padding-top: 12px;padding-bottom: 12px;text-align: left;background-color: #04AA6D;color: white;}
                 </style>
                 </head>
-                <body>
-                <p>Hello,</p>
-                <p>During a current audit on Tableau licenses, we have discovered a discrepancy between a user the license is assigned to and who last registered the license.</p>
+                <body>"""
+                + html_greeting
+                + """
+                <p>During a current audit on Tableau licenses, a discrepancy between the user assigned to the license and last user of the license has been discovered.</p>
                 <table id="tableau_licenses">
-                <colgroup><col span="1" style="width: 35%;"><col span="1" style="width: 65%;"></colgroup>
+                <colgroup><col span="1" style="width: 40%;"><col span="1" style="width: 60%;"></colgroup>
                 <tr><td><b>Tableau License</b></td><td>"""
-                + KeyName
+                + key_name
                 + """</td></tr>
                 <tr><td><b>License Expiry Date</b></td><td>"""
-                + PeriodEnd
+                + period_end
                 + """</td></tr>
                 <tr><td><b>Assigned To</b></td><td>"""
-                + AssignedUser
+                + assigned_user
                 + """</td></tr>
                 <tr><td><b>Assigned To Email</b></td><td>"""
-                + AssignedEmail
+                + assigned_email
                 + """</td></tr>
                 <tr><td><b>Registered By</b></td><td>"""
-                + LastRegisteredUserName
+                + last_registered_user_name
                 + """</td></tr>
                 <tr><td><b>Registered Email</b></td><td>"""
-                + RegisteredEmail
+                + registered_email
                 + """</td></tr>
                 <tr><td><b>Last Registered On</b></td><td>"""
-                + LastInstalled
+                + last_installed
                 + """</td></tr>
                 </table>
                 <p>In order to resolve the discrepancy, <span style="background-color: #FFFF00"><b>please reply all to this email by EOB """
                 + str(friday)
                 + """</b></span> 
-                with which user is intended for this Tableau License. If no response is received by """
+                with which user is intended for this Tableau license or if the license is no longer being used by either person. If no response is received by """
                 + str(friday)
-                + """, then the license will be removed for any current users. </p> 
+                + """, then the license will be assigned to the Registered By user.</p> 
                 <p>Also, for any license moves in the future, please ensure that you are following the license process 
-                available on <a href="https://kimberlyclark.sharepoint.com/sites/c141/Pages/RequestTableauLicense.aspx">Tableau Server</a>.</p>
+                available on <a href="https://kimberlyclark.sharepoint.com/sites/c141/Pages/RequestTableauLicense.aspx">Tableau Central</a>.</p>
                 <p>If you have any questions, also feel free to reply.</p>
                 <p>Thank you</p>
                 </body>
@@ -95,14 +124,53 @@ def main():
                 """
             )
 
-            # print(html_body)
+            # Replace characters in html_body with null
+            char_to_replace = {"                ": "", "\n": "", "\n\n": ""}
 
+            # Iterate over all key-value pairs in dictionary
+            for key, value in char_to_replace.items():
+                # Replace key character with value character in string
+                html_body = html_body.replace(key, value)
+
+            # Standard subject for outbound emails and MSSQL reporting
+            subject = "Tableau License: Assigned to and Registered Mismatch"
+
+            # Set BCC for emails, uncomment to/cc for testing
+            # to = "steve.wolfe@kcc.com"
+            # cc = "steve.wolfe@kcc.com"
+            bcc = "steve.wolfe@kcc.com"
+
+            # Send formatted email to all recipients
             send_email(
-                subject="Tableau License: Assigned to and Registered Mismatch",
-                to="swolfe2@gmail.com",
-                cc="",
+                subject=subject,
+                to=to,
+                cc=cc,
+                bcc=bcc,
                 html_body=html_body,
             )
+
+            # Set SQL query for appending
+            query = (
+                """INSERT INTO TableauLicenses.dbo.tblSentEmails(SentOn, EmailType, LicenseNumber, ToAddresses, CCaddresses, BCCAddresses, Subject, Message)
+            SELECT GETDATE(),'"""
+                + str(current_filename)
+                + """','"""
+                + str(key_name)
+                + """', '"""
+                + str(to)
+                + """','"""
+                + str(cc)
+                + """','"""
+                + str(bcc)
+                + """','"""
+                + str(subject)
+                + """', '"""
+                + str(html_body.replace("\n", ""))
+                + """'"""
+            )
+
+            # Push SQL query to TableauLicenses.dbo.tblSentEmails
+            mssql_database.execute_query(conn, query)
 
 
 if __name__ == "__main__":
