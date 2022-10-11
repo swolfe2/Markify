@@ -128,6 +128,25 @@ def create_dataframe():
             process_step=process_step,
         )
 
+    # Get current file size, and send email if something is wrong
+    file_size = os.path.getsize(full_file_path)
+    if file_size < 1000:
+        error_message = (
+            """There appears to be an issue with the file size of """
+            + full_file_path
+            + """, with it being less than 1 MB. Please review process steps to ensure the file is being created correctly."""
+        )
+
+        to_addresses = (
+            "steve.wolfe@kcc.com; ankit.kesharwani@kcc.com; mario.sarmiento@kcc.com"
+        )
+        process_step = "Active Directory Automation - Flat File Size Failure"
+        send_error_email(
+            error_message=error_message,
+            to=to_addresses,
+            process_step=process_step,
+        )
+
         # Connect to MSSQL server
         conn = mssql_database.connect_to_database()
 
