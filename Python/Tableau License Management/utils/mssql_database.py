@@ -27,13 +27,13 @@ def sqlcol(df):
             dtypedict.update({i: "NVARCHAR(2000)"})
 
         elif "datetime" in str(j):
-            dtypedict.update({i: sqlalchemy.types.NVARCHAR(length=2000)})
+            dtypedict.update({i: "NVARCHAR(2000)"})
 
         elif "float" in str(j):
-            dtypedict.update({i: sqlalchemy.types.NVARCHAR(length=2000)})
+            dtypedict.update({i: "NVARCHAR(2000)"})
 
         elif "int" in str(j):
-            dtypedict.update({i: sqlalchemy.types.NVARCHAR(length=2000)})
+            dtypedict.update({i: "NVARCHAR(2000)"})
 
     return dtypedict
 

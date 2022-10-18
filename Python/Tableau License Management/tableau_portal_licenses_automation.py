@@ -221,7 +221,7 @@ def main():
         total_seconds = (end_time - start_time).total_seconds()
         # stop = (time.time() - start).total_seconds()
         print(
-            " Rows:"
+            " Rows: "
             + str(count_row)
             + " Columns: "
             + str(count_col)
