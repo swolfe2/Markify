@@ -220,14 +220,7 @@ def main():
         end_time = datetime.now()
         total_seconds = (end_time - start_time).total_seconds()
         # stop = (time.time() - start).total_seconds()
-        print(
-            " Rows: "
-            + str(count_row)
-            + " Columns: "
-            + str(count_col)
-            + " Total Seconds: "
-            + str(total_seconds)
-        )
+        print(f" Rows: {count_row} Columns: {count_col} Total Seconds: {total_seconds}")
 
     with sync_playwright() as p:
 
@@ -276,16 +269,8 @@ def main():
             # Connect to MSSQL server
             conn = mssql_database.connect_to_database()
 
-            query = (
-                """INSERT INTO TableauLicenses.dbo.tblSentEmails(SentOn, EmailType, ToAddresses, Subject, Message)
-            SELECT GETDATE(),'"""
-                + process_step
-                + """','steve.wolfe@kcc.com','Tableau License Automation Failure: """
-                + process_step
-                + """','"""
-                + error_message
-                + """'"""
-            )
+            query = f"""INSERT INTO TableauLicenses.dbo.tblSentEmails(SentOn, EmailType, ToAddresses, Subject, Message)
+            SELECT GETDATE(),'{process_step}','steve.wolfe@kcc.com','Tableau License Automation Failure: {process_step}','{error_message}'"""
             mssql_database.execute_query(conn, query)
             sys.exit()
 
@@ -306,16 +291,8 @@ def main():
             # Connect to MSSQL server
             conn = mssql_database.connect_to_database()
 
-            query = (
-                """INSERT INTO TableauLicenses.dbo.tblSentEmails(SentOn, EmailType, ToAddresses, Subject, Message)
-            SELECT GETDATE(),'"""
-                + process_step
-                + """','steve.wolfe@kcc.com','Tableau License Automation Failure: """
-                + process_step
-                + """','"""
-                + error_message
-                + """'"""
-            )
+            query = f"""INSERT INTO TableauLicenses.dbo.tblSentEmails(SentOn, EmailType, ToAddresses, Subject, Message)
+            SELECT GETDATE(),'{process_step}','steve.wolfe@kcc.com','Tableau License Automation Failure: {process_step}','{error_message}'"""
             mssql_database.execute_query(conn, query)
             sys.exit()
 

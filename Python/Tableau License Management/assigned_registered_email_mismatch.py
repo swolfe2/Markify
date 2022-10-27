@@ -66,10 +66,7 @@ def main():
                     datetime.timedelta((11 - today.weekday()) % 14)
                 )
 
-            html_greeting = "<p>Hello,</p>"
-
-            html_body = (
-                """
+            html_header = """
                 <!DOCTYPE html> 
                 <html>
                 <head>
@@ -81,40 +78,29 @@ def main():
                 #tableau_licenses th {padding-top: 12px;padding-bottom: 12px;text-align: left;background-color: #04AA6D;color: white;}
                 </style>
                 </head>
-                <body>"""
-                + html_greeting
-                + """
-                <p>During a current audit on Tableau licenses, a discrepancy between the user assigned to the license and last user of the license has been discovered.</p>
-                <table id="tableau_licenses">
-                <colgroup><col span="1" style="width: 40%;"><col span="1" style="width: 60%;"></colgroup>
-                <tr><td><b>Tableau License</b></td><td>"""
-                + key_name
-                + """</td></tr>
-                <tr><td><b>License Expiry Date</b></td><td>"""
-                + period_end
-                + """</td></tr>
-                <tr><td><b>Assigned To</b></td><td>"""
-                + assigned_user
-                + """</td></tr>
-                <tr><td><b>Assigned To Email</b></td><td>"""
-                + assigned_email
-                + """</td></tr>
-                <tr><td><b>Registered By</b></td><td>"""
-                + last_registered_user_name
-                + """</td></tr>
-                <tr><td><b>Registered Email</b></td><td>"""
-                + registered_email
-                + """</td></tr>
-                <tr><td><b>Last Registered On</b></td><td>"""
-                + last_installed
-                + """</td></tr>
+                """
+
+            html_greeting = "<p>Hello,</p>"
+
+            html_body = f"""
+                {html_header}
+                <body>
+                {html_greeting}
+                <p>During a current audit on Tableau licenses, a discrepancy between the user assigned 
+                to the license and last user of the license has been discovered.</p>
+                <table id='tableau_licenses'>
+                <colgroup><col span='1' style='width: 40%;'><col span='1' style='width: 60%;'></colgroup>
+                <tr><td><b>Tableau License</b></td><td>{key_name}</td></tr>
+                <tr><td><b>License Expiry Date</b></td><td>{period_end}</td></tr>
+                <tr><td><b>Assigned To</b></td><td>{assigned_user}</td></tr>
+                <tr><td><b>Assigned To Email</b></td><td>{assigned_email}</td></tr>
+                <tr><td><b>Registered By</b></td><td>{last_registered_user_name}</td></tr>
+                <tr><td><b>Registered Email</b></td><td>{registered_email}</td></tr>
+                <tr><td><b>Last Registered On</b></td><td>{last_installed}</td></tr>
                 </table>
-                <p>In order to resolve the discrepancy, <span style="background-color: #FFFF00"><b>please reply all to this email by EOB """
-                + str(friday)
-                + """</b></span> 
-                with which user is intended for this Tableau license or if the license is no longer being used by either person. If no response is received by """
-                + str(friday)
-                + """, then the license will be assigned to the Registered By user.</p> 
+                <p>In order to resolve the discrepancy, <span style="background-color: #FFFF00"><b>please reply all to this email by EOB {friday}</b></span>
+                 with which user is intended for this Tableau license or if the license is no longer being used by either person. If no response is received by {friday}
+                , then the license will be unassigned and will not be renewed once expired.</p> 
                 <p>Also, for any license moves in the future, please ensure that you are following the license process 
                 available on <a href="https://kimberlyclark.sharepoint.com/sites/c141/Pages/RequestTableauLicense.aspx">Tableau Central</a>.</p>
                 <p>If you have any questions, also feel free to reply.</p>
@@ -122,7 +108,6 @@ def main():
                 </body>
                 </html>
                 """
-            )
 
             # Replace characters in html_body with null
             char_to_replace = {"                ": "", "\n": "", "\n\n": ""}
@@ -136,8 +121,8 @@ def main():
             subject = "Tableau License: Assigned to and Registered Mismatch"
 
             # Set BCC for emails, uncomment to/cc for testing
-            # to = "steve.wolfe@kcc.com"
-            # cc = "steve.wolfe@kcc.com"
+            to = "swolfe2@gmail.com"
+            cc = "steve.wolfe@kcc.com"
             bcc = "steve.wolfe@kcc.com"
 
             # Send formatted email to all recipients
@@ -150,24 +135,10 @@ def main():
             )
 
             # Set SQL query for appending
-            query = (
-                """INSERT INTO TableauLicenses.dbo.tblSentEmails(SentOn, EmailType, LicenseNumber, ToAddresses, CCaddresses, BCCAddresses, Subject, Message)
-            SELECT GETDATE(),'"""
-                + str(current_filename)
-                + """','"""
-                + str(key_name)
-                + """', '"""
-                + str(to)
-                + """','"""
-                + str(cc)
-                + """','"""
-                + str(bcc)
-                + """','"""
-                + str(subject)
-                + """', '"""
-                + str(html_body.replace("\n", ""))
-                + """'"""
-            )
+            query = f"""
+            INSERT INTO TableauLicenses.dbo.tblSentEmails(SentOn, EmailType, LicenseNumber, ToAddresses, CCaddresses, BCCAddresses, Subject, Message)
+            SELECT GETDATE(),'{current_filename}','{key_name}','{to}','{cc}','{bcc}','{subject}','{html_body}'
+            """
 
             # Push SQL query to TableauLicenses.dbo.tblSentEmails
             mssql_database.execute_query(conn, query)

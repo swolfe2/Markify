@@ -54,6 +54,16 @@ def send_error_email(**kwargs):
         <p>Thank you,</p>"""
     )
 
+    # HTML email details
+    html_body = f"""
+        Hello,
+        <p>During today's run of the Python automation for Tableau Licenses, the automation
+        failed at the <span style="background-color: #FFFF00"><b>{kwargs["process_step"]}
+        </b></span> step at {datetime.now().strftime("%m/%d/%Y %H:%M")}(EST).</p>
+        <p>The error message received by the program is:<br><i>{kwargs["error_message"]}</i>
+        <p>Please perform a manual review, and correct any issues that may have occurred.</p>
+        <p>Thank you,</p>"""
+
     outlook_mail_item = 0x0
     obj = win32.Dispatch("Outlook.Application")
     new_mail = obj.CreateItem(outlook_mail_item)

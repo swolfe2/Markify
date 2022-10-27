@@ -76,12 +76,7 @@ def push_to_mssql(df, conn):
     total_seconds = (end_time - start_time).total_seconds()
     # stop = (time.time() - start).total_seconds()
     return print(
-        " Rows:"
-        + str(count_row)
-        + " Columns: "
-        + str(count_col)
-        + " Total Seconds: "
-        + str(total_seconds)
+        f" Rows: {count_row} Columns: {count_col} Total Seconds: {total_seconds}"
     )
 
 
@@ -108,15 +103,9 @@ def create_dataframe():
     # If it has been more than max_days days since the file was modified, send email and stop process
     max_days = 3
     if time_difference_days > max_days:
-        error_message = (
-            """It has been """
-            + str(time_difference_days)
-            + """ days since the """
-            + full_file_path
-            + """ file was modified, which is more than the """
-            + str(max_days)
-            + """ day limit allowed by the Tableau automation. Please ensure file is processing correctly."""
-        )
+        error_message = f"""It has been {time_difference_days} days since the {full_file_path}
+             file was modified, which is more than the {max_days} day limit allowed by the Tableau automation.
+             Please ensure file is processing correctly."""
 
         to_addresses = (
             "steve.wolfe@kcc.com; ankit.kesharwani@kcc.com; mario.sarmiento@kcc.com"
@@ -131,11 +120,8 @@ def create_dataframe():
     # Get current file size, and send email if something is wrong
     file_size = os.path.getsize(full_file_path)
     if file_size < 1000:
-        error_message = (
-            """There appears to be an issue with the file size of """
-            + full_file_path
-            + """, with it being less than 1 MB. Please review process steps to ensure the file is being created correctly."""
-        )
+        error_message = f"""There appears to be an issue with the file size of {full_file_path}
+             with it being less than 1 MB. Please review process steps to ensure the file is being created correctly."""
 
         to_addresses = (
             "steve.wolfe@kcc.com; ankit.kesharwani@kcc.com; mario.sarmiento@kcc.com"
