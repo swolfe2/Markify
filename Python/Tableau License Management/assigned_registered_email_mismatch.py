@@ -109,20 +109,12 @@ def main():
                 </html>
                 """
 
-            # Replace characters in html_body with null
-            char_to_replace = {"                ": "", "\n": "", "\n\n": ""}
-
-            # Iterate over all key-value pairs in dictionary
-            for key, value in char_to_replace.items():
-                # Replace key character with value character in string
-                html_body = html_body.replace(key, value)
-
             # Standard subject for outbound emails and MSSQL reporting
             subject = "Tableau License: Assigned to and Registered Mismatch"
 
             # Set BCC for emails, uncomment to/cc for testing
-            to = "swolfe2@gmail.com"
-            cc = "steve.wolfe@kcc.com"
+            # to = "swolfe2@gmail.com"
+            # cc = "steve.wolfe@kcc.com"
             bcc = "steve.wolfe@kcc.com"
 
             # Send formatted email to all recipients
