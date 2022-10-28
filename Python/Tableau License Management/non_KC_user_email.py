@@ -42,15 +42,16 @@ def main():
             if assigned_email == registered_email:
                 to = assigned_email
             else:
-                to_list = [assigned_email, registered_email]
-                to = str("; ".join(map(str, to_list)))
+                to = registered_email
 
             if data_dict[index]["AssignedEmailManager"] == None:
-                cc = ""
+                cc = assigned_email
             else:
-                cc = assigned_email_manager = data_dict[index][
-                    "AssignedEmailManager"
-                ].lower()
+                cc_list = [
+                    assigned_email,
+                    data_dict[index]["AssignedEmailManager"].lower(),
+                ]
+                cc = str("; ".join(map(str, cc_list)))
 
             # Calculate what the original Friday date would have been from where the email was previously sent
             previously_sent = data_dict[index]["EmailSentOn"]
@@ -104,20 +105,12 @@ def main():
                 </html>
             """
 
-            # Replace characters in html_body with null
-            char_to_replace = {"                ": "", "\n": "", "\n\n": ""}
-
-            # Iterate over all key-value pairs in dictionary
-            for key, value in char_to_replace.items():
-                # Replace key character with value character in string
-                html_body = html_body.replace(key, value)
-
             # Standard subject for outbound emails and MSSQL reporting
             subject = "Tableau License: Not a Kimberly-Clark Employee"
 
             # Set BCC for emails, uncomment to/cc for testing
-            to = "steve.wolfe@kcc.com"
-            cc = "steve.wolfe@kcc.com"
+            # to = "steve.wolfe@kcc.com"
+            # cc = "steve.wolfe@kcc.com"
             bcc = "steve.wolfe@kcc.com"
 
             # Send formatted email to all recipients
@@ -128,8 +121,6 @@ def main():
                 bcc=bcc,
                 html_body=html_body,
             )
-
-            html_body = html_body.replace("\n", "")
 
             # Set SQL query for appending
             query = f"""
