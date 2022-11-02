@@ -55,8 +55,16 @@ def main():
 
             to_list = [registered_email, assigned_email]
             to = str("; ".join(map(str, to_list)))
-            cc_list = [registered_email_manager, assigned_email_manager]
-            cc = str("; ".join(map(str, cc_list)))
+
+            if assigned_email_manager != "" and assigned_email_manager != "":
+                cc_list = [registered_email_manager, assigned_email_manager]
+                cc = str("; ".join(map(str, cc_list)))
+            elif registered_email_manager != "":
+                cc = registered_email_manager
+            elif assigned_email_manager != "":
+                cc = assigned_email_manager
+            else:
+                cc = ""
 
             # Calculate what the original Friday date would have been from where the email was previously sent
             previously_sent = data_dict[index]["EmailSentOn"]

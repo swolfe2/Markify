@@ -109,8 +109,8 @@ def main():
                 <tr><td><b>Last Registered On</b></td><td>{last_installed}</td></tr>
                 </table>
                 <p>In order to resolve the discrepancy, <span style="background-color: #FFFF00"><b>please reply all to this email by EOB {friday}</b></span> 
-                if you intend to have another user utilize this license or not. If no response is received by {friday}
-                , then the license will be unassigned and will not be renewed once expired.</p> 
+                if you intend to have another user utilize this license or not. If no response is received by {friday},
+                 then the license will be unassigned and will not be renewed once expired.</p> 
                 <p>Also, for any license moves in the future, please ensure that you are following the license process 
                 available on <a href="https://kimberlyclark.sharepoint.com/sites/c141/Pages/RequestTableauLicense.aspx">Tableau Central</a>.</p>
                 <p>If you have any questions, also feel free to reply.</p>
@@ -119,20 +119,12 @@ def main():
                 </html>
                 """
 
-            # Replace characters in html_body with null
-            char_to_replace = {"                ": "", "\n": "", "\n\n": ""}
-
-            # Iterate over all key-value pairs in dictionary
-            for key, value in char_to_replace.items():
-                # Replace key character with value character in string
-                html_body = html_body.replace(key, value)
-
             # Standard subject for outbound emails and MSSQL reporting
             subject = "Tableau License: Inactive Employee Assigned"
 
             # Set BCC for emails, uncomment to/cc for testing
-            to = "steve.wolfe@kcc.com"
-            cc = "steve.wolfe@kcc.com"
+            # to = "steve.wolfe@kcc.com"
+            # cc = "steve.wolfe@kcc.com"
             bcc = "steve.wolfe@kcc.com"
 
             # Send formatted email to all recipients
