@@ -1,0 +1,183 @@
+{
+  "main": {
+    "id": "f5abc31f71fce811",
+    "type": "split",
+    "children": [
+      {
+        "id": "afcbb47426a56133",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "46a89a7217d46bd0",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Languages/Python/Google Sheets.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          },
+          {
+            "id": "18d0e646495a2f31",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Languages/Python/Interface with Database.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          },
+          {
+            "id": "770be7100dd30af0",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Languages/Python/Pandas.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          },
+          {
+            "id": "18ea0e5320f6cd2b",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Languages/Python/Google Sheets.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          }
+        ],
+        "currentTab": 3
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "d75be223a6135985",
+    "type": "split",
+    "children": [
+      {
+        "id": "450527ca07790f3c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "b28748ad27b777de",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "4650c7b1b70e288a",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "097d71255d997476",
+            "type": "leaf",
+            "state": {
+              "type": "starred",
+              "state": {}
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "894014b630d82e66",
+    "type": "split",
+    "children": [
+      {
+        "id": "f6412b54a5346a44",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "0339b5f78ecc7ad7",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Languages/Python/Google Sheets.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "93abbe04f9215554",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Languages/Python/Google Sheets.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "313a91c517a895b6",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true
+              }
+            }
+          },
+          {
+            "id": "1ed9d225ac1ce467",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Languages/Python/Google Sheets.md"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "active": "18ea0e5320f6cd2b",
+  "lastOpenFiles": [
+    "Languages/Python/Interface with Database.md",
+    "Languages/Python/Web Scraping with Playwright.md",
+    "Languages/Python/Google Sheets.md",
+    "Languages/Python/Pandas.md"
+  ]
+}
