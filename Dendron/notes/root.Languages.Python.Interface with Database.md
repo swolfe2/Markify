@@ -2,7 +2,7 @@
 id: g89myd5y5z1f4fgup52vgei
 title: Interface with Database
 desc: ''
-updated: 1666277239426
+updated: 1667857016960
 created: 1666274299083
 ---
 

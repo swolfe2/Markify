@@ -1,7 +1,7 @@
 ---
-id: 28darb9g6rx2i9cbkmgduo1
-title: Languages
+id: itgm10zzbbva69r605b65mq
+title: Language
 desc: ''
-updated: 1666273777179
-created: 1666273777179
+updated: 1667856855595
+created: 1667856855595
 ---

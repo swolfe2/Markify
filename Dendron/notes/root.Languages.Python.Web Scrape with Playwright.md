@@ -1,9 +1,9 @@
 ---
-id: 1v8vpb226ioay6rohx1wfxc
+id: gn860hkhnbs0f3lr6p2eyg7
 title: Web Scrape with Playwright
 desc: ''
-updated: 1666279121946
-created: 1666278532147
+updated: 1667857114300
+created: 1667857095054
 ---
 # Intro
 [Playwright](https://playwright.dev/python/docs/intro) is a library that is really targeted towards web testing, but is very capable of doing any website activities. I used this in a process to login to the Tableau Customer Portal, then copy results into a Pandas Dataframe for processing.
@@ -375,4 +375,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-```
