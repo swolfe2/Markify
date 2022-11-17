@@ -30,6 +30,7 @@ def main():
         return
 
     def open_microsoft_teams(username):
+        """This will reopen Microsoft Teams, and will not proceed until complete"""
         print("Opening Microsoft Teams...")
         folder = f"C:\\Users\\{username}\\AppData\\Local\\Microsoft\\Teams\\Current\\"
         subprocess.call((f"{folder}Teams.exe"))
