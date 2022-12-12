@@ -115,6 +115,23 @@ def create_dataframe():
             process_step=process_step,
         )
 
+        # Connect to MSSQL server
+        conn = mssql_database.connect_to_database()
+
+        query = (
+            """INSERT INTO TableauLicenses.dbo.tblSentEmails(SentOn, EmailType, ToAddresses, Subject, Message)
+        SELECT GETDATE(),'"""
+            + process_step
+            + """','"""
+            + str(to_addresses).replace("'", "''")
+            + """','Tableau License Automation Failure: """
+            + process_step
+            + """','"""
+            + error_message
+            + """'"""
+        )
+        sys.exit()
+
     # Get current file size, and send email if something is wrong
     file_size = os.path.getsize(full_file_path)
     if file_size < 1000:

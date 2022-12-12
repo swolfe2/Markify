@@ -1,10 +1,10 @@
 from datetime import datetime
 
-import pandas as pd
 import sqlalchemy
 from turbodbc import connect, make_options
-
 from utils.config import DB_NAME, MSSQL_SERVER  # module in folder
+
+import pandas as pd
 
 
 def clean_dataframe(df):
@@ -175,14 +175,16 @@ def execute_query_to_dictonary(conn, query):
 def execute_query(conn, query):
     # Replace characters in html_body with null
     sql_char_to_replace = {
-        "  ": "",
-        "  ": "",
-        "\n": "",
+        "  ": " ",
+        "  ": " ",
+        "\n": " ",
         "> <": "><",
-        "\n            ": "",
+        "\n            ": " ",
         "='": "=''",
         "' ": "'' ",
+        " '": " ''",
         "'>": "''>",
+        "''": "'",
     }
 
     # Iterate over all key-value pairs in dictionary

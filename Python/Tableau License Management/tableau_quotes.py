@@ -1,10 +1,10 @@
 import datetime
 from pathlib import Path
 
-import pandas as pd
-
 import utils.mssql_database as mssql_database  # module in utils folder
 from utils.send_email import send_email  # module in utils folder
+
+import pandas as pd
 
 
 def create_dataframe():
@@ -47,7 +47,7 @@ def create_dataframe():
     len_valid_columns = len(valid_columns)
     if count_col != len_valid_columns:
         print(
-            f"The {input} file currently has {count_col} columns, but should have {len_valid_columns} per the documentation. Please correct, and try again."
+            f"The {user_input} file currently has {count_col} columns, but should have {len_valid_columns} per the documentation. Please correct, and try again."
         )
         sys.exit()
 
@@ -57,7 +57,7 @@ def create_dataframe():
         valid_column = valid_columns[idx]
         if i != valid_column:
             print(
-                f"The {input} file currently has {i} in column {idx + 1}, but it should have {valid_column} per the documentation. Please correct, and try again."
+                f"The {user_input} file currently has {i} in column {idx + 1}, but it should have {valid_column} per the documentation. Please correct, and try again."
             )
             sys.exit()
 
