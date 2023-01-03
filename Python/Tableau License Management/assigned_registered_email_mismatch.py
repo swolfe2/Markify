@@ -1,10 +1,10 @@
 import datetime
 from pathlib import Path
 
-import pandas as pd
-
 import utils.mssql_database as mssql_database  # module in utils folder
 from utils.send_email import send_email  # module in utils folder
+
+import pandas as pd
 
 
 def main():
