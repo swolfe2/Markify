@@ -175,16 +175,22 @@ def execute_query_to_dictonary(conn, query):
 def execute_query(conn, query):
     # Replace characters in html_body with null
     sql_char_to_replace = {
-        "  ": " ",
-        "  ": " ",
-        "\n": " ",
-        "> <": "><",
         "\n            ": " ",
+        "\n                ": " ",
+        "\n": " ",
+        " INSERT": "INSERT",
+        "         ": " ",
+        "  ": " ",
+        "   ": " ",
+        "   , ": ", ",
+        "</p>   <p>": "</p><p>",
+        "> <": "><",
+        ">   <": "><",
         "='": "=''",
         "' ": "'' ",
         " '": " ''",
         "'>": "''>",
-        "''": "'",
+        ",'' <": ",'<",
     }
 
     # Iterate over all key-value pairs in dictionary
@@ -192,6 +198,7 @@ def execute_query(conn, query):
         # Replace key character with value character in string
         query = query.replace(key, value)
 
+    # print(query)
     """This will execute a specific MSSQL T-SQL query"""
     with conn.cursor() as cursor:
         cursor.execute(str(query))

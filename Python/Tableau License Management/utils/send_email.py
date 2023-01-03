@@ -12,8 +12,10 @@ def kill_outlook():
     for process in win_management.ExecQuery(
         'select * from Win32_Process where Name="Outlook.exe"'
     ):
-        # os.system("taskkill /pid /F /IM " + str(p.ProcessId))
-        os.kill(process.ProcessId, 9)
+        pid = str(process.ProcessId)
+        # os.system("taskkill /pid " + str(process.ProcessId)) + " /F /IM "
+        os.system(f"taskkill /pid {pid} /F ")
+        # os.kill(process.ProcessId, 9)
 
 
 def send_error_email(**kwargs):
