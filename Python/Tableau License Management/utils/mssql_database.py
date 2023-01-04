@@ -191,6 +191,7 @@ def execute_query(conn, query):
         " '": " ''",
         "'>": "''>",
         ",'' <": ",'<",
+        "''": "'",
     }
 
     # Iterate over all key-value pairs in dictionary
