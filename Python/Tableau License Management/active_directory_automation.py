@@ -26,6 +26,7 @@ from datetime import datetime
 import utils.mssql_database as mssql_database  # module in utils folder
 from utils.config import DB_NAME, MSSQL_SERVER  # module in utils folder
 from utils.send_email import send_error_email  # module in utils folder
+from yammer import power_bi_yammer
 
 import pandas as pd
 
@@ -183,7 +184,12 @@ def main():
     conn = mssql_database.connect_to_database()
 
     # Appends dataframe to MSSQL Server
+    print("Pushing data to MSSQL")
     push_to_mssql(df, conn)
+
+    # Update table with Yammer info
+    print("Updating table with Yammer group details")
+    power_bi_yammer()
 
 
 if __name__ == "__main__":
