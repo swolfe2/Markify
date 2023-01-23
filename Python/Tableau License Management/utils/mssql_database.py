@@ -192,6 +192,15 @@ def execute_query(conn, query):
         "'>": "''>",
         ",'' <": ",'<",
         "''": "'",
+        "''": "",
+        "''": "",
+        "GETDATE(),\ '": "GETDATE(),'",
+        "\\',\\'": "','",
+        "\\','": "',",
+        ",\\'": ",'",
+        "\\','": "',",
+        "</html> \\": "</html>",
+        "\\',\\'": "','",
     }
 
     # Iterate over all key-value pairs in dictionary
