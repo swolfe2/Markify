@@ -147,10 +147,10 @@ def power_bi_yammer():
     # Update Active Directory table to "No" for all records
     query = """
         UPDATE TableauLicenses.dbo.tblActiveDirectory 
-        SET YammerPowerBI = 'No' 
+        SET YammerPowerBI='No'
 
         UPDATE TableauLicenses.dbo.tblActiveDirectory 
-        SET YammerPowerBI = 'Yes' 
+        SET YammerPowerBI='Yes'
         FROM TableauLicenses.dbo.tblActiveDirectory ad 
         INNER JOIN ##tblPowerBIYammer pbi ON pbi.email = ad.Email
         """
