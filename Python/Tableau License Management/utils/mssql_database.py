@@ -201,6 +201,7 @@ def execute_query(conn, query):
         "\\','": "',",
         "</html> \\": "</html>",
         "\\',\\'": "','",
+        "</html> ": "</html>'",
     }
 
     # Iterate over all key-value pairs in dictionary
