@@ -145,12 +145,13 @@ def power_bi_yammer():
     conn = mssql_database.connect_to_database()
 
     # Update Active Directory table to "No" for all records
+    # 1/30 - Had to escape quotes so that it will work with mssql_database.py text replaces
     query = """
         UPDATE TableauLicenses.dbo.tblActiveDirectory 
-        SET YammerPowerBI='No'
+        SET YammerPowerBI=\''No\''
 
         UPDATE TableauLicenses.dbo.tblActiveDirectory 
-        SET YammerPowerBI='Yes'
+        SET YammerPowerBI=\''Yes\''
         FROM TableauLicenses.dbo.tblActiveDirectory ad 
         INNER JOIN ##tblPowerBIYammer pbi ON pbi.email = ad.Email
         """
