@@ -160,8 +160,56 @@ def power_bi_yammer():
     push_to_mssql(df, conn, "##tblPowerBIYammer", query)
 
 
+def tableau_yammer():
+    """
+    This will get all user data for the Tableau Yammer group into .json.
+    Then, it will append that data to MSSQL Server, and mark the Active Directory
+    table for when people are members of the Tableau Yammer group.
+    """
+
+    # This is required information, which you get from the Yammer Developer account
+    tableau_group_id = "eyJfdHlwZSI6Ikdyb3VwIiwiaWQiOiI4NTkxNTU5In0"
+    tableau_url = (
+        f"https://www.yammer.com/api/v1/users/in_group/{tableau_group_id}.json"
+    )
+    tableau_access_token = "12467-7JI1R5o60GBHRkDu82Wg"
+
+    # Get the json response of all Yammer users
+    tableau_users = get_yammer_users(
+        tableau_group_id, tableau_url, tableau_access_token
+    )
+
+    # Convert json into dataframe
+    df = pd.read_json(tableau_users)
+
+    # Remove underscores from name
+    df.columns = df.columns.str.replace("_", "")
+
+    # Keep only emails
+    df = df[["email"]]
+
+    # Connect to MSSQL server
+    conn = mssql_database.connect_to_database()
+
+    # Update Active Directory table to "No" for all records
+    # 1/30 - Had to escape quotes so that it will work with mssql_database.py text replaces
+    query = """
+        UPDATE TableauLicenses.dbo.tblActiveDirectory 
+        SET Yammertableau=\''No\''
+
+        UPDATE TableauLicenses.dbo.tblActiveDirectory 
+        SET Yammertableau=\''Yes\''
+        FROM TableauLicenses.dbo.tblActiveDirectory ad 
+        INNER JOIN ##tbltableauYammer pbi ON pbi.email = ad.Email
+        """
+
+    # Clean dataframe, and push to MSSQL
+    push_to_mssql(df, conn, "##tbltableauYammer", query)
+
+
 def main():
     power_bi_yammer()
+    tableau_yammer()
 
 
 if __name__ == "__main__":
