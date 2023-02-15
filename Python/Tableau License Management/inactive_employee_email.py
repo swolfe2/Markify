@@ -123,18 +123,18 @@ def main():
             subject = "Tableau License: Inactive Employee Assigned"
 
             # Set BCC for emails, uncomment to/cc for testing
-            to = "steve.wolfe@kcc.com"
-            cc = "swolfe2@gmail.com"
+            # to = "steve.wolfe@kcc.com"
+            # cc = "swolfe2@gmail.com"
             bcc = "steve.wolfe@kcc.com"
 
             # Send formatted email to all recipients
-            # send_email(
-            #     subject=subject,
-            #     to=to,
-            #     cc=cc,
-            #     bcc=bcc,
-            #     html_body=html_body,
-            # )
+            send_email(
+                subject=subject,
+                to=to,
+                cc=cc,
+                bcc=bcc,
+                html_body=html_body,
+            )
 
             # Set SQL query for appending
             query = f"""
