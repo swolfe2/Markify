@@ -1,9 +1,11 @@
-import numpy as np
-import pandas as pd
-import pandas_datareader as web
 from datetime import datetime
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas_datareader as web
 import seaborn
+
+import pandas as pd
 
 start = datetime(2022, 4, 1)
 symbols_list = [
@@ -14,16 +16,21 @@ symbols_list = [
     "ETH-USD",
     "BTC-USD",
     "DOGE-USD",
-]  # array to store prices
-symbols = []
-
+]
 # array to store prices
 symbols = []
 for ticker in symbols_list:
-    r = web.DataReader(ticker, "yahoo", start)
-    # add a symbol column
-    r["Symbol"] = ticker
-    symbols.append(r)  # concatenate into df
+    try:
+        r = web.DataReader(ticker, "yahoo", start)
+        # add a symbol column
+        r["Symbol"] = ticker
+        symbols.append(r)  # concatenate into df
+
+        print(type(r))
+    except Exception as e:
+        print(f"Error fetching data for {ticker}: {str(e)}")
+        continue
+
 df = pd.concat(symbols)
 df = df.reset_index()
 df = df[["Date", "Close", "Symbol"]]
