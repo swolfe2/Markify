@@ -27,12 +27,12 @@ Process steps overview:
 import sys
 from datetime import datetime
 
-import pandas as pd
-from playwright.sync_api import sync_playwright
-
 import utils.mssql_database as mssql_database  # module in utils folder
+from playwright.sync_api import sync_playwright
 from utils.config import CRED_PW, CRED_UN
 from utils.send_email import send_error_email  # module in utils folder
+
+import pandas as pd
 
 
 def main():
@@ -198,8 +198,6 @@ def main():
                 df[col].fillna(0, inplace=True)
             else:
                 df[col].fillna("", inplace=True)
-
-        print("Creating temp table")
 
         # Create dictionary of columns and data types
         outputdict = mssql_database.sqlcol(df)
