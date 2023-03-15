@@ -1,6 +1,7 @@
-import pyautogui
 import time
 from datetime import datetime
+
+import pyautogui
 
 # Set Start Time
 time_start = "07:00:00"
