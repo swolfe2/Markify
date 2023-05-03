@@ -108,7 +108,6 @@ def create_temp_table(df, conn, temp_table, outputdict):
 def clean_temp_table(df, conn, temp_table):
     """This will loop through all columns in the temp table, and update to null where they are certain values"""
     for col in df.columns:
-
         sqlCleanString = (
             "UPDATE "
             + temp_table
@@ -205,6 +204,8 @@ def execute_query(conn, query):
         "</html>''": "</html>'",
         "</html> ": "</html>'",
         "</html>' '": "</html>'",
+        "O\\'D": "O D",
+        "O'D": "O D",
     }
 
     # Iterate over all key-value pairs in dictionary
