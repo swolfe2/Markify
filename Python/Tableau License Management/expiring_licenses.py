@@ -8,7 +8,6 @@ import pandas as pd
 
 
 def main():
-
     # Connect to MSSQL server
     conn = mssql_database.connect_to_database()
 
@@ -34,13 +33,11 @@ def main():
 
         # Get specific fields from the data dictionary of the index
         for index in range(len(data_dict)):
-
             key_name = data_dict[index]["KeyName"]
             period_end = str(data_dict[index]["PeriodEnd"])
             assigned_user = data_dict[index]["UserName"]
             assigned_email = data_dict[index]["AssignedEmail"].lower()
             last_registered_user_name = data_dict[index]["LastRegisteredUserName"]
-            registered_email = data_dict[index]["RegisteredEmail"].lower()
             last_installed = str(data_dict[index]["LastInstalled"])
             days_remaining = str(data_dict[index]["DaysRemaining"])
 
@@ -117,6 +114,10 @@ def main():
                 bcc=bcc,
                 html_body=html_body,
             )
+
+            # In case the assigned user does not have a manager, set the CC to just 'UNKNOWN'
+            if cc is None:
+                cc = "UNKNOWN"
 
             # Set SQL query for appending
             query = f"""

@@ -1,14 +1,13 @@
 import datetime
 from pathlib import Path
 
-import pandas as pd
-
 import utils.mssql_database as mssql_database  # module in utils folder
 from utils.send_email import send_email  # module in utils folder
 
+import pandas as pd
+
 
 def main():
-
     # Connect to MSSQL server
     conn = mssql_database.connect_to_database()
 
@@ -30,7 +29,6 @@ def main():
 
         # Get specific fields from the data dictionary of the index
         for index in range(len(data_dict)):
-
             key_name = data_dict[index]["KeyName"]
             period_end = str(data_dict[index]["PeriodEnd"])
             assigned_user = data_dict[index]["AssignedName"]
@@ -121,6 +119,10 @@ def main():
                 bcc=bcc,
                 html_body=html_body,
             )
+
+            # In case the assigned user does not have a manager, set the CC to just 'UNKNOWN'
+            if cc is None:
+                cc = "UNKNOWN"
 
             # Set SQL query for appending
             query = f"""
