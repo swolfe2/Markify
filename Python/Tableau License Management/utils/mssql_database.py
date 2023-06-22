@@ -43,7 +43,7 @@ def connect_to_database():
     This will open a connection to a MSSQL database
     """
     conn = connect(
-        driver="ODBC Driver 17 for SQL Server",
+        driver="ODBC Driver 18 for SQL Server",
         server=MSSQL_SERVER,
         database=DB_NAME,
         trusted_connection="YES",
