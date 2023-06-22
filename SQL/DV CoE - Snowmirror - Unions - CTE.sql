@@ -1,3 +1,64 @@
+WITH first_worked AS (
+
+SELECT first_worked.IDNumber,
+first_worked.ID,
+first_worked.sys_updated_on,
+first_worked.sys_created_on AS claimed_on,
+CAST(first_worked.sys_created_on AS DATE) AS [Claimed Date],
+first_worked.value,
+first_worked.field
+FROM(
+SELECT
+CASE WHEN mi.[table] = 'sc_task' THEN RIGHT(mi.dv_id, 11)
+WHEN mi.[table] = 'u_service_request' THEN RIGHT (mi.dv_id, 9)
+WHEN mi.[table] = 'incident' THEN RIGHT (mi.dv_id, 10)
+ELSE NULL END AS IDNumber,
+mi.id,
+mi.sys_updated_on,
+mi.sys_created_on,
+mi.value,
+mi.field,
+ROW_NUMBER() OVER (PARTITION BY CASE WHEN mi.[table] = 'sc_task' THEN RIGHT(mi.dv_id, 11)
+WHEN mi.[table] = 'u_service_request' THEN RIGHT (mi.dv_id, 9)
+WHEN mi.[table] = 'incident' THEN RIGHT (mi.dv_id, 10)
+ELSE NULL END  ORDER BY mi.sys_created_on ASC) AS RowRank
+FROM SNOWMIRROR.dbo.metric_instance AS mi
+LEFT JOIN SNOWMIRROR.dbo.sc_task task ON mi.id = task.sys_id
+AND mi.ID IS NOT NULL
+AND
+    task.dv_assignment_group IN (
+    'DATAVIZ-SME-KC', 'TABLEAU-SME-KC'
+    )
+    AND YEAR(task.sys_created_on) >= YEAR(
+    GETDATE()
+    ) -1
+
+LEFT JOIN SNOWMIRROR.dbo.u_service_request sr ON mi.id = sr.sys_id
+AND mi.value IS NOT NULL
+AND
+    sr.dv_assignment_group IN (
+        'DATAVIZ-SME-KC', 'TABLEAU-SME-KC'
+    )
+    AND YEAR(sr.sys_created_on) >= YEAR(
+        GETDATE()
+        ) -1
+LEFT JOIN SNOWMIRROR.dbo.incident inc ON mi.id = inc.sys_id 
+AND mi.value IS NOT NULL
+AND inc.dv_assignment_group IN (
+        'TABLEAU-SME-KC', 'DATAVIZ-SME-KC'
+        )
+        AND YEAR(inc.sys_created_on) >= YEAR(
+            GETDATE()
+            ) -1
+
+WHERE
+mi.[table] IN ('sc_task', 'u_service_request', 'incident')
+AND mi.field IN ('state', 'incident_state')
+AND mi.value NOT IN ('New', 'Open')
+AND (task.sys_id IS NOT NULL OR sr.sys_id IS NOT NULL OR inc.sys_id IS NOT NULL)
+) first_worked
+WHERE first_worked.RowRank = 1 )
+
 SELECT 
   task.task_effective_number AS "Task Number",
   req.dv_request AS "REQ Number", 
@@ -49,28 +110,6 @@ SELECT
   CASE WHEN task.closed_at IS NOT NULL THEN task.closed_at ELSE req.closed_at END AS closed_at,
   CAST(CASE WHEN task.closed_at IS NOT NULL THEN task.closed_at ELSE req.closed_at END AS DATE) AS "Closed Date",
   task.close_notes AS "Close Notes"
-  /*
-  Commented out, will attempt text splitting in Power BI rather than T-SQL
-  ,
-  CASE WHEN task.close_notes LIKE '%{%' AND task.close_notes LIKE '%}%' THEN 
-  UPPER(
-    REPLACE(
-        REPLACE(    
-            REPLACE(
-                SUBSTRING(
-                    task.close_notes, 
-                    CHARINDEX('{', task.close_notes) + 1, 
-                    LEN(task.close_notes) - CHARINDEX('{', task.close_notes) - CHARINDEX('}', REVERSE(task.close_notes))
-                ),
-            '  ', ' '),
-        '| ', '|'),
-    ' |','|')
-    )
-    ELSE
-        NULL
-    END AS Categories*/
-
-
 
 FROM 
   SNOWMIRROR.dbo.sc_req_item req 
@@ -103,34 +142,7 @@ FROM
 /*
 Added 3/7/2022 to get when ticket was first worked by someone in DV CoE
 */
-LEFT JOIN (
-SELECT first_worked.task_effective_number,
-first_worked.sys_created_on AS claimed_on,
-CAST(first_worked.sys_created_on AS DATE) AS [Claimed Date]
-FROM (
-SELECT 
-task.task_effective_number,
-mi.sys_updated_on,
-mi.sys_created_on,
-mi.value,
-mi.field,
-ROW_NUMBER() OVER (PARTITION BY task.task_effective_number ORDER BY mi.sys_created_on ASC) AS RowRank
-FROM SNOWMIRROR.dbo.metric_instance AS mi
-INNER JOIN SNOWMIRROR.dbo.sc_task task ON mi.id = task.sys_id
-WHERE mi.[table] = 'sc_task'
-AND mi.field = 'state'
-AND mi.value <> 'open'
-/*AND task.task_effective_number = 'TASK0545566'*/
-AND
-          task.dv_assignment_group IN (
-            'DATAVIZ-SME-KC', 'TABLEAU-SME-KC'
-          )
-          AND YEAR(task.sys_created_on) >= YEAR(
-            GETDATE()
-            ) -1
-) first_worked
-WHERE first_worked.RowRank = 1
-)first_worked ON first_worked.task_effective_number =  task.task_effective_number
+LEFT JOIN first_worked ON first_worked.IDNumber =  task.task_effective_number
 
 WHERE 
   req.dv_assignment_group IN (
@@ -199,37 +211,8 @@ FROM
         ) -1
     ) sr 
 
-    LEFT JOIN (
-        SELECT first_worked.number,
-        first_worked.sys_created_on AS claimed_on,
-        CAST(first_worked.sys_created_on AS DATE) AS [Claimed Date]
-        FROM (
-        SELECT 
-        sr.number,
-        mi.sys_updated_on,
-        mi.sys_created_on,
-        mi.value,
-        mi.field,
-        ROW_NUMBER() OVER (PARTITION BY sr.number ORDER BY mi.sys_created_on ASC) AS RowRank
-        FROM SNOWMIRROR.dbo.metric_instance AS mi
-        INNER JOIN SNOWMIRROR.dbo.u_service_request sr ON mi.id = sr.sys_id
-        WHERE mi.[table] = 'u_service_request'
-        AND mi.field = 'state'
-        AND mi.value <> 'open'
-        /*AND task.task_effective_number = 'TASK0545566'*/
-        AND
-                sr.dv_assignment_group IN (
-                    'DATAVIZ-SME-KC', 'TABLEAU-SME-KC'
-                )
-                AND YEAR(sr.sys_created_on) >= YEAR(
-                    GETDATE()
-                    ) -1
-        ) first_worked
-        WHERE first_worked.RowRank = 1
-    )first_worked ON first_worked.number = sr.number
+    LEFT JOIN first_worked ON first_worked.IDNumber = sr.number
 
-WHERE 
-    sr.RowRank = 1
 
 /*
 New 6/1/2023
@@ -268,33 +251,7 @@ inc.close_notes AS "Close Notes"
 
 --SELECT TOP 10 inc.*
 FROM SNOWMIRROR.dbo.incident inc
-LEFT JOIN (
-    SELECT first_worked.task_effective_number,
-    first_worked.sys_created_on AS claimed_on,
-    CAST(first_worked.sys_created_on AS DATE) AS [Claimed Date]
-    FROM (
-        SELECT 
-        inc.task_effective_number,
-        mi.sys_updated_on,
-        mi.sys_created_on,
-        mi.value,
-        mi.field,
-        ROW_NUMBER() OVER (PARTITION BY inc.task_effective_number ORDER BY mi.sys_created_on ASC) AS RowRank
-        FROM SNOWMIRROR.dbo.metric_instance AS mi
-        INNER JOIN  SNOWMIRROR.dbo.incident inc ON mi.id = inc.sys_id AND mi.value IS NOT NULL
-        WHERE mi.[table] = 'incident'
-        AND mi.field = 'incident_state'
-        AND mi.value NOT IN ('New', 'Open')
-        /*AND inc.number = 'INC7443598'*/
-        AND inc.dv_assignment_group IN (
-        'TABLEAU-SME-KC', 'DATAVIZ-SME-KC'
-        )
-        AND YEAR(inc.sys_created_on) >= YEAR(
-            GETDATE()
-            ) -1
-        ) first_worked
-    WHERE first_worked.RowRank = 1
-)first_worked ON first_worked.task_effective_number =  inc.number
+LEFT JOIN first_worked ON first_worked.IDNumber =  inc.number
 
 WHERE inc.dv_assignment_group IN (
         'TABLEAU-SME-KC', 'DATAVIZ-SME-KC'
@@ -302,4 +259,3 @@ WHERE inc.dv_assignment_group IN (
 AND YEAR(inc.sys_created_on) >= YEAR(
             GETDATE()
             ) -1
-/*AND SELECT * FROM SNOWMIRROR.dbo.incident inc WHERE inc.number = 'INC7443598'*/
