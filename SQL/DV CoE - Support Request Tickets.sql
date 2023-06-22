@@ -3,21 +3,17 @@ SELECT
   req.dv_request AS "REQ Number", 
   req.task_effective_number AS "RITM", 
   'https://kcc.service-now.com/nav_to.do?uri=sc_req_item.do?sysparm_query=number=' + req.task_effective_number AS RITM_url,
-  'https://kcc.service-now.com/nav_to.do?uri=sc_task.do?sysparm_query=number=' + task.task_effective_number AS url,
-  req.dv_stage AS "REQ Stage", 
+  'https://kcc.service-now.com/nav_to.do?uri=sc_task.do?sysparm_query=number=' + task.task_effective_number AS TASK_url,
+  req.dv_stage AS "Stage", 
   CASE WHEN task.closed_at IS NOT NULL 
   AND req.dv_stage IN ('Fulfillment', 'Completed') THEN 'Closed Successful' 
-  ELSE task.dv_state END AS "REQ State", 
-  /*
-  Added 2/11/22 per Tonia
-  Want to see overall Closed/Open status type
-  */
-  CASE WHEN 
-	CASE WHEN task.closed_at IS NOT NULL 
-	AND req.dv_stage IN ('Fulfillment', 'Completed') THEN 'Closed Successful' 
+  ELSE task.dv_state END AS "State", 
+   CASE WHEN 
+	    CASE WHEN task.closed_at IS NOT NULL 
+	    AND req.dv_stage IN ('Fulfillment', 'Completed') THEN 'Closed Successful' 
 	 ELSE task.dv_state END LIKE '%Closed%' THEN 'Closed' ELSE 'Open'
- END AS "REQ Status",
-  req.dv_cat_item AS "REQ Type", 
+ END AS "Status",
+  req.dv_cat_item AS "Type", 
   req.dv_configuration_item AS "Platform Type", 
   CASE WHEN req.short_description LIKE '%CITRIX%' THEN 'Citrix' ELSE 'Desktop' END AS "Computer Type", 
   req.short_description, 
@@ -36,41 +32,18 @@ SELECT
       ''
     ) ELSE req.dv_opened_by END
   ) AS "REQ For", 
-  task.dv_assigned_to,   
-  req.opened_at, 
+  task.dv_assigned_to AS "Assigned To",   
+  req.opened_at AS "Opened On", 
   CAST(req.opened_at AS DATE) AS "Opened Date",  
-  /*
-  Added 3/7/2022 to get when ticket was first worked by someone in DV CoE
-  */
-  first_worked.claimed_on,
+  first_worked.claimed_on AS "Claimed On",
   first_worked.[Claimed Date],
-  req.sys_updated_on, 
+  req.sys_updated_on AS "Opdated On", 
   CAST(req.sys_updated_on AS DATE) AS "Updated Date",
-  CASE WHEN task.closed_at IS NOT NULL THEN task.closed_at ELSE req.closed_at END AS closed_at,
+  CASE WHEN task.closed_at IS NOT NULL THEN task.closed_at ELSE req.closed_at END AS "Closed On",
   CAST(CASE WHEN task.closed_at IS NOT NULL THEN task.closed_at ELSE req.closed_at END AS DATE) AS "Closed Date",
   task.close_notes AS "Close Notes",
-  /*
-  Commented out, will attempt text splitting in Power BI rather than T-SQL
-  ,
-  CASE WHEN task.close_notes LIKE '%{%' AND task.close_notes LIKE '%}%' THEN 
-  UPPER(
-	REPLACE(
-		REPLACE(	
-			REPLACE(
-				SUBSTRING(
-					task.close_notes, 
-					CHARINDEX('{', task.close_notes) + 1, 
-					LEN(task.close_notes) - CHARINDEX('{', task.close_notes) - CHARINDEX('}', REVERSE(task.close_notes))
-				),
-			'  ', ' '),
-		'| ', '|'),
-	' |','|')
-	)
-	ELSE
-		NULL
-	END AS Categories*/
-req.dv_configuration_item AS "Item",
-req.sla_due
+req.dv_configuration_item AS "Configuration Item",
+req.sla_due AS "SLA Due"
 
 
 FROM 
@@ -117,10 +90,10 @@ mi.value,
 mi.field,
 ROW_NUMBER() OVER (PARTITION BY task.task_effective_number ORDER BY mi.sys_created_on ASC) AS RowRank
 FROM SNOWMIRROR.dbo.metric_instance AS mi
-INNER JOIN SNOWMIRROR.dbo.sc_task task ON mi.id = task.sys_id
+INNER JOIN SNOWMIRROR.dbo.sc_task task ON mi.id = task.sys_id AND mi.value IS NOT NULL
 WHERE mi.[table] = 'sc_task'
 AND mi.field = 'state'
-AND mi.value in ('Active', 'Resolved', 'Closed')
+AND mi.value NOT IN ('Open')
 /*AND task.task_effective_number = 'TASK0545566'*/
 AND
           task.dv_assignment_group IN (

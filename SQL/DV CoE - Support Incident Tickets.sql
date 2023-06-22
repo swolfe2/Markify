@@ -1,28 +1,28 @@
-SELECT
-inc.number AS INC_NUMBER,
-'https://kcc.service-now.com/nav_to.do?uri=incident.do?sysparm_query=number=' + inc.number AS url,
-inc.u_impacted_region,
-inc.dv_state,
-inc.dv_priority,
-inc.category,
-inc.subcategory,
-inc.dv_opened_by,
-inc.dv_u_opened_for,
-inc.dv_u_origin,
-inc.contact_type,
-inc.opened_at,
-CAST(inc.opened_at AS DATE) AS "Opened Date",
-first_worked.claimed_on,
-first_worked.[Claimed Date],
-inc.sys_updated_on, 
-CAST(inc.sys_updated_on AS DATE) AS "Updated Date",
-inc.closed_at,
-CAST(inc.closed_at AS DATE) AS "Closed Date",
-inc.dv_resolved_by,
-inc.close_code,
-inc.close_notes AS "Close Notes",
-inc.dv_cmdb_ci,
-inc.dv_short_description
+SELECT 
+inc.number AS "Incident Number",
+'https://kcc.service-now.com/nav_to.do?uri=incident.do?sysparm_query=number=' + inc.number AS "Incident URL",
+inc.u_impacted_region AS "Incident Region",
+inc.dv_state AS "Incident State",
+inc.dv_priority AS "Incident Priority",
+inc.category AS "Incident Category",
+inc.subcategory AS "Incident Subcategory",
+inc.dv_opened_by AS "Incident Opened By",
+inc.dv_u_opened_for AS "Incident Opened For",
+inc.dv_u_origin AS "Incident Origin",
+inc.contact_type AS "Incident Contact Type",
+inc.opened_at AS "Incident Opened At",
+CAST(inc.opened_at AS DATE) AS "Incident Opened Date",
+first_worked.claimed_on AS "Incident Claimed On",
+first_worked.[Claimed Date] "Incident Claimed On Date",
+inc.sys_updated_on AS "Incident Updated On", 
+CAST(inc.sys_updated_on AS DATE) AS "Incident Updated Date",
+inc.closed_at AS "Incident Closed At",
+CAST(inc.closed_at AS DATE) AS "Incident Closed Date",
+inc.dv_resolved_by AS "Incident Resolved By",
+inc.close_code AS "Incident Close Code",
+inc.close_notes AS "Incident Close Notes",
+inc.dv_cmdb_ci AS "Incident Configuration Item",
+inc.dv_short_description AS "Incident Short Description"
 
 FROM SNOWMIRROR.dbo.incident inc
 LEFT JOIN (
@@ -38,10 +38,10 @@ LEFT JOIN (
         mi.field,
         ROW_NUMBER() OVER (PARTITION BY inc.task_effective_number ORDER BY mi.sys_created_on ASC) AS RowRank
         FROM SNOWMIRROR.dbo.metric_instance AS mi
-        INNER JOIN  SNOWMIRROR.dbo.incident inc ON mi.id = inc.sys_id
+        INNER JOIN  SNOWMIRROR.dbo.incident inc ON mi.id = inc.sys_id AND mi.value IS NOT NULL
         WHERE mi.[table] = 'incident'
         AND mi.field = 'incident_state'
-        AND mi.value in ('Active', 'Resolved', 'Closed')
+        AND mi.value NOT IN ('New', 'Open')
         /*AND inc.number = 'INC7443598'*/
         AND inc.dv_assignment_group IN (
         'BI-SUPPORT-TML'
