@@ -183,6 +183,12 @@ def main():
     # Connect to MSSQL server
     conn = mssql_database.connect_to_database()
 
+    # Update in June 2023 for field that is way over the normal character limit
+    for col in df.columns:
+        df[col] = df[col].apply(
+            lambda x: x[:300] if isinstance(x, str) and len(x) > 300 else x
+        )
+
     # Appends dataframe to MSSQL Server
     print("Pushing data to MSSQL")
     push_to_mssql(df, conn)
