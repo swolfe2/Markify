@@ -106,9 +106,7 @@ def create_dataframe():
              file was modified, which is more than the {max_days} day limit allowed by the Tableau automation.
              Please ensure file is processing correctly."""
 
-        to_addresses = (
-            "steve.wolfe@kcc.com; ankit.kesharwani@kcc.com; mario.sarmiento@kcc.com"
-        )
+        to_addresses = "steve.wolfe@kcc.com; ankit.kesharwani@kcc.com; mario.sarmiento@kcc.com; tatch@kcc.com"
         process_step = "Active Directory Automation - Flat File Modified Failure"
         send_error_email(
             error_message=error_message,
