@@ -54,7 +54,7 @@ def main():
             to_list = [registered_email, assigned_email]
             to = str("; ".join(map(str, to_list)))
 
-            if assigned_email_manager != "" and assigned_email_manager != "":
+            if registered_email_manager != "" and assigned_email_manager != "":
                 cc_list = [registered_email_manager, assigned_email_manager]
                 cc = str("; ".join(map(str, cc_list)))
             elif registered_email_manager != "":
