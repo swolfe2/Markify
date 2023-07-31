@@ -59,7 +59,7 @@ try:
         )
 
         # Wait the right number of seconds, displaying a countdown message for every second
-        waiting(random.randint(10, 20))
+        waiting(random.randint(60, 240))
 
         # Calculate height and width of screen
         w, h = list(pyautogui.size())[0], list(pyautogui.size())[1]
