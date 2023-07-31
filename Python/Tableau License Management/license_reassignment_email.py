@@ -134,7 +134,8 @@ def main():
                 <tr><td><b>New License Expiry Date</b></td><td>{new_period_end}</td></tr>
 
                 </table>
-                <p>You will need to first follow the instructions from Tableau to <a href="https://help.tableau.com/current/desktopdeploy/en-us/desktop_deploy_move_or_deactivate.htm">deactivate your current license</a>.</p>
+                <p>You will need to first follow the instructions from Tableau to <a href="https://help.tableau.com/current/desktopdeploy/en-us/desktop_deploy_move_or_deactivate.htm">deactivate your current license</a>.
+                 Note: There is no need to uninstall Tableau Desktop.</p>
                 <p>Once you have deactivated your current license, you will need to follow the instructions from Tableau to <a href="https://help.tableau.com/current/desktopdeploy/en-us/desktop_deploy_activate_license.htm">register your new Tableau license key </a> <span style="background-color: #FFFF00"><b>{new_key_name}</b></span>.</p>
                                 
                 <p>For any license moves in the future, or if you no longer wish to have a Tableau license, please ensure that you are following the license process
