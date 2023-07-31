@@ -25,9 +25,7 @@ def isNowInTimePeriod(start_time, end_time, now_time, num_moves):
             + "\n"
             + "We ran a total of "
             + str(num_moves)
-            + " times, which covered you for "
-            + str(round(int(num_moves) * int(sleep_seconds) / 60, 2))
-            + " minutes.",
+            + " times.",
             end="\r",
         )
         exit()
