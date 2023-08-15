@@ -1,59 +1,63 @@
-import os
-import ssl
+from gssapi.exceptions import GSSError
+from ldap3 import ALL, SUBTREE, Connection, Server
+from ldap3.core.exceptions import LDAPException
+from pyasn1.codec.ber import decoder, encoder
+from pyasn1.type.univ import noValue
 
-from ldap3 import ALL, SASL, Connection, Server, Tls
+import pandas as pd
 
+server = Server("kccldap.kcc.com")
+c = Connection(server, authentication="GSSAPI", auto_bind=True)
 
-def connect():
-    # Create TLS connection
-    tls = Tls(validate=ssl.CERT_NONE)
+page_size = 500
+groups = ["TAB_*", "PBI_*"]
+members = {}
+for group in groups:
+    members[group] = []
+    base_dn = "DC=kcc,DC=com"
+    search_filter = f"(&(sAMAccountName={group})(objectCategory=group))"
+    attributes = ["member"]
 
-    # Create server object with TLS
-    server = Server("kcc.com", get_info=ALL)
-
-    # Construct user with domain
-    user = "KCUS\\" + os.getenv("USERNAME")
-
-    # Create LDAP connection
-    conn = Connection(server, sasl_mechanism="EXTERNAL")
-
-    # Perform bind
-    conn.bind()
-
-    return conn
-
-
-def get_ad_groups(conn):
-    # Search for TAB and PBI groups
-    search_filter = "(&(objectClass=group)(|(name=TAB_*)(name=PBI_*)))"
-
-    # Hold group info
-    groups = []
-
-    # Search AD and loop through results
-    conn.search(
-        "ou=Groups,dc=company,dc=com",
-        search_filter,
-        attributes=["managedBy", "memberOf"],
-    )
-
-    for entry in conn.entries:
-        groups.append(
-            {
-                "name": entry["name"].value,
-                "owners": entry["managedBy"].value,
-                "authorizers": entry["memberOf"].value,
-            }
+    try:
+        c.search(
+            search_base=base_dn,
+            search_filter=search_filter,
+            attributes=attributes,
+            paged_size=page_size,
+            paged_cookie=None,
+            search_scope=SUBTREE,
         )
 
-    return groups
+        for entry in c.response:
+            if "attributes" in entry:
+                for member in entry["attributes"]["member"]:
+                    members[group].append(member)
 
+    except (LDAPException, GSSError):
+        pass
 
-if __name__ == "__main__":
-    # Get Active Directory connection
-    conn = connect()
+# Get email addresses and user IDs for each member
+results = []
+for group in groups:
+    for member in members[group]:
+        search_filter = f"(&(objectCategory=person)(objectClass=user)(sAMAccountName={member.split(',')[0][3:]}))"
+        try:
+            c.search(
+                search_base=base_dn,
+                search_filter=search_filter,
+                attributes=["sAMAccountName", "mail"],
+            )
 
-    # Get list of groups
-    groups = get_ad_groups(conn)
+            for entry in c.response:
+                if "attributes" in entry:
+                    result = {
+                        "group": group,
+                        "user_id": entry["attributes"]["sAMAccountName"][0].decode(),
+                        "email_address": entry["attributes"]["mail"][0].decode(),
+                    }
+                    results.append(result)
+        except (LDAPException, GSSError):
+            pass
 
-    print(groups)
+# Load results into Pandas dataframe
+df = pd.DataFrame(results, columns=["group", "user_id", "email_address"])
