@@ -43,8 +43,8 @@ SELECT
   CAST(CASE WHEN task.closed_at IS NOT NULL THEN task.closed_at ELSE req.closed_at END AS DATE) AS "Closed Date",
   task.close_notes AS "Close Notes",
 req.dv_configuration_item AS "Configuration Item",
-req.sla_due AS "SLA Due"
-
+req.sla_due AS "SLA Due",
+transport.[value] AS "Transport Type"
 
 FROM 
   SNOWMIRROR.dbo.sc_req_item req 
@@ -106,6 +106,30 @@ AND
 WHERE first_worked.RowRank = 1
 )first_worked ON first_worked.task_effective_number =  task.task_effective_number
 
+LEFT JOIN (
+SELECT DISTINCT
+req.dv_stage,
+req.dv_state,
+req.dv_cat_item,
+req.task_effective_number,
+item.value,
+item.dv_item_option_new
+FROM SNOWMIRROR.dbo.sc_req_item req
+INNER JOIN SNOWMIRROR.dbo.sc_item_option_mtom AS mtom ON mtom.request_item = req.sys_id
+INNER JOIN SNOWMIRROR.dbo.sc_item_option AS item ON item.sys_id=mtom.sc_item_option
+INNER JOIN SNOWMIRROR.dbo.item_option_new AS itemdef ON itemdef.sys_id= item.item_option_new
+WHERE   req.dv_assignment_group IN (
+    'BI-SUPPORT-TML'
+  ) 
+  AND YEAR(req.opened_at) >= YEAR(
+    GETDATE()
+  ) -1
+AND item.dv_item_option_new IS NOT NULL
+AND item.value IS NOT NULL
+AND item.dv_item_option_new IN ('Select Type of Development')
+
+) transport ON transport.task_effective_number = req.task_effective_number
+
 WHERE 
   req.dv_assignment_group IN (
     'BI-SUPPORT-TML'
@@ -113,6 +137,3 @@ WHERE
   AND YEAR(req.opened_at) >= YEAR(
     GETDATE()
   ) -1
-  /*AND task.task_effective_number = 'TASK0545566'*/
-  /*AND task.close_notes LIKE '%{%'*/
-  /*ORDER BY task.sys_updated_on DESC*/
