@@ -235,6 +235,9 @@ WHERE
 New 6/1/2023
 Lih Shan discovered that there was an Incident that was assigned to our team, rather than the default SC_TASK.
 This will union any INCs that are assigned in the same ordinal position as the above query
+
+Update 11/8/2023
+If the state contains 'Resolved', then it is truly 'Closed Successful'
 */
 
 UNION ALL
@@ -246,10 +249,15 @@ inc.number AS "INC Number3",
 'https://kcc.service-now.com/nav_to.do?uri=incident.do?sysparm_query=number=' + inc.number AS "Incident URL",
 'https://kcc.service-now.com/nav_to.do?uri=incident.do?sysparm_query=number=' + inc.number AS "Incident URL2",
 CASE WHEN inc.dv_state LIKE '%Closed%' THEN 'Completed' 
+    WHEN inc.dv_state LIKE '%Resolved%' THEN 'Completed'
     WHEN first_worked.claimed_on IS NULL then 'Open'
     ELSE 'Pending' END AS "SR Stage",
-CASE WHEN inc.dv_state LIKE '%Closed%' THEN 'Closed Successful' ELSE inc.dv_state END AS "SR State",
-CASE WHEN inc.dv_state LIKE '%Closed%' THEN 'Closed' else 'Open' END AS "SR Status",
+CASE WHEN inc.dv_state LIKE '%Closed%' THEN 'Closed Successful' 
+    WHEN inc.dv_state LIKE '%Resolved%' THEN 'Closed Successful' 
+    ELSE inc.dv_state END AS "SR State",
+CASE WHEN inc.dv_state LIKE '%Closed%' THEN 'Closed' 
+    WHEN inc.dv_state LIKE '%Resolved%' THEN 'Closed'
+    ELSE 'Open' END AS "SR Status",
 inc.dv_cmdb_ci + ' Service Request' AS "SR Type",
 inc.dv_cmdb_ci AS "Platform Type",
 'Incident' AS "Computer Type",
