@@ -21,8 +21,12 @@ for month in range(1, 13):
         None,
     )
 
-    # If the first Tuesday was found, add 14 days to get the third Tuesday
-    if first_tuesday is not None:
+    # If the first Tuesday was found and is less than or equal to the number of days in the month,
+    # add 14 days to get the third Tuesday
+    if (
+        first_tuesday is not None
+        and first_tuesday <= calendar.monthrange(year, month)[1]
+    ):
         third_tuesday = datetime.date(year, month, first_tuesday) + datetime.timedelta(
             days=14
         )
