@@ -314,3 +314,30 @@ INNER JOIN PBI_Platform_Automation.DatasetDetail dd ON dd.DatasetID = rsd.Datase
 WHERE rsd.RefreshEnabled = 'True'
 AND cd.capacityID = 'CC10DC9F-8F94-4DD9-80CB-C29A580EDA70'
 AND rsd.ConfiguredBy IN ('["leland.carawan@kcc.com"]','["ryan.m.hall@kcc.com"]')
+
+
+/*
+Get all unique Pro Activities from log for the past 3 calendar months
+*/
+SELECT MAX(al.CreationDate) AS [Most Recent Activity Date],
+al.UserID AS [User Email] 
+FROM 
+[db-pbi-platform-p-scus-1].PBI_Platform_Automation.CapacityDetail cd --Start with shared capacities
+INNER JOIN [db-pbi-platform-p-scus-1].PBI_Platform_Automation.WorkspaceDetail wd ON wd.CapacityID = cd.CapacityID --Only Workspaces on shared capacities
+INNER JOIN [db-pbi-platform-p-scus-1].PBI_Platform_Automation.DatasetDetail dd ON dd.WorkspaceID = wd.WorkspaceID --Only datasets on Workspaces on shared capacities
+--INNER JOIN [db-pbi-platform-p-scus-1].PBI_Platform_Automation.DataSourceDetail dsd ON dsd.DatasetID = dd.DatasetID --Only datasource details for datasets on Workspaces on shared capacities
+INNER JOIN [db-pbi-platform-p-scus-1].PBI_Platform_Automation.PBIActivityLog al ON al.WorkspaceID = wd.WorkspaceID --Only activity logs where the WorkspaceID of the event is on shared capacities
+WHERE al.CreationTime >= DATEADD(MONTH, DATEDIFF(MONTH, 0, GETDATE()) - 13, 0)
+AND (
+    al.Activity LIKE 'CANCEL%'
+    OR al.Activity LIKE 'CREATE%'
+    OR al.Activity LIKE 'DELETE%'
+    OR al.Activity LIKE 'EDIT%'
+    OR al.Activity LIKE 'REFRESH%'
+    OR al.Activity LIKE 'RENAME%'
+    OR al.Activity LIKE 'UPDATE%'
+    OR al.Activity IN ('RequestDataflowRefresh','TakeOverDataset','TookOverDataflow')
+    )
+    AND al.WorkspaceID IS NOT NULL
+    AND dd.DatasetName NOT IN ('Report Usage Metrics Model')
+    GROUP BY al.UserID
