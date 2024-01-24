@@ -15,7 +15,7 @@ ELSE 'Not On Dedicated Capacity'
 END AS WorkspaceRegion,
 CASE WHEN IsOnDedicatedCapacity = 1 THEN
     CASE WHEN RIGHT(wd.WorkspaceName, 3) = '- D' THEN 'Development'
-    WHEN RIGHT(wd.WorkspaceName, 3) = '- Q ' THEN 'Quality'
+    WHEN RIGHT(wd.WorkspaceName, 3) = '- Q' THEN 'Quality'
     WHEN RIGHT(wd.WorkspaceName, 7) = '- ADHOC' THEN 'Adhoc'
     WHEN RIGHT(wd.WorkspaceName, 8) = '- PUBLIC' THEN 'Public'
     WHEN LEFT(wd.WorkspaceName, 3) IN ('GL ', 'AP ', 'NA ', 'LAO', 'EME') THEN 'Production Certified'
