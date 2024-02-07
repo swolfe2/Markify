@@ -125,7 +125,9 @@ def power_bi_yammer():
     power_bi_url = (
         f"https://www.yammer.com/api/v1/users/in_group/{power_bi_group_id}.json"
     )
-    power_bi_access_token = "12467-7JI1R5o60GBHRkDu82Wg"
+    power_bi_access_token = (
+        "12467-ZNdJ6qPFwGpUHSmBb0iIQ"  # "12467-7JI1R5o60GBHRkDu82Wg"
+    )
 
     # Get the json response of all Yammer users
     power_bi_users = get_yammer_users(
@@ -172,7 +174,7 @@ def tableau_yammer():
     tableau_url = (
         f"https://www.yammer.com/api/v1/users/in_group/{tableau_group_id}.json"
     )
-    tableau_access_token = "12467-7JI1R5o60GBHRkDu82Wg"
+    tableau_access_token = "12467-ZNdJ6qPFwGpUHSmBb0iIQ"  # "12467-7JI1R5o60GBHRkDu82Wg"
 
     # Get the json response of all Yammer users
     tableau_users = get_yammer_users(
