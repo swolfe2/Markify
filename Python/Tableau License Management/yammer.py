@@ -6,6 +6,9 @@ import utils.mssql_database as mssql_database  # module in utils folder
 
 import pandas as pd
 
+global token
+token = "12467-RoGyPGy7Um0H3VrAFROcPA"
+
 
 class BearerAuth(requests.auth.AuthBase):
     """
@@ -125,14 +128,9 @@ def power_bi_yammer():
     power_bi_url = (
         f"https://www.yammer.com/api/v1/users/in_group/{power_bi_group_id}.json"
     )
-    power_bi_access_token = (
-        "12467-ZNdJ6qPFwGpUHSmBb0iIQ"  # "12467-7JI1R5o60GBHRkDu82Wg"
-    )
 
     # Get the json response of all Yammer users
-    power_bi_users = get_yammer_users(
-        power_bi_group_id, power_bi_url, power_bi_access_token
-    )
+    power_bi_users = get_yammer_users(power_bi_group_id, power_bi_url, token)
 
     # Convert json into dataframe
     df = pd.read_json(power_bi_users)
@@ -174,12 +172,9 @@ def tableau_yammer():
     tableau_url = (
         f"https://www.yammer.com/api/v1/users/in_group/{tableau_group_id}.json"
     )
-    tableau_access_token = "12467-ZNdJ6qPFwGpUHSmBb0iIQ"  # "12467-7JI1R5o60GBHRkDu82Wg"
 
     # Get the json response of all Yammer users
-    tableau_users = get_yammer_users(
-        tableau_group_id, tableau_url, tableau_access_token
-    )
+    tableau_users = get_yammer_users(tableau_group_id, tableau_url, token)
 
     # Convert json into dataframe
     df = pd.read_json(tableau_users)
@@ -210,6 +205,7 @@ def tableau_yammer():
 
 
 def main():
+    token = "12467-RoGyPGy7Um0H3VrAFROcPA"
     power_bi_yammer()
     tableau_yammer()
 
