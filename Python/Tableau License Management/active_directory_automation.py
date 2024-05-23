@@ -171,6 +171,17 @@ def create_dataframe():
 
     # Add the current date/time to dataframe
     df["CurrentTime"] = str(time_current)
+
+    # Update in June 2023 for field that is way over the normal character limit
+    for col in df.columns:
+        df[col] = df[col].apply(
+            lambda x: x[:300] if isinstance(x, str) and len(x) > 300 else x
+        )
+
+    # Added on 5/23 due to ????? being applied to some users on the 'CostCenter' column
+    df = df.replace(r"\?", "", regex=True)
+    df["costCenter"] = df["costCenter"].str.slice(start=0, stop=30)
+
     return df
 
 
@@ -180,12 +191,6 @@ def main():
 
     # Connect to MSSQL server
     conn = mssql_database.connect_to_database()
-
-    # Update in June 2023 for field that is way over the normal character limit
-    for col in df.columns:
-        df[col] = df[col].apply(
-            lambda x: x[:300] if isinstance(x, str) and len(x) > 300 else x
-        )
 
     # Appends dataframe to MSSQL Server
     print("Pushing data to MSSQL")
