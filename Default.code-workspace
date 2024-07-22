@@ -2,9 +2,10 @@
 	"folders": [
 		{
 			"path": "."
+		},
+		{
+			"path": "../Files/DV CoE/Global DV CoE"
 		}
 	],
-	"settings": {
-		"jupyter.jupyterServerType": "local"
-	}
+	"settings": {}
 }
