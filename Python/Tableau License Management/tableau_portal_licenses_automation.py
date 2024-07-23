@@ -124,7 +124,6 @@ def main():
         page.close()
 
     def scrape_table_paginate(page):
-
         """
         Press the Export Data button and copy values to memory
         Use pandas read_clipboard by tab deliminated
@@ -249,6 +248,12 @@ def main():
 
         page.wait_for_selector(div)
         page.wait_for_selector(selector)
+
+        # Added 7/23/2024 due to Cookie message now appearing in browser
+        try:
+            page.get_by_role("button", name="Accept All Cookies").click()
+        except Exception:
+            pass
 
         # Get current selector value, and ensure it's changed correctly
         try:
