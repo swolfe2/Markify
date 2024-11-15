@@ -23,12 +23,11 @@ import os
 import sys
 from datetime import datetime
 
+import pandas as pd
 import utils.mssql_database as mssql_database  # module in utils folder
 from utils.config import DB_NAME, MSSQL_SERVER  # module in utils folder
 from utils.send_email import send_error_email  # module in utils folder
 from yammer import power_bi_yammer
-
-import pandas as pd
 
 
 def push_to_mssql(df, conn):

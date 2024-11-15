@@ -27,12 +27,11 @@ Process steps overview:
 import sys
 from datetime import datetime
 
+import pandas as pd
 import utils.mssql_database as mssql_database  # module in utils folder
 from playwright.sync_api import sync_playwright
 from utils.config import CRED_PW, CRED_UN
 from utils.send_email import send_error_email  # module in utils folder
-
-import pandas as pd
 
 
 def main():
@@ -251,6 +250,7 @@ def main():
 
         # Added 7/23/2024 due to Cookie message now appearing in browser
         try:
+            page.locator("#onetrust-button-group-parent").click()
             page.get_by_role("button", name="Accept All Cookies").click()
         except Exception:
             pass
