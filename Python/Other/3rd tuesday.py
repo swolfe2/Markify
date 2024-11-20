@@ -1,7 +1,7 @@
 import calendar
 import datetime
 
-year = 2024
+year = 2025
 
 third_tuesdays = []
 third_thursdays = []
