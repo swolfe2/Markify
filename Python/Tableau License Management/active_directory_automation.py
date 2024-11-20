@@ -23,11 +23,12 @@ import os
 import sys
 from datetime import datetime
 
-import pandas as pd
 import utils.mssql_database as mssql_database  # module in utils folder
 from utils.config import DB_NAME, MSSQL_SERVER  # module in utils folder
 from utils.send_email import send_error_email  # module in utils folder
 from yammer import power_bi_yammer
+
+import pandas as pd
 
 
 def push_to_mssql(df, conn):
@@ -105,7 +106,7 @@ def create_dataframe():
              file was modified, which is more than the {max_days} day limit allowed by the Tableau automation.
              Please ensure file is processing correctly."""
 
-        to_addresses = "steve.wolfe@kcc.com; ankit.kesharwani@kcc.com; mario.sarmiento@kcc.com; tatch@kcc.com"
+        to_addresses = "steve.wolfe@kcc.com; mario.sarmiento@kcc.com; tatch@kcc.com"
         process_step = "Active Directory Automation - Flat File Modified Failure"
         send_error_email(
             error_message=error_message,
@@ -136,9 +137,7 @@ def create_dataframe():
         error_message = f"""There appears to be an issue with the file size of {full_file_path}
              with it being less than 1 MB. Please review process steps to ensure the file is being created correctly."""
 
-        to_addresses = (
-            "steve.wolfe@kcc.com; ankit.kesharwani@kcc.com; mario.sarmiento@kcc.com"
-        )
+        to_addresses = "steve.wolfe@kcc.com; mario.sarmiento@kcc.com"
         process_step = "Active Directory Automation - Flat File Size Failure"
         send_error_email(
             error_message=error_message,
