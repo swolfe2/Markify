@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 
 import requests
-import utils.mssql_database as mssql_database  # module in utils folder
+import utils.azure_database as azure_database  # module in utils folder
 
 import pandas as pd
 
@@ -70,8 +70,8 @@ def get_yammer_users(group_id, url, access_token):
     return json.dumps(users)
 
 
-def push_to_mssql(df, conn, temp_table, query):
-    "This process calls the processes from the mssql_database module in the same folder"
+def push_to_azure(df, conn, temp_table, query):
+    "This process calls the processes from the azure_database module in the same folder"
 
     # Get dataframe size
     count_row, count_col = (
@@ -93,19 +93,19 @@ def push_to_mssql(df, conn, temp_table, query):
             df[col].fillna("", inplace=True)
 
     # Create dictionary of columns and data types
-    outputdict = mssql_database.sqlcol(df)
+    outputdict = azure_database.sqlcol(df)
 
     # Clean dataframe values up
-    mssql_database.clean_dataframe(df)
+    azure_database.clean_dataframe(df)
 
     # Create a temp table, and push values to it from dataframe
-    mssql_database.create_temp_table(df, conn, temp_table, outputdict)
+    azure_database.create_temp_table(df, conn, temp_table, outputdict)
 
     # Clean the temp table by values
-    mssql_database.clean_temp_table(df, conn, temp_table)
+    azure_database.clean_temp_table(df, conn, temp_table)
 
     # Execute query string
-    mssql_database.execute_query(conn, query)
+    azure_database.execute_query(conn, query)
 
     # Get End Time
     end_time = datetime.now()
@@ -119,7 +119,7 @@ def push_to_mssql(df, conn, temp_table, query):
 def power_bi_yammer():
     """
     This will get all user data for the Power BI Yammer group into .json.
-    Then, it will append that data to MSSQL Server, and mark the Active Directory
+    Then, it will append that data to azure Server, and mark the Active Directory
     table for when people are members of the Power BI Yammer group.
     """
 
@@ -141,29 +141,29 @@ def power_bi_yammer():
     # Keep only emails
     df = df[["email"]]
 
-    # Connect to MSSQL server
-    conn = mssql_database.connect_to_database()
+    # Connect to azure server
+    conn = azure_database.connect_to_database()
 
     # Update Active Directory table to "No" for all records
-    # 1/30 - Had to escape quotes so that it will work with mssql_database.py text replaces
-    query = """
-        UPDATE TableauLicenses.dbo.tblActiveDirectory 
+    # 1/30 - Had to escape quotes so that it will work with azure_database.py text replaces
+    query = f"""
+        UPDATE [{azure_database.AZURE_DATABASE}].dbo.tblActiveDirectory 
         SET YammerPowerBI=\''No\''
 
-        UPDATE TableauLicenses.dbo.tblActiveDirectory 
+        UPDATE [{azure_database.AZURE_DATABASE}].dbo.tblActiveDirectory 
         SET YammerPowerBI=\''Yes\''
-        FROM TableauLicenses.dbo.tblActiveDirectory ad 
+        FROM [{azure_database.AZURE_DATABASE}].dbo.tblActiveDirectory ad 
         INNER JOIN ##tblPowerBIYammer pbi ON pbi.email = ad.Email
         """
 
-    # Clean dataframe, and push to MSSQL
-    push_to_mssql(df, conn, "##tblPowerBIYammer", query)
+    # Clean dataframe, and push to azure
+    push_to_azure(df, conn, "##tblPowerBIYammer", query)
 
 
 def tableau_yammer():
     """
     This will get all user data for the Tableau Yammer group into .json.
-    Then, it will append that data to MSSQL Server, and mark the Active Directory
+    Then, it will append that data to azure Server, and mark the Active Directory
     table for when people are members of the Tableau Yammer group.
     """
 
@@ -185,29 +185,32 @@ def tableau_yammer():
     # Keep only emails
     df = df[["email"]]
 
-    # Connect to MSSQL server
-    conn = mssql_database.connect_to_database()
+    # Connect to azure server
+    conn = azure_database.connect_to_database()
 
     # Update Active Directory table to "No" for all records
-    # 1/30 - Had to escape quotes so that it will work with mssql_database.py text replaces
-    query = """
-        UPDATE TableauLicenses.dbo.tblActiveDirectory 
+    # 1/30 - Had to escape quotes so that it will work with azure_database.py text replaces
+    query = f"""
+        UPDATE [{azure_database.AZURE_DATABASE}].dbo.tblActiveDirectory 
         SET Yammertableau=\''No\''
 
-        UPDATE TableauLicenses.dbo.tblActiveDirectory 
+        UPDATE [{azure_database.AZURE_DATABASE}].dbo.tblActiveDirectory 
         SET Yammertableau=\''Yes\''
-        FROM TableauLicenses.dbo.tblActiveDirectory ad 
+        FROM [{azure_database.AZURE_DATABASE}].dbo.tblActiveDirectory ad 
         INNER JOIN ##tbltableauYammer pbi ON pbi.email = ad.Email
         """
 
-    # Clean dataframe, and push to MSSQL
-    push_to_mssql(df, conn, "##tbltableauYammer", query)
+    # Clean dataframe, and push to azure
+    push_to_azure(df, conn, "##tbltableauYammer", query)
 
 
 def main():
     token = "12467-RoGyPGy7Um0H3VrAFROcPA"
-    power_bi_yammer()
+
+    print("Beginning Tableau Yammer/Viva Engage Process")
     tableau_yammer()
+    print("Beginning Power BI Yammer/Viva Engage Process")
+    power_bi_yammer()
 
 
 if __name__ == "__main__":
