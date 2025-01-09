@@ -1,5 +1,5 @@
-from active_directory_automation import main as active_directory
-from tableau_portal_licenses_automation import main as tableau_portal
+from active_directory_automation_azure import main as active_directory
+from tableau_portal_licenses_automation_azure import main as tableau_portal
 
 
 def main():

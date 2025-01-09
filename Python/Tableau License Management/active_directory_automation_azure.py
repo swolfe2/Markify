@@ -25,7 +25,7 @@ from datetime import datetime
 
 import utils.azure_database as azure_database  # module in utils folder
 from utils.send_email import send_error_email  # module in utils folder
-from yammer_azure import power_bi_yammer
+from yammer_azure import power_bi_yammer, tableau_yammer
 
 import pandas as pd
 
@@ -180,8 +180,12 @@ def main():
     push_to_azure(df, conn)
 
     # Update table with Yammer info
-    print("Updating table with Yammer group details")
+    print("Updating table with PBI Viva Engage group details")
     power_bi_yammer()
+
+    # Update table with Yammer info
+    print("Updating table with Tableau Viva Engage group details")
+    tableau_yammer()
 
 
 if __name__ == "__main__":
