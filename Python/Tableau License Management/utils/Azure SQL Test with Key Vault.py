@@ -13,7 +13,6 @@ credential = AzureCliCredential()
 client = SecretClient(vault_url=AZURE_VAULT_URL, credential=credential)
 
 # Retrieve the secret (password)
-# retrieved_secret = client.get_secret(service_principal)
 retrieved_secret = client.get_secret(AZURE_SERVICE_PRINCIPAL).value
 
 # Use IP address and port number in the connection string
