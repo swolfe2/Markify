@@ -49,34 +49,29 @@ def connect_to_database():
     """
     This will open a connection to a Azure SQL database with a Service Principal's connection
     """
-    # conn = connect(
-    #     driver="ODBC Driver 18 for SQL Server",
-    #     server=AZURE_SERVER,
-    #     database=AZURE_DATABASE,
-    #     trusted_connection="YES",
-    #     encrypt="YES",
-    #     trustservercertificate="YES",
-    # )
-    # return conn
 
     # Set up the Key Vault client with AzureCliCredential
     credential = AzureCliCredential()
     client = SecretClient(vault_url=AZURE_VAULT_URL, credential=credential)
 
-    # Retrieve the secret (password)
-    # retrieved_secret = client.get_secret(service_principal)
-    retrieved_secret = client.get_secret(AZURE_SERVICE_PRINCIPAL).value
+    # Retrieve the secret
+    secret = client.get_secret(AZURE_SERVICE_PRINCIPAL)
+
+    # Load the secret value and Service Principal ID into variables
+    retrieved_secret = secret.value
+    retrieved_service_principal_id = secret.properties.content_type
 
     # Use IP address and port number in the connection string
     connection_string = (
         f"Driver={{ODBC Driver 18 for SQL Server}};"
         f"Server=tcp:{AZURE_SERVER},1433;"  # Ensure the port number is correct
         f"Database={AZURE_DATABASE};"
-        f"Uid={AZURE_SERVICE_PRINCIPAL};"
+        f"Uid={retrieved_service_principal_id};"
         f"Pwd={retrieved_secret};"
         f"Encrypt=yes;"
         f"TrustServerCertificate=yes;"
         f"Connection Timeout=30;"
+        f"Authentication=ActiveDirectoryServicePrincipal;"  # Specify AAD Service Principal authentication
     )
 
     # Connect to the database
