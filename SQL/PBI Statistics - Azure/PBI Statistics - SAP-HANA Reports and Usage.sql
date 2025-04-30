@@ -6,6 +6,7 @@ WITH Datasets AS (
 SELECT 
 DatasetID 
 FROM PBI_Platform_Automation.DatasetTableDetail dtd
+WHERE dtd.TableExpression LIKE '%SapHana.Database%'
 GROUP BY DatasetID
 ),
 
@@ -76,7 +77,8 @@ ReportViews AS (
 SELECT al.ReportID,
 al.WorkspaceID,
 COUNT(al.ActivityID) AS ViewCount,
-MAX(al.CreationDate) AS MostRecentViewDate
+MAX(al.CreationDate) AS MostRecentViewDate, 
+COUNT(DISTINCT al.UserID) AS UniqueUserCount
 FROM PBI_Platform_Automation.PBIActivityLog al
 INNER JOIN ReportData rd
     ON rd.ReportID = al.ReportID
@@ -102,7 +104,8 @@ rd.GlobalFunction,
 rd.Segment,
 rd.ABU,
 COALESCE(rv.ViewCount,0) AS ViewCount,
-rv.MostRecentViewDate
+rv.MostRecentViewDate,
+COALESCE(rv.UniqueUserCount,0) AS UniqueUserCount
 FROM ReportData rd
 LEFT JOIN ReportViews rv 
 	ON rv.ReportID = rd.ReportID 
