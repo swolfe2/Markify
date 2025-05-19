@@ -154,4 +154,4 @@ GROUP BY
     d.ABU,
     d.GlobalFunction;
 
-SELECT * FROM #tblWorkspaceAdminTemp WHERE OwnerEmails IS NULL;
+SELECT * FROM #tblWorkspaceAdminTemp;
