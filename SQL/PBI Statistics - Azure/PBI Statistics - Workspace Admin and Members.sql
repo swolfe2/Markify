@@ -51,7 +51,16 @@ INNER JOIN
 INNER JOIN 
     PBI_Platform_Automation.WorkspaceDetail wd
     ON wd.WorkspaceID = wud.WorkspaceID
-WHERE mam.Group_Name NOT IN ('PBI_ALLUSERS','PBI_LC_PROUSER','PBI_Support','PBI_PL_SERVICEADMIN','PBI_FFID_USERS','PBI_COLIBRA_ADMIN_AAD','PBI_PL_GATEWAY_LOGFILES');
+WHERE mam.Group_Name NOT IN ('PBI_ALLUSERS',
+    'PBI_LC_PROUSER',
+    'PBI_Support',
+    'PBI_PL_SERVICEADMIN',
+    'PBI_FFID_USERS',
+    'PBI_COLIBRA_ADMIN_AAD',
+    'PBI_PL_GATEWAY_LOGFILES',
+    'PBI_PL_QA_ADH',
+    'sp-pbi-platform-p-1')
+AND wud.GroupUserAccessRight IN ('Viewer','Contributor');
 
 -- Step 3: Create a temporary table to store admin emails
 SELECT DISTINCT
