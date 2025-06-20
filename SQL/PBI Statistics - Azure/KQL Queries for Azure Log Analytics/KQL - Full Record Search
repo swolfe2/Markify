@@ -1,0 +1,3 @@
+PowerBIDatasetsWorkspace
+| where ExecutingUser == "steve.wolfe@kcc.com"
+| order by TimeGenerated desc

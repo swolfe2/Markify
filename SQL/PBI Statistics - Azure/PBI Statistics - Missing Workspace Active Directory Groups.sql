@@ -92,3 +92,7 @@ FROM (
 				)) AS piv
 	) data
 WHERE data.WorkspaceFlag <> 'Compliant'
+
+SELECT wud.* 
+FROM PBI_Platform_Automation.WorkspaceUserDetail wud 
+WHERE wud.WorkspaceID = 'a11dae7a-fcea-436f-b79f-71d3de53f840'

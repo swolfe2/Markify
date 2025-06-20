@@ -1,0 +1,12 @@
+PowerBIDatasetsWorkspace
+| where ExecutingUser == "steve.wolfe@kcc.com"
+| extend 
+    TimeBin = bin(TimeGenerated, 10m),
+    WorkspaceName = iif(PowerBIWorkspaceId == "2499ef23-a691-4aac-bb96-408b883ce30a", "GL PBI Copilot POC - D", "GL FABRIC POC")
+| summarize 
+    ArtifactName = max(ArtifactName),
+    QueryCount = countif(LogAnalyticsCategory == "Query"),
+    TotalCpuTimeMs = sum(CpuTimeMs),
+    TotalDurationMs = sum(DurationMs)    
+    by TimeBin, WorkspaceName
+| order by TimeBin desc
