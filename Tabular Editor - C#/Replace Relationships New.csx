@@ -1,16 +1,17 @@
 /*
 ===========================================================================================
-RELATIONSHIP MIGRATION SCRIPT WITH PROPERTY VERIFICATION (TE2 COMPATIBLE)
+RELATIONSHIP MIGRATION SCRIPT WITH TWO-PHASE FALLBACK (TE2 COMPATIBLE)
 -------------------------------------------------------------------------------------------
 Author: Steve Wolfe (Data Viz CoE), Revised by Gemini
 Purpose:
-This script migrates relationships and includes a critical verification step. If the model
-silently changes a property, the script now DELETES the incorrect relationship and
-RECREATES it as inactive to guarantee a safe, saveable state.
+This script uses a two-phase process. It first creates all relationships, VERIFYING each
+one and adding any that were silently changed by the model to a list. In a second,
+separate phase, it loops through that list and forces each problematic relationship to
+become INACTIVE, ensuring the fix is applied reliably.
 
 Key Features:
-- Explicit verification to catch "silent failures" where the model coerces properties.
-- "Delete and Recreate" fallback logic to ensure failed relationships are always inactive.
+- Two-phase "Detect then Remediate" logic for maximum reliability.
+- Explicit verification to catch "silent failures."
 - Detailed final report explaining which relationships failed, why, and how to fix them.
 - User-friendly pop-up errors for incorrect table or column names.
 
@@ -75,9 +76,9 @@ else
     summary += "=== SKIPPING DELETION of old relationships (Option Disabled) ===\n\n";
 }
 
-// Step 4: Create new relationships with verification and fallback
-summary += "=== CREATING NEW RELATIONSHIPS ===\n";
-var inactiveFallbackRels = new List<string>();
+// Step 4: Create new relationships and IDENTIFY any problems
+summary += "=== PHASE 1: CREATING AND VERIFYING RELATIONSHIPS ===\n";
+var relsToFix = new List<TabularEditor.TOMWrapper.SingleColumnRelationship>();
 
 foreach (var relInfo in relationshipInfo)
 {
@@ -87,64 +88,29 @@ foreach (var relInfo in relationshipInfo)
     {
         var newRel = Model.AddRelationship();
 
-        // Assign columns and "safe" properties first
-        if (relInfo.OldTableWasFrom) {
-            newRel.FromColumn = newColumn; newRel.ToColumn = relInfo.ToColumn;
-        } else {
-            newRel.FromColumn = relInfo.FromColumn; newRel.ToColumn = newColumn;
-        }
-        newRel.FromCardinality = relInfo.FromCardinality;
-        newRel.ToCardinality = relInfo.ToCardinality;
-        newRel.SecurityFilteringBehavior = relInfo.SecurityFilteringBehavior;
-        newRel.RelyOnReferentialIntegrity = relInfo.RelyOnReferentialIntegrity;
+        if (relInfo.OldTableWasFrom) { newRel.FromColumn = newColumn; newRel.ToColumn = relInfo.ToColumn; } 
+        else { newRel.FromColumn = relInfo.FromColumn; newRel.ToColumn = newColumn; }
+        
+        newRel.FromCardinality = relInfo.FromCardinality; newRel.ToCardinality = relInfo.ToCardinality;
+        newRel.SecurityFilteringBehavior = relInfo.SecurityFilteringBehavior; newRel.RelyOnReferentialIntegrity = relInfo.RelyOnReferentialIntegrity;
         newRel.JoinOnDateBehavior = relInfo.JoinOnDateBehavior;
 
-        // Attempt to set potentially problematic properties
         newRel.CrossFilteringBehavior = relInfo.CrossFilteringBehavior;
         newRel.IsActive = relInfo.IsActive;
 
-        // VERIFY if the properties were set correctly
         bool propsMatch = (newRel.CrossFilteringBehavior == relInfo.CrossFilteringBehavior) && (newRel.IsActive == relInfo.IsActive);
 
-        if (propsMatch)
-        {
+        if (propsMatch) {
             summary += relIdentifier + ": SUCCESS (Created with original properties).\n";
-            if (!string.IsNullOrEmpty(relInfo.Name)) {
-                newRel.Name = relInfo.Name.Replace(oldTableName, newTableName);
-            }
-        }
-        else
-        {
-            // The model coerced the properties. Log the details first.
+        } else {
             string originalState = string.Format("Active={0}, Filter={1}", relInfo.IsActive, relInfo.CrossFilteringBehavior);
             string actualState = string.Format("Active={0}, Filter={1}", newRel.IsActive, newRel.CrossFilteringBehavior);
-            
             summary += relIdentifier + ": WARNING - Model silently changed relationship properties.\n";
-            summary += "--> Original Request: " + originalState + ". Result: " + actualState + ".\n";
-            summary += "--> ACTION: Deleting incorrect relationship and re-creating as INACTIVE for manual review.\n";
-            inactiveFallbackRels.Add(relIdentifier);
-            
-            // FIX: Delete the bad relationship and create a new, safe one.
-            // 1. Get necessary info before deleting
-            var fromCol = newRel.FromColumn; var toCol = newRel.ToColumn; var fromCard = newRel.FromCardinality;
-            var toCard = newRel.ToCardinality; var security = newRel.SecurityFilteringBehavior; var relyOn = newRel.RelyOnReferentialIntegrity;
-            var joinOn = newRel.JoinOnDateBehavior; var originalName = string.IsNullOrEmpty(relInfo.Name) ? "" : relInfo.Name.Replace(oldTableName, newTableName);
-
-            // 2. Delete the coerced relationship
-            newRel.Delete();
-
-            // 3. Create a new one from scratch with guaranteed inactive properties
-            var fallbackRel = Model.AddRelationship();
-            fallbackRel.FromColumn = fromCol; fallbackRel.ToColumn = toCol; fallbackRel.FromCardinality = fromCard;
-            fallbackRel.ToCardinality = toCard; fallbackRel.SecurityFilteringBehavior = security; fallbackRel.RelyOnReferentialIntegrity = relyOn;
-            fallbackRel.JoinOnDateBehavior = joinOn;
-
-            // 4. Explicitly set the safe, inactive state
-            fallbackRel.IsActive = false;
-            fallbackRel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
-            
-            if(!string.IsNullOrEmpty(originalName)) { fallbackRel.Name = originalName; }
+            summary += "--> Original: " + originalState + ". Result: " + actualState + ". Flagged for remediation.\n";
+            relsToFix.Add(newRel);
         }
+
+        if (!string.IsNullOrEmpty(relInfo.Name)) { newRel.Name = relInfo.Name.Replace(oldTableName, newTableName); }
     }
     catch (Exception ex)
     {
@@ -152,16 +118,34 @@ foreach (var relInfo in relationshipInfo)
     }
 }
 
-// Step 5: Final Summary Report
-if (inactiveFallbackRels.Count > 0)
+// Step 5: REMEDIATE the relationships that were flagged in the previous step
+summary += "\n=== PHASE 2: APPLYING FALLBACKS TO FLAGGED RELATIONSHIPS ===\n";
+if(relsToFix.Count > 0)
+{
+    foreach(var rel in relsToFix)
+    {
+        var relId = rel.FromTable.Name + " -> " + rel.ToTable.Name;
+        rel.IsActive = false;
+        rel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
+        summary += "  • Set relationship " + relId + " to INACTIVE.\n";
+    }
+}
+else
+{
+    summary += "No relationships required remediation.\n";
+}
+
+
+// Step 6: Final Summary Report
+if (relsToFix.Count > 0)
 {
     summary += "\n===================================================================\n";
     summary += "ACTION REQUIRED: Review Fallback Relationships\n";
     summary += "===================================================================\n";
-    summary += "The following relationships could not be created with their original properties and were created as INACTIVE instead:\n";
-    foreach (var rel in inactiveFallbackRels)
+    summary += "The following relationships could not be created with their original properties and were forced to be INACTIVE:\n";
+    foreach (var rel in relsToFix)
     {
-        summary += "  • " + rel + "\n";
+        summary += "  • " + rel.FromTable.Name + " -> " + rel.ToTable.Name + "\n";
     }
 
     summary += "\n--- Why This Happens ---\n";
