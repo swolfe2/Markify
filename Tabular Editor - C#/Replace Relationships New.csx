@@ -1,17 +1,18 @@
 /*
 ===========================================================================================
-RELATIONSHIP MIGRATION SCRIPT - THREE-PHASE LOGIC
+RELATIONSHIP MIGRATION SCRIPT - THREE-PHASE LOGIC WITH VERIFICATION
 -------------------------------------------------------------------------------------------
 Author: Steve Wolfe (Data Viz CoE), Revised by Gemini
 Purpose:
-This script uses a three-phase process for maximum reliability.
+This script uses a three-phase process.
 1. CREATE: All relationships are created as ACTIVE and SINGLE-DIRECTIONAL.
-2. UPGRADE: The script attempts to apply the original properties (bi-directional, etc.).
-3. REMEDIATE: Any relationship that failed the upgrade is reliably set to INACTIVE.
+2. VERIFIED UPGRADE: The script attempts to apply original properties and EXPLICITLY
+   VERIFIES that the change was successful. If not, it's flagged.
+3. REMEDIATE: Any relationship that failed verification is reliably set to INACTIVE.
 
 Key Features:
+- Explicit verification in Phase 2 to reliably catch silent property changes.
 - Multi-phase logic to ensure commands are processed reliably by the Tabular engine.
-- Clear separation of error types for creation vs. upgrade failures.
 - Detailed final report serves as a clear "to-do list" for manual corrections.
 
 Output:
@@ -56,10 +57,10 @@ summary += "Found " + relationshipInfo.Count + " relationships to migrate.\n";
 
 // Delete old relationships if configured
 if (deleteOldRelationships) {
-    summary += "Deleting " + relationshipInfo.Count + " old relationships...\n";
-    foreach (var relInfo in relationshipInfo) {
-        var oldRel = Model.Relationships.FirstOrDefault(r => r.FromColumn == relInfo.FromColumn && r.ToColumn == relInfo.ToColumn);
-        if(oldRel != null) oldRel.Delete();
+    var oldRels = Model.Relationships.Where(r => (r.FromTable == oldTable && r.FromColumn.Name == oldColumnName) || (r.ToTable == oldTable && r.ToColumn.Name == oldColumnName)).ToList();
+    summary += "Deleting " + oldRels.Count + " old relationships...\n";
+    foreach (var rel in oldRels) {
+        rel.Delete();
     }
 }
 
@@ -71,12 +72,21 @@ var relsToDeactivate = new List<TabularEditor.TOMWrapper.SingleColumnRelationshi
 // === PHASE 1: Create all relationships as Active, Single-Directional ===
 summary += "\n=== PHASE 1: Creating all relationships as Active and Single-Directional ===\n";
 foreach (var relInfo in relationshipInfo) {
-    var relIdentifier = relInfo.FromColumn.Table.Name.Replace(oldTableName, newTableName) + " -> " + relInfo.ToColumn.Table.Name.Replace(oldTableName, newTableName);
+    var fromTableName = relInfo.FromColumn.Table.Name;
+    var toTableName = relInfo.ToColumn.Table.Name;
+    var fromColName = relInfo.FromColumn.Name;
+    var toColName = relInfo.ToColumn.Name;
+
+    // Determine the identifier for logging before potential errors
+    var relIdentifier = (fromTableName == oldTableName ? newTableName : fromTableName) + " -> " + (toTableName == oldTableName ? newTableName : toTableName);
+
     try {
         var newRel = Model.AddRelationship();
-        var fromTblName = relInfo.FromColumn.Table.Name;
-        newRel.FromColumn = fromTblName == oldTableName ? newTable.Columns[relInfo.FromColumn.Name] : relInfo.FromColumn;
-        newRel.ToColumn = fromTblName == oldTableName ? relInfo.ToColumn : newTable.Columns[relInfo.ToColumn.Name];
+        
+        // Determine correct from/to columns for the new relationship
+        newRel.FromColumn = fromTableName == oldTableName ? newTable.Columns[fromColName] : Model.Tables[fromTableName].Columns[fromColName];
+        newRel.ToColumn = toTableName == oldTableName ? newTable.Columns[toColName] : Model.Tables[toTableName].Columns[toColName];
+
         newRel.FromCardinality = relInfo.FromCardinality;
         newRel.ToCardinality = relInfo.ToCardinality;
         if (!string.IsNullOrEmpty(relInfo.Name)) newRel.Name = relInfo.Name.Replace(oldTableName, newTableName);
@@ -93,23 +103,30 @@ foreach (var relInfo in relationshipInfo) {
     }
 }
 
-// === PHASE 2: Attempt to upgrade relationships to match original properties ===
-summary += "\n=== PHASE 2: Upgrading relationships to match original properties ===\n";
+// === PHASE 2: Upgrade relationships and VERIFY properties ===
+summary += "\n=== PHASE 2: Upgrading relationships and verifying properties ===\n";
 foreach (var item in newlyCreatedRels) {
     var newRel = item.NewRel as TabularEditor.TOMWrapper.SingleColumnRelationship;
     var originalInfo = item.OriginalInfo;
     var relIdentifier = newRel.FromTable.Name + " -> " + newRel.ToTable.Name;
-    try {
-        // Attempt to apply original properties
-        newRel.SecurityFilteringBehavior = originalInfo.SecurityFilteringBehavior;
-        newRel.CrossFilteringBehavior = originalInfo.CrossFilteringBehavior;
-        
-        // Final check for IsActive, as some might have been originally inactive
-        newRel.IsActive = originalInfo.IsActive;
 
-        summary += "  • SUCCESS (Upgrade): " + relIdentifier + "\n";
-    } catch (Exception ex) {
-        summary += "  • WARNING (Upgrade Failed): " + relIdentifier + " - " + ex.Message.Trim() + ". Flagged for deactivation.\n";
+    // Attempt to apply original properties
+    newRel.SecurityFilteringBehavior = originalInfo.SecurityFilteringBehavior;
+    newRel.CrossFilteringBehavior = originalInfo.CrossFilteringBehavior;
+    newRel.IsActive = originalInfo.IsActive;
+
+    // VERIFY that the upgrade was successful
+    bool propsMatch = (newRel.CrossFilteringBehavior == originalInfo.CrossFilteringBehavior) &&
+                      (newRel.SecurityFilteringBehavior == originalInfo.SecurityFilteringBehavior) &&
+                      (newRel.IsActive == originalInfo.IsActive);
+
+    if (propsMatch) {
+        summary += "  • SUCCESS (Upgrade): " + relIdentifier + " matches original properties.\n";
+    } else {
+        // The upgrade failed silently. Flag for deactivation.
+        string originalState = string.Format("Active={0}, Filter={1}", originalInfo.IsActive, originalInfo.CrossFilteringBehavior);
+        string actualState = string.Format("Active={0}, Filter={1}", newRel.IsActive, newRel.CrossFilteringBehavior);
+        summary += "  • WARNING (Upgrade Failed): " + relIdentifier + ". Original: " + originalState + ", Actual: " + actualState + ". Flagged for deactivation.\n";
         relsToDeactivate.Add(newRel);
     }
 }
@@ -120,7 +137,9 @@ if (relsToDeactivate.Count > 0) {
     summary += "Forcing " + relsToDeactivate.Count + " relationship(s) to INACTIVE state.\n";
     foreach (var rel in relsToDeactivate) {
         rel.IsActive = false;
-        summary += "  • REMEDIATED: " + rel.FromTable.Name + " -> " + rel.ToTable.Name + "\n";
+        // Also ensure it's single-directional for a truly "safe" state
+        rel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
+        summary += "  • REMEDIATED: " + rel.FromTable.Name + " -> " + rel.ToTable.Name + " is now INACTIVE.\n";
     }
 } else {
     summary += "No relationships required deactivation.\n";
