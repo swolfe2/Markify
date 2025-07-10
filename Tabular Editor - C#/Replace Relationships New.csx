@@ -106,12 +106,12 @@ foreach (var relInfo in relationshipInfo) {
     }
 }
 
-// Force model refresh after Phase 1
+// Force model state update after Phase 1
 try {
-    Model.Database.Refresh();
-    summary += "Model refreshed after Phase 1.\n";
+    Model.SaveChanges();
+    summary += "Model changes saved after Phase 1.\n";
 } catch (Exception ex) {
-    summary += "Warning: Model refresh failed after Phase 1: " + ex.Message + "\n";
+    summary += "Warning: Model save failed after Phase 1: " + ex.Message + "\n";
 }
 
 // === PHASE 2: Upgrade relationships and VERIFY properties ===
@@ -214,26 +214,26 @@ if (relsToDeactivate.Count > 0) {
             deactivationError += "Direct deactivation error: " + ex.Message + ". ";
         }
         
-        // Strategy 2: If direct deactivation failed, try force refresh and retry
-        if (!deactivationSuccessful) {
-            try {
-                // Force a model state refresh
-                Model.Database.Refresh();
-                
-                // Retry deactivation
-                rel.IsActive = false;
-                rel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
-                
-                if (!rel.IsActive) {
-                    deactivationSuccessful = true;
-                    summary += "  • SUCCESS (Deactivated after refresh): " + relIdentifier + " is now INACTIVE.\n";
-                } else {
-                    deactivationError += "Retry after refresh failed. ";
-                }
-            } catch (Exception ex) {
-                deactivationError += "Refresh and retry error: " + ex.Message + ". ";
-            }
-        }
+                 // Strategy 2: If direct deactivation failed, try save changes and retry
+         if (!deactivationSuccessful) {
+             try {
+                 // Force model state save to commit any pending changes
+                 Model.SaveChanges();
+                 
+                 // Retry deactivation
+                 rel.IsActive = false;
+                 rel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
+                 
+                 if (!rel.IsActive) {
+                     deactivationSuccessful = true;
+                     summary += "  • SUCCESS (Deactivated after save): " + relIdentifier + " is now INACTIVE.\n";
+                 } else {
+                     deactivationError += "Retry after save failed. ";
+                 }
+             } catch (Exception ex) {
+                 deactivationError += "Save and retry error: " + ex.Message + ". ";
+             }
+         }
         
         // Strategy 3: If all else fails, try to delete and recreate as inactive
         if (!deactivationSuccessful) {
@@ -278,12 +278,12 @@ if (relsToDeactivate.Count > 0) {
     summary += "No relationships required deactivation.\n";
 }
 
-// Final model refresh
+// Final model save
 try {
-    Model.Database.Refresh();
-    summary += "Final model refresh completed.\n";
+    Model.SaveChanges();
+    summary += "Final model save completed.\n";
 } catch (Exception ex) {
-    summary += "Warning: Final model refresh failed: " + ex.Message + "\n";
+    summary += "Warning: Final model save failed: " + ex.Message + "\n";
 }
 
 // === PHASE 4: Final Summary Report ===
