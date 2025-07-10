@@ -260,11 +260,20 @@ if (relsToDeactivate.Count > 0) {
                 newInactiveRel.IsActive = false;
                 newInactiveRel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
                 
+                // Force save to commit the new inactive relationship
+                try {
+                    Model.Database.TOMDatabase.Model.SaveChanges();
+                    summary += "    Saved model after recreation for " + relIdentifier + ".\n";
+                } catch (Exception ex) {
+                    deactivationError += "Save after recreation failed: " + ex.Message + ". ";
+                }
+                
+                // Verify after save
                 if (!newInactiveRel.IsActive) {
                     deactivationSuccessful = true;
                     summary += "  • SUCCESS (Recreated as inactive): " + relIdentifier + " recreated as INACTIVE.\n";
                 } else {
-                    deactivationError += "Recreation as inactive failed. ";
+                    deactivationError += "Recreation as inactive failed even after save. Actual IsActive: " + newInactiveRel.IsActive + ". ";
                 }
             } catch (Exception ex) {
                 deactivationError += "Delete and recreate error: " + ex.Message + ". ";
