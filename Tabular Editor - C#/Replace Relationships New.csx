@@ -74,6 +74,7 @@ var newlyCreatedRels = new List<dynamic>();
 var relsToDeactivate = new List<dynamic>();
 var deactivationFailures = new List<string>();
 var deletedRelationshipsForManualRebuild = new List<dynamic>();
+var successfullyDeactivatedRels = new List<string>();
 
 // === PHASE 1: Create all relationships as Active, Single-Directional ===
 summary += "\n=== PHASE 1: Creating all relationships as Active and Single-Directional ===\n";
@@ -207,6 +208,7 @@ if (relsToDeactivate.Count > 0) {
             
             if (!rel.IsActive) {
                 summary += "  • SUCCESS (Deactivated): " + relIdentifier + " has been set to INACTIVE for manual review.\n";
+                successfullyDeactivatedRels.Add(relIdentifier);
             } else {
                 // This will force the catch block for the deletion logic.
                 throw new InvalidOperationException("Deactivation failed silently. Relationship remains active.");
@@ -249,6 +251,11 @@ if (creationErrors.Count > 0 || deactivationFailures.Count > 0 || relsToDeactiva
         foreach(var id in creationErrors) summary += "  • " + id + "\n";
     }
 
+    if(successfullyDeactivatedRels.Count > 0) {
+        summary += "\nThe following relationships were successfully set to INACTIVE for manual review:\n";
+        foreach(var id in successfullyDeactivatedRels) summary += "  • " + id + "\n";
+    }
+
     if(deletedRelationshipsForManualRebuild.Count > 0) {
         summary += "\nMANUAL ACTION: The following relationships were DELETED and must be recreated manually with these properties:\n";
         foreach(var info in deletedRelationshipsForManualRebuild) {
@@ -272,13 +279,6 @@ if (creationErrors.Count > 0 || deactivationFailures.Count > 0 || relsToDeactiva
         summary += "\nCRITICAL: The following relationships could NOT be deactivated OR deleted automatically:\n";
         foreach(var id in deactivationFailures) summary += "  • " + id + "\n";
         summary += "These relationships may be in an inconsistent state and require MANUAL intervention.\n";
-    }
-
-    var successfulDeactivations = relsToDeactivate.Count - deactivationFailures.Count;
-    if(successfulDeactivations > 0) {
-        summary += "\nThe following relationships were successfully set to INACTIVE:\n";
-        summary += "Count: " + successfulDeactivations + " relationships\n";
-        summary += "(These relationships exist but are disabled until you manually resolve conflicts)\n";
     }
 
     summary += "\n--- Why Upgrades Fail ---\n";
