@@ -280,6 +280,54 @@ if (relsToDeactivate.Count > 0) {
             }
         }
         
+        // Strategy 4: Create as active first, then force deactivation
+        if (!deactivationSuccessful) {
+            try {
+                // Store relationship details before deletion (if not already done in Strategy 3)
+                var fromCol = rel.FromColumn;
+                var toCol = rel.ToColumn;
+                var fromCard = rel.FromCardinality;
+                var toCard = rel.ToCardinality;
+                var relName = rel.Name;
+                
+                // Delete the problematic relationship if it still exists
+                if (!rel.IsRemoved) {
+                    rel.Delete();
+                }
+                
+                // Create as ACTIVE first (TOM allows this even with conflicting properties)
+                var tempActiveRel = Model.AddRelationship();
+                tempActiveRel.FromColumn = fromCol;
+                tempActiveRel.ToColumn = toCol;
+                tempActiveRel.FromCardinality = fromCard;
+                tempActiveRel.ToCardinality = toCard;
+                if (!string.IsNullOrEmpty(relName)) tempActiveRel.Name = relName;
+                tempActiveRel.IsActive = true;
+                tempActiveRel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
+                
+                // Save model with active relationship
+                Model.Database.TOMDatabase.Model.SaveChanges();
+                summary += "    Created as active and saved for " + relIdentifier + ".\n";
+                
+                // Now immediately deactivate it
+                tempActiveRel.IsActive = false;
+                
+                // Save again with inactive state
+                Model.Database.TOMDatabase.Model.SaveChanges();
+                summary += "    Deactivated and saved for " + relIdentifier + ".\n";
+                
+                // Final verification
+                if (!tempActiveRel.IsActive) {
+                    deactivationSuccessful = true;
+                    summary += "  • SUCCESS (Strategy 4 - Active then Inactive): " + relIdentifier + " is now INACTIVE.\n";
+                } else {
+                    deactivationError += "Strategy 4 failed - still active after deactivation. Actual IsActive: " + tempActiveRel.IsActive + ". ";
+                }
+            } catch (Exception ex) {
+                deactivationError += "Strategy 4 error: " + ex.Message + ". ";
+            }
+        }
+        
         if (!deactivationSuccessful) {
             summary += "  • CRITICAL FAILURE (Deactivation): " + relIdentifier + " - " + deactivationError.Trim() + "\n";
             deactivationFailures.Add(relIdentifier);
