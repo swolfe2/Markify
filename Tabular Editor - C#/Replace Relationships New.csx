@@ -1,28 +1,22 @@
 /*
 ===========================================================================================
-RELATIONSHIP MIGRATION SCRIPT WITH OPTIONAL DELETION
+RELATIONSHIP MIGRATION SCRIPT WITH INACTIVE FALLBACK
 -------------------------------------------------------------------------------------------
 Author: Steve Wolfe (Data Viz CoE), Revised by Gemini
 Purpose:
-This script is designed for use in Tabular Editor to migrate all relationships from a
-specific column in an existing table to a new table. It includes an option to delete the
-original relationships to prevent ambiguity errors, especially with bi-directional
-relationships.
+This script migrates relationships from an old table to a new one. If a relationship
+cannot be created with its original properties (e.g., active, bi-directional) due to a
+model ambiguity, it is automatically created as INACTIVE and single-directional.
+This ensures the model can always be saved and provides a clear path for manual review.
 
 Key Features:
-- Adds a boolean switch 'deleteOldRelationships' to control the deletion step.
-- Collects all relationships linked to the specified old table and column.
-- Optionally deletes the old relationships to prevent validation errors.
-- Recreates each relationship using the new table’s column.
-- Preserves all critical relationship properties.
-- Logs a summary of all operations and highlights any failures.
-
-Use Case:
-Ideal for replacing a shared dimension table. You can run it once with deletion disabled
-to review, and then run it again with deletion enabled to finalize the migration.
+- If a relationship creation fails, it's automatically retried as inactive.
+- A descriptive note is added to the relationship's properties for easy identification.
+- Allows for successful changes to be saved, preventing blocking errors.
+- Includes an optional switch to delete old relationships beforehand.
 
 Output:
-- A summary of actions and issues is printed to the Output window.
+- A detailed summary of successful, failed, and fallback actions.
 
 ===========================================================================================
 */
@@ -33,188 +27,117 @@ var oldColumnName = "Date";         // Key column in the OLD table
 var newTableName = "Date Table";    // New table to migrate relationships to
 var newColumnName = "Date";         // Key column in the NEW table
 
-// Set this to 'false' to keep the original relationships for validation purposes.
-// NOTE: Keeping old relationships may cause failures when creating new bi-directional ones.
+// Set to 'true' to delete old relationships first. THIS IS HIGHLY RECOMMENDED.
 var deleteOldRelationships = true;
 
 // --- SCRIPT LOGIC ---
 
-// Retrieve references to the old and new tables
+// Retrieve references to the old and new tables and columns
 var oldTable = Model.Tables[oldTableName];
 var newTable = Model.Tables[newTableName];
+if (oldTable == null || newTable == null) { Error("One or both tables were not found!"); return; }
 
-// Validate that both tables exist
-if (oldTable == null || newTable == null)
-{
-    Error("One or both tables were not found! Verify table names.");
-    return;
-}
-
-// Retrieve the key columns from the old and new tables
 var oldColumn = oldTable.Columns[oldColumnName];
 var newColumn = newTable.Columns[newColumnName];
-if (oldColumn == null || newColumn == null)
-{
-    Error("One or both key columns were not found! Verify column names.");
-    return;
-}
+if (oldColumn == null || newColumn == null) { Error("One or both key columns were not found!"); return; }
 
-// Step 1: Collect all relationship metadata involving the old table's specific column
+// Step 1: Collect relationship metadata
 var relationshipInfo = new List<dynamic>();
 var oldRelationshipsToDelete = new List<dynamic>();
-
 foreach (var oldRel in Model.Relationships.Where(r => (r.FromTable == oldTable && r.FromColumn == oldColumn) || (r.ToTable == oldTable && r.ToColumn == oldColumn)).ToList())
 {
     relationshipInfo.Add(new {
-        FromColumn = oldRel.FromColumn,
-        ToColumn = oldRel.ToColumn,
-        IsActive = oldRel.IsActive,
-        CrossFilteringBehavior = oldRel.CrossFilteringBehavior,
-        SecurityFilteringBehavior = oldRel.SecurityFilteringBehavior,
-        RelyOnReferentialIntegrity = oldRel.RelyOnReferentialIntegrity,
-        JoinOnDateBehavior = oldRel.JoinOnDateBehavior,
-        FromCardinality = oldRel.FromCardinality,
-        ToCardinality = oldRel.ToCardinality,
-        Name = oldRel.Name,
+        FromColumn = oldRel.FromColumn, ToColumn = oldRel.ToColumn, IsActive = oldRel.IsActive,
+        CrossFilteringBehavior = oldRel.CrossFilteringBehavior, SecurityFilteringBehavior = oldRel.SecurityFilteringBehavior,
+        RelyOnReferentialIntegrity = oldRel.RelyOnReferentialIntegrity, JoinOnDateBehavior = oldRel.JoinOnDateBehavior,
+        FromCardinality = oldRel.FromCardinality, ToCardinality = oldRel.ToCardinality, Name = oldRel.Name,
         OldTableWasFrom = (oldRel.FromTable == oldTable)
     });
     oldRelationshipsToDelete.Add(oldRel);
 }
 
-// Initialize a summary log
 var summary = "RELATIONSHIP MIGRATION SCRIPT:\n";
 summary += "Found " + relationshipInfo.Count + " relationships to migrate from '" + oldTableName + "'[" + oldColumnName + "].\n\n";
 
-// ============================================================================
-// Step 2: (OPTIONAL) DELETE OLD RELATIONSHIPS
-// ============================================================================
+// Step 2: (OPTIONAL) Delete Old Relationships
 if (deleteOldRelationships)
 {
     summary += "=== DELETING OLD RELATIONSHIPS (Option Enabled) ===\n";
-    if (oldRelationshipsToDelete.Count == 0)
-    {
-        summary += "No relationships found to delete.\n";
-    }
-    else
-    {
-        foreach (var oldRel in oldRelationshipsToDelete)
-        {
-            try
-            {
-                var relName = oldRel.FromTable.Name + " -> " + oldRel.ToTable.Name;
-                oldRel.Delete();
-                summary += "Deleted: " + relName + "\n";
-            }
-            catch (Exception ex)
-            {
-                summary += "Failed to delete relationship: " + ex.Message + "\n";
-            }
-        }
-    }
+    foreach (var oldRel in oldRelationshipsToDelete) { oldRel.Delete(); }
+    summary += "Deleted " + oldRelationshipsToDelete.Count + " old relationships.\n\n";
 }
 else
 {
-    summary += "=== SKIPPING DELETION of old relationships (Option Disabled) ===\n";
+    summary += "=== SKIPPING DELETION of old relationships (Option Disabled) ===\n\n";
 }
-summary += "\n";
 
-// Step 3: Create new relationships using the new table
+// Step 3: Create new relationships with inactive fallback
 summary += "=== CREATING NEW RELATIONSHIPS ===\n";
-var failedBidirectional = new List<string>();
+var inactiveFallbackRels = new List<string>();
 
 foreach (var relInfo in relationshipInfo)
 {
+    var relIdentifier = relInfo.OldTableWasFrom ? (newTable.Name + " -> " + relInfo.ToColumn.Table.Name) : (relInfo.FromColumn.Table.Name + " -> " + newTable.Name);
+
     try
     {
         var newRel = Model.AddRelationship();
 
-        // Assign the correct From/To columns based on the original direction
-        if (relInfo.OldTableWasFrom)
-        {
-            newRel.FromColumn = newColumn;
-            newRel.ToColumn = relInfo.ToColumn;
+        // Assign columns and "safe" properties first
+        if (relInfo.OldTableWasFrom) {
+            newRel.FromColumn = newColumn; newRel.ToColumn = relInfo.ToColumn;
+        } else {
+            newRel.FromColumn = relInfo.FromColumn; newRel.ToColumn = newColumn;
         }
-        else
-        {
-            newRel.FromColumn = relInfo.FromColumn;
-            newRel.ToColumn = newColumn;
-        }
-
-        // Set cardinality and other relationship properties
         newRel.FromCardinality = relInfo.FromCardinality;
         newRel.ToCardinality = relInfo.ToCardinality;
-        newRel.IsActive = relInfo.IsActive;
         newRel.SecurityFilteringBehavior = relInfo.SecurityFilteringBehavior;
         newRel.RelyOnReferentialIntegrity = relInfo.RelyOnReferentialIntegrity;
         newRel.JoinOnDateBehavior = relInfo.JoinOnDateBehavior;
 
-        // Set cross-filtering behavior using explicit enum mapping
-        var originalCrossFilter = relInfo.CrossFilteringBehavior.ToString();
-        if (originalCrossFilter == "BothDirections")
+        // Now, try to set properties that can cause ambiguity errors
+        try
         {
-            newRel.CrossFilteringBehavior = CrossFilteringBehavior.BothDirections;
+            newRel.CrossFilteringBehavior = relInfo.CrossFilteringBehavior;
+            newRel.IsActive = relInfo.IsActive;
+            summary += relIdentifier + ": SUCCESS (Created with original properties).\n";
         }
-        else if (originalCrossFilter == "OneDirection")
+        catch (Exception ex)
         {
-            newRel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
-        }
-        else if (originalCrossFilter == "Automatic")
-        {
-            newRel.CrossFilteringBehavior = CrossFilteringBehavior.Automatic;
+            // This is the fallback logic. If the above fails, make it inactive.
+            newRel.IsActive = false;
+            newRel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection; // Force single-direction
+            newRel.Description = "SCRIPT-CREATED: Set to inactive due to model conflict. Please resolve ambiguity, then activate and set cross-filter direction manually.";
+
+            summary += relIdentifier + ": WARNING - Could not create as specified. (" + ex.Message.Trim() + ")\n";
+            summary += "--> ACTION: Created as INACTIVE for manual review.\n";
+            inactiveFallbackRels.Add(relIdentifier);
         }
 
-        // Verify if the cross-filtering behavior was applied successfully
-        var actualResult = newRel.CrossFilteringBehavior.ToString();
-        var success = (actualResult == originalCrossFilter) ? "SUCCESS" : "FAILED";
-        summary += newRel.FromTable.Name + " -> " + newRel.ToTable.Name + ": " + success + " (" + originalCrossFilter + " -> " + actualResult + ")\n";
-
-        // Track failed bidirectional attempts for review
-        if (success == "FAILED" && originalCrossFilter == "BothDirections")
-        {
-            failedBidirectional.Add(newRel.FromTable.Name + " -> " + newRel.ToTable.Name);
-        }
-
-        // Rename the relationship if it had a name
-        if (!string.IsNullOrEmpty(relInfo.Name))
-        {
+        // Rename the relationship if it had a custom name
+        if (!string.IsNullOrEmpty(relInfo.Name)) {
             newRel.Name = relInfo.Name.Replace(oldTableName, newTableName);
         }
     }
     catch (Exception ex)
     {
-        summary += "Failed to create relationship: " + ex.Message + "\n";
+        summary += relIdentifier + ": CRITICAL FAILURE - Could not create relationship. Error: " + ex.Message.Trim() + "\n";
     }
 }
 
-// Step 4: Report any failed bidirectional relationships
-if (failedBidirectional.Count > 0)
+// Step 4: Final Summary Report
+if (inactiveFallbackRels.Count > 0)
 {
     summary += "\n=== MANUAL REVIEW REQUIRED ===\n";
-    summary += "The following relationships could not be set to bidirectional:\n";
-    foreach (var rel in failedBidirectional)
+    summary += "The following relationships could not be created as specified and were set to INACTIVE:\n";
+    foreach (var rel in inactiveFallbackRels)
     {
         summary += "• " + rel + "\n";
     }
-
-    summary += "\nPossible causes:\n";
-    if (!deleteOldRelationships)
-    {
-        // -- FIX WAS HERE --
-        summary += "• Ambiguous relationship paths (Recommended fix: Set deleteOldRelationships to true and re-run).\n";
-    }
-    summary += "• DirectQuery/Import mode mixing (expected limitation).\n";
-    summary += "• Other model validation constraints are preventing this path.\n";
+    summary += "\nTo fix, inspect these relationships, resolve any model ambiguities, and then activate them manually.\n";
 }
 
-// Final notes
-summary += "\n=== COMPLETION NOTES ===\n";
-summary += "• Script completed.\n";
-summary += "• Review the log above for any FAILED items.\n";
-if (!deleteOldRelationships && failedBidirectional.Count > 0)
-{
-    // -- AND FIX WAS HERE --
-    summary += "• To fix ambiguity failures, set deleteOldRelationships = true; at the top of the script and run it again.\n";
-}
+summary += "\n=== SCRIPT COMPLETE ===\n";
 
 // Output the summary to the Output window
 Info(summary);
