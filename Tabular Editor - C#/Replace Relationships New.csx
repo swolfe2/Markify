@@ -199,7 +199,8 @@ if (failedBidirectional.Count > 0)
     summary += "\nPossible causes:\n";
     if (!deleteOldRelationships)
     {
-        summary += "• Ambiguous relationship paths (Recommended fix: Set 'deleteOldRelationships' to true and re-run).\n";
+        // -- FIX WAS HERE --
+        summary += "• Ambiguous relationship paths (Recommended fix: Set deleteOldRelationships to true and re-run).\n";
     }
     summary += "• DirectQuery/Import mode mixing (expected limitation).\n";
     summary += "• Other model validation constraints are preventing this path.\n";
@@ -211,9 +212,9 @@ summary += "• Script completed.\n";
 summary += "• Review the log above for any FAILED items.\n";
 if (!deleteOldRelationships && failedBidirectional.Count > 0)
 {
-    summary += "• To fix ambiguity failures, set 'deleteOldRelationships = true;' at the top of the script and run it again.\n";
+    // -- AND FIX WAS HERE --
+    summary += "• To fix ambiguity failures, set deleteOldRelationships = true; at the top of the script and run it again.\n";
 }
 
 // Output the summary to the Output window
 Info(summary);
-```
