@@ -1,22 +1,21 @@
 /*
 ===========================================================================================
-RELATIONSHIP MIGRATION SCRIPT WITH ENHANCED VALIDATION (TE2 COMPATIBLE)
+RELATIONSHIP MIGRATION SCRIPT WITH DETAILED REPORTING (TE2 COMPATIBLE)
 -------------------------------------------------------------------------------------------
 Author: Steve Wolfe (Data Viz CoE), Revised by Gemini
 Purpose:
-This script migrates relationships from an old table to a new one. It includes detailed
-input validation to prevent common errors and provides user-friendly pop-up messages.
-If a relationship creation fails, it's automatically retried as inactive to ensure
-the model can always be saved.
+This script migrates relationships and includes detailed reporting and error handling. If a
+relationship cannot be created with its original properties (e.g., bi-directional), it's
+created as inactive, and the final report provides clear reasons and remediation steps.
 
 Key Features:
+- Detailed final report explaining which relationships failed, why, and how to fix them.
 - User-friendly pop-up errors for incorrect table or column names.
 - If a relationship creation fails, it's automatically retried as inactive.
-- Allows for successful changes to be saved, preventing blocking errors.
 - Includes an optional switch to delete old relationships beforehand.
 
 Output:
-- A detailed summary of successful, failed, and fallback actions.
+- A detailed summary of all actions with actionable advice for any failures.
 
 ===========================================================================================
 */
@@ -34,32 +33,16 @@ var deleteOldRelationships = true;
 
 // Step 1: Validate all user inputs with specific error messages
 var oldTable = Model.Tables.FirstOrDefault(t => t.Name == oldTableName);
-if (oldTable == null)
-{
-    Error("Unable to locate the 'Old Table' named \"" + oldTableName + "\".\nPlease validate your script inputs and try again.");
-    return;
-}
+if (oldTable == null) { Error("Unable to locate the 'Old Table' named \"" + oldTableName + "\".\nPlease validate your script inputs and try again."); return; }
 
 var newTable = Model.Tables.FirstOrDefault(t => t.Name == newTableName);
-if (newTable == null)
-{
-    Error("Unable to locate the 'New Table' named \"" + newTableName + "\".\nPlease validate your script inputs and try again.");
-    return;
-}
+if (newTable == null) { Error("Unable to locate the 'New Table' named \"" + newTableName + "\".\nPlease validate your script inputs and try again."); return; }
 
 var oldColumn = oldTable.Columns.FirstOrDefault(c => c.Name == oldColumnName);
-if (oldColumn == null)
-{
-    Error("Unable to locate the 'Old Column' named \"" + oldColumnName + "\" on table \"" + oldTableName + "\".\nPlease validate your script inputs and try again.");
-    return;
-}
+if (oldColumn == null) { Error("Unable to locate the 'Old Column' named \"" + oldColumnName + "\" on table \"" + oldTableName + "\".\nPlease validate your script inputs and try again."); return; }
 
 var newColumn = newTable.Columns.FirstOrDefault(c => c.Name == newColumnName);
-if (newColumn == null)
-{
-    Error("Unable to locate the 'New Column' named \"" + newColumnName + "\" on table \"" + newTableName + "\".\nPlease validate your script inputs and try again.");
-    return;
-}
+if (newColumn == null) { Error("Unable to locate the 'New Column' named \"" + newColumnName + "\" on table \"" + newTableName + "\".\nPlease validate your script inputs and try again."); return; }
 
 
 // Step 2: Collect relationship metadata
@@ -125,16 +108,14 @@ foreach (var relInfo in relationshipInfo)
         }
         catch (Exception ex)
         {
-            // This is the fallback logic. If the above fails, make it inactive.
             newRel.IsActive = false;
-            newRel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection; // Force single-direction
+            newRel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
             
             summary += relIdentifier + ": WARNING - Could not create as specified. (" + ex.Message.Trim() + ")\n";
-            summary += "--> ACTION: Created as INACTIVE for manual review.\n";
+            summary += "--> ACTION: This relationship was created as INACTIVE for manual review.\n";
             inactiveFallbackRels.Add(relIdentifier);
         }
 
-        // Rename the relationship if it had a custom name
         if (!string.IsNullOrEmpty(relInfo.Name)) {
             newRel.Name = relInfo.Name.Replace(oldTableName, newTableName);
         }
@@ -148,13 +129,26 @@ foreach (var relInfo in relationshipInfo)
 // Step 5: Final Summary Report
 if (inactiveFallbackRels.Count > 0)
 {
-    summary += "\n=== MANUAL REVIEW REQUIRED ===\n";
-    summary += "The following relationships could not be created as specified and were set to INACTIVE:\n";
+    summary += "\n===================================================================\n";
+    summary += "ACTION REQUIRED: Review Fallback Relationships\n";
+    summary += "===================================================================\n";
+    summary += "The following relationships could not be created with their original properties and were created as INACTIVE instead:\n";
     foreach (var rel in inactiveFallbackRels)
     {
-        summary += "• " + rel + "\n";
+        summary += "  • " + rel + "\n";
     }
-    summary += "\nTo fix, inspect these relationships, resolve any model ambiguities, and then activate them manually.\n";
+
+    summary += "\n--- Why This Happens ---\n";
+    summary += "This fallback is triggered when the data model rejects a property, usually for one of these reasons:\n";
+    summary += "1. Ambiguous Paths: The most common cause. This happens if the 'Old Date Table' still has other active relationships creating a conflict.\n";
+    summary += "2. DirectQuery Limitations: You cannot create certain bi-directional relationships in a DirectQuery model that is connected to another Power BI semantic model.\n";
+    summary += "3. Other Model Constraints: The model may have other validation rules that prevent the relationship.\n";
+
+    summary += "\n--- How to Fix ---\n";
+    summary += "1. Ensure Deletion is Enabled: Make sure `deleteOldRelationships = true` at the top of the script.\n";
+    summary += "2. Manually Clean the Old Table: Before running the script again, find your 'Old Date Table' in the explorer, expand its 'Relationships' folder, and manually delete any leftover active relationships.\n";
+    summary += "3. Re-run the script after cleaning the model.\n";
+    summary += "4. For relationships that still fail, you must manually activate them in the Power BI model view and resolve any errors the tool presents.\n";
 }
 
 summary += "\n=== SCRIPT COMPLETE ===\n";
