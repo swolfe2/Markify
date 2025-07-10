@@ -1,3 +1,5 @@
+#r "Microsoft.AnalysisServices.Core.dll"
+using ToM = Microsoft.AnalysisServices.Tabular;
 /*
 ===========================================================================================
 RELATIONSHIP MIGRATION SCRIPT - THREE-PHASE LOGIC WITH VERIFICATION
