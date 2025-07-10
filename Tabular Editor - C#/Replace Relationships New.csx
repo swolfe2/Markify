@@ -189,185 +189,37 @@ foreach (var item in newlyCreatedRels) {
     }
 }
 
-// === PHASE 3: Deactivate relationships that failed to upgrade ===
-summary += "\n=== PHASE 3: Deactivating relationships that failed to upgrade ===\n";
+// === PHASE 3: Deactivate or Delete relationships that failed to upgrade ===
+summary += "\n=== PHASE 3: Deactivating or Deleting relationships that failed to upgrade ===\n";
 if (relsToDeactivate.Count > 0) {
-    summary += "Forcing " + relsToDeactivate.Count + " relationship(s) to INACTIVE state.\n";
+    summary += "Attempting to remediate " + relsToDeactivate.Count + " relationship(s) that failed to upgrade.\n";
     
     foreach (var rel in relsToDeactivate) {
         var relIdentifier = rel.FromTable.Name + " -> " + rel.ToTable.Name;
-        bool deactivationSuccessful = false;
-        string deactivationError = "";
         
-        // Multiple deactivation strategies
         try {
-            // Strategy 1: Direct deactivation
+            // Final attempt: Directly set to inactive.
             rel.IsActive = false;
-            rel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
+            rel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection; // Reset to be safe
             
-            // Verify deactivation worked
-            if (!rel.IsActive && rel.CrossFilteringBehavior == CrossFilteringBehavior.OneDirection) {
-                deactivationSuccessful = true;
-                summary += "  • SUCCESS (Deactivated): " + relIdentifier + " is now INACTIVE.\n";
+            if (!rel.IsActive) {
+                summary += "  • SUCCESS (Deactivated): " + relIdentifier + " has been set to INACTIVE for manual review.\n";
             } else {
-                deactivationError = "Direct deactivation verification failed. ";
+                // This will force the catch block for the deletion logic.
+                throw new InvalidOperationException("Deactivation failed silently. Relationship remains active.");
             }
         } catch (Exception ex) {
-            deactivationError += "Direct deactivation error: " + ex.Message + ". ";
-        }
-        
-                 // Strategy 2: If direct deactivation failed, try save changes and retry
-         if (!deactivationSuccessful) {
-             try {
-                 // Force model state save to commit any pending changes
-                 Model.Database.TOMDatabase.Model.SaveChanges();
-                 
-                 // Retry deactivation
-                 rel.IsActive = false;
-                 rel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
-                 
-                 if (!rel.IsActive) {
-                     deactivationSuccessful = true;
-                     summary += "  • SUCCESS (Deactivated after save): " + relIdentifier + " is now INACTIVE.\n";
-                 } else {
-                     deactivationError += "Retry after save failed. ";
-                 }
-             } catch (Exception ex) {
-                 deactivationError += "Save and retry error: " + ex.Message + ". ";
-             }
-         }
-        
-        // Strategy 3: If all else fails, try to delete and recreate as inactive
-        if (!deactivationSuccessful) {
+            // If deactivation fails (due to ambiguity), delete the relationship entirely as a fallback.
+            summary += "  • WARNING (Deactivation Failed): Could not set " + relIdentifier + " to inactive. Reason: " + ex.Message.Trim() + "\n";
             try {
-                // Store relationship details before deletion
-                var fromCol = rel.FromColumn;
-                var toCol = rel.ToColumn;
-                var fromCard = rel.FromCardinality;
-                var toCard = rel.ToCardinality;
-                var relName = rel.Name;
-                
-                // Delete the problematic relationship
+                var fromTableName = rel.FromTable.Name;
+                var toTableName = rel.ToTable.Name;
                 rel.Delete();
-                
-                // Recreate as inactive
-                var newInactiveRel = Model.AddRelationship();
-                newInactiveRel.FromColumn = fromCol;
-                newInactiveRel.ToColumn = toCol;
-                newInactiveRel.FromCardinality = fromCard;
-                newInactiveRel.ToCardinality = toCard;
-                if (!string.IsNullOrEmpty(relName)) newInactiveRel.Name = relName;
-                newInactiveRel.IsActive = false;
-                newInactiveRel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
-                
-                // Force save to commit the new inactive relationship
-                try {
-                    Model.Database.TOMDatabase.Model.SaveChanges();
-                    summary += "    Saved model after recreation for " + relIdentifier + ".\n";
-                } catch (Exception ex) {
-                    deactivationError += "Save after recreation failed: " + ex.Message + ". ";
-                }
-                
-                // Verify after save
-                if (!newInactiveRel.IsActive) {
-                    deactivationSuccessful = true;
-                    summary += "  • SUCCESS (Recreated as inactive): " + relIdentifier + " recreated as INACTIVE.\n";
-                } else {
-                    deactivationError += "Recreation as inactive failed even after save. Actual IsActive: " + newInactiveRel.IsActive + ". ";
-                }
-            } catch (Exception ex) {
-                deactivationError += "Delete and recreate error: " + ex.Message + ". ";
+                summary += "  • SUCCESS (Deleted): The relationship between " + fromTableName + " and " + toTableName + " has been DELETED and must be created manually.\n";
+            } catch (Exception deleteEx) {
+                summary += "  • CRITICAL FAILURE (Deletion Failed): Could not delete " + relIdentifier + ". MANUAL INTERVENTION IS URGENTLY REQUIRED. Reason: " + deleteEx.Message.Trim() + "\n";
+                deactivationFailures.Add(relIdentifier);
             }
-        }
-        
-        // Strategy 4: Create as active first, then force deactivation
-        if (!deactivationSuccessful) {
-            try {
-                // Store relationship details before deletion (if not already done in Strategy 3)
-                var fromCol = rel.FromColumn;
-                var toCol = rel.ToColumn;
-                var fromCard = rel.FromCardinality;
-                var toCard = rel.ToCardinality;
-                var relName = rel.Name;
-                
-                // Delete the problematic relationship if it still exists
-                if (!rel.IsRemoved) {
-                    rel.Delete();
-                }
-                
-                // Create as ACTIVE first (TOM allows this even with conflicting properties)
-                var tempActiveRel = Model.AddRelationship();
-                tempActiveRel.FromColumn = fromCol;
-                tempActiveRel.ToColumn = toCol;
-                tempActiveRel.FromCardinality = fromCard;
-                tempActiveRel.ToCardinality = toCard;
-                if (!string.IsNullOrEmpty(relName)) tempActiveRel.Name = relName;
-                tempActiveRel.IsActive = true;
-                tempActiveRel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
-                
-                // Save model with active relationship
-                Model.Database.TOMDatabase.Model.SaveChanges();
-                summary += "    Created as active and saved for " + relIdentifier + ".\n";
-                
-                // Now immediately deactivate it
-                tempActiveRel.IsActive = false;
-                
-                // Save again with inactive state
-                Model.Database.TOMDatabase.Model.SaveChanges();
-                summary += "    Deactivated and saved for " + relIdentifier + ".\n";
-                
-                // Final verification
-                if (!tempActiveRel.IsActive) {
-                    deactivationSuccessful = true;
-                    summary += "  • SUCCESS (Strategy 4 - Active then Inactive): " + relIdentifier + " is now INACTIVE.\n";
-                } else {
-                    deactivationError += "Strategy 4 failed - still active after deactivation. Actual IsActive: " + tempActiveRel.IsActive + ". ";
-                }
-            } catch (Exception ex) {
-                deactivationError += "Strategy 4 error: " + ex.Message + ". ";
-            }
-        }
-        
-        // Strategy 5: Create minimal inactive relationship for manual review
-        if (!deactivationSuccessful) {
-            try {
-                // Store only essential relationship details
-                var fromCol = rel.FromColumn;
-                var toCol = rel.ToColumn;
-                var relName = rel.Name;
-                
-                // Delete the problematic relationship if it still exists
-                if (!rel.IsRemoved) {
-                    rel.Delete();
-                }
-                
-                // Create with MINIMAL, safe properties to avoid any conflicts
-                var safeRel = Model.AddRelationship();
-                safeRel.FromColumn = fromCol;
-                safeRel.ToColumn = toCol;
-                // Use the safest possible cardinality and direction
-                safeRel.FromCardinality = RelationshipEndCardinality.Many;
-                safeRel.ToCardinality = RelationshipEndCardinality.One;
-                safeRel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
-                safeRel.SecurityFilteringBehavior = SecurityFilteringBehavior.OneDirection;
-                safeRel.IsActive = false; // Set inactive immediately
-                if (!string.IsNullOrEmpty(relName)) safeRel.Name = relName + "_REVIEW_NEEDED";
-                
-                // Don't save yet - just check if this basic inactive relationship can exist
-                if (!safeRel.IsActive) {
-                    deactivationSuccessful = true;
-                    summary += "  • SUCCESS (Strategy 5 - Minimal Inactive): " + relIdentifier + " created as basic INACTIVE relationship for manual review.\n";
-                } else {
-                    deactivationError += "Strategy 5 failed - even minimal relationship forced to active. ";
-                }
-            } catch (Exception ex) {
-                deactivationError += "Strategy 5 error: " + ex.Message + ". ";
-            }
-        }
-        
-        if (!deactivationSuccessful) {
-            summary += "  • CRITICAL FAILURE (Deactivation): " + relIdentifier + " - " + deactivationError.Trim() + "\n";
-            deactivationFailures.Add(relIdentifier);
         }
     }
 } else {
