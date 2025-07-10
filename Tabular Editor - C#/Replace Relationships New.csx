@@ -1,21 +1,22 @@
 /*
 ===========================================================================================
-RELATIONSHIP MIGRATION SCRIPT - VERIFICATION + TWO-PHASE LOGIC
+RELATIONSHIP MIGRATION SCRIPT - "DETECT AND REPORT" LOGIC
 -------------------------------------------------------------------------------------------
 Author: Steve Wolfe (Data Viz CoE), Revised by Gemini
 Purpose:
-This script uses a robust two-phase process. It first creates all relationships and
-uses explicit VERIFICATION to detect any "silent failures" where the model changes a
-property. Any mismatched relationships are added to a list. In a second phase, it
-reliably forces every relationship on that list to become INACTIVE.
+This script's goal is to accurately report on relationship migration. It attempts to
+create relationships with their original properties. It then uses explicit VERIFICATION to
+detect any "silent failures" where the model changes a property. It does NOT attempt to
+fix the relationship, but instead produces a clear report of discrepancies for manual correction.
 
 Key Features:
+- "Detect and Report" philosophy for 100% accurate feedback.
 - Explicit verification to reliably catch silent property changes.
-- Two-phase "Detect then Remediate" logic for maximum reliability.
-- Detailed final report explaining which relationships failed, why, and how to fix them.
+- A final report that serves as a clear "to-do list" for manual corrections.
+- User-friendly pop-up errors for incorrect table or column names.
 
 Output:
-- An accurate summary of successful creations and relationships forced to be inactive.
+- An accurate summary of successful creations and a list of relationships requiring manual correction.
 
 ===========================================================================================
 */
@@ -75,9 +76,9 @@ else
     summary += "=== SKIPPING DELETION of old relationships (Option Disabled) ===\n\n";
 }
 
-// Step 4: Phase 1 - Create new relationships and IDENTIFY any problems
-summary += "=== PHASE 1: CREATING AND VERIFYING RELATIONSHIPS ===\n";
-var relsToFix = new List<TabularEditor.TOMWrapper.SingleColumnRelationship>();
+// Step 4: Create new relationships and verify them
+summary += "=== CREATING AND VERIFYING RELATIONSHIPS ===\n";
+var mismatchedRels = new List<dynamic>();
 
 foreach (var relInfo in relationshipInfo)
 {
@@ -100,15 +101,16 @@ foreach (var relInfo in relationshipInfo)
 
         // VERIFY if the properties were applied correctly
         bool propsMatch = (newRel.CrossFilteringBehavior == relInfo.CrossFilteringBehavior) && (newRel.IsActive == relInfo.IsActive);
+        
+        string originalState = string.Format("Active={0}, Filter={1}", relInfo.IsActive, relInfo.CrossFilteringBehavior);
+        string actualState = string.Format("Active={0}, Filter={1}", newRel.IsActive, newRel.CrossFilteringBehavior);
 
         if (propsMatch) {
             summary += relIdentifier + ": SUCCESS (Created with original properties).\n";
         } else {
-            string originalState = string.Format("Active={0}, Filter={1}", relInfo.IsActive, relInfo.CrossFilteringBehavior);
-            string actualState = string.Format("Active={0}, Filter={1}", newRel.IsActive, newRel.CrossFilteringBehavior);
             summary += relIdentifier + ": WARNING - Model silently changed relationship properties.\n";
-            summary += "--> Original: " + originalState + ". Result: " + actualState + ". Flagged for remediation.\n";
-            relsToFix.Add(newRel); // Add the problematic relationship to the "fix-it" list
+            summary += "--> Requested: " + originalState + ".  Actual Result: " + actualState + ".\n";
+            mismatchedRels.Add( new { Identifier = relIdentifier, Requested = originalState, Actual = actualState });
         }
 
         if (!string.IsNullOrEmpty(relInfo.Name)) { newRel.Name = relInfo.Name.Replace(oldTableName, newTableName); }
@@ -119,48 +121,31 @@ foreach (var relInfo in relationshipInfo)
     }
 }
 
-// Step 5: Phase 2 - REMEDIATE the relationships that were flagged in the previous step
-summary += "\n=== PHASE 2: APPLYING FALLBACKS TO FLAGGED RELATIONSHIPS ===\n";
-if(relsToFix.Count > 0)
-{
-    summary += "Forcing " + relsToFix.Count + " relationship(s) to INACTIVE state for manual review.\n";
-    foreach(var rel in relsToFix)
-    {
-        var relId = rel.FromTable.Name + " -> " + rel.ToTable.Name;
-        rel.IsActive = false;
-        rel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
-        summary += "  • Set relationship " + relId + " to INACTIVE.\n";
-    }
-}
-else
-{
-    summary += "No relationships required remediation.\n";
-}
-
-
-// Step 6: Final Summary Report
-if (relsToFix.Count > 0)
+// Step 5: Final Summary Report
+if (mismatchedRels.Count > 0)
 {
     summary += "\n===================================================================\n";
-    summary += "ACTION REQUIRED: Review Remediated Relationships\n";
+    summary += "!! ACTION REQUIRED: Manually Correct Relationships !!\n";
     summary += "===================================================================\n";
-    summary += "The following relationships could not be created with their original properties and were reliably forced to be INACTIVE:\n";
-    foreach (var rel in relsToFix)
+    summary += "The script detected that the model could not create the following relationships with their original properties. \n";
+    summary += "These relationships have been left in the state the model assigned them. YOU MUST CORRECT THEM MANUALLY.\n";
+    
+    foreach (var item in mismatchedRels)
     {
-        summary += "  • " + rel.FromTable.Name + " -> " + rel.ToTable.Name + "\n";
+        summary += "\n  • Relationship: " + item.Identifier + "\n";
+        summary += "    - Requested: " + item.Requested + "\n";
+        summary += "    - Final State in Model: " + item.Actual + "\n";
     }
 
     summary += "\n--- Why This Happens ---\n";
     summary += "This can happen when the data model rejects or silently changes a property, usually for one of these reasons:\n";
-    summary += "1. Ambiguous Paths: The most common cause. This happens if the 'Old Date Table' still has other active relationships creating a conflict.\n";
-    summary += "2. DirectQuery Limitations: You cannot create certain bi-directional relationships in a DirectQuery model that is connected to another Power BI semantic model.\n";
-    summary += "3. Other Model Constraints: The model may have other validation rules that prevent the relationship.\n";
+    summary += "1. Ambiguous Paths: The most common cause. Another active relationship path already exists.\n";
+    summary += "2. DirectQuery Limitations: Certain bi-directional relationships are not allowed in some DirectQuery modes.\n";
 
-    summary += "\n--- How to Fix ---\n";
-    summary += "1. Ensure Deletion is Enabled: Make sure `deleteOldRelationships = true` at the top of the script.\n";
-    summary += "2. Manually Clean the Old Table: Before running the script again, find your 'Old Date Table' in the explorer, expand its 'Relationships' folder, and manually delete any leftover active relationships.\n";
-    summary += "3. Re-run the script after cleaning the model.\n";
-    summary += "4. You can now find the INACTIVE relationships in the Power BI model view, activate them manually, and resolve any errors the tool presents.\n";
+    summary += "\n--- YOUR MANUAL ACTIONS ---\n";
+    summary += "1. Go to the Model View in Power BI or Tabular Editor.\n";
+    summary += "2. Find each relationship listed above.\n";
+    summary += "3. Manually edit its properties. You may need to set it to Inactive or fix the ambiguity in your model so the desired properties can be applied.\n";
 }
 
 summary += "\n=== SCRIPT COMPLETE ===\n";
