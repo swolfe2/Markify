@@ -1,6 +1,6 @@
 /*
 ===========================================================================================
-RELATIONSHIP MIGRATION SCRIPT WITH INACTIVE FALLBACK
+RELATIONSHIP MIGRATION SCRIPT WITH INACTIVE FALLBACK (TE2 COMPATIBLE)
 -------------------------------------------------------------------------------------------
 Author: Steve Wolfe (Data Viz CoE), Revised by Gemini
 Purpose:
@@ -11,7 +11,6 @@ This ensures the model can always be saved and provides a clear path for manual 
 
 Key Features:
 - If a relationship creation fails, it's automatically retried as inactive.
-- A descriptive note is added to the relationship's properties for easy identification.
 - Allows for successful changes to be saved, preventing blocking errors.
 - Includes an optional switch to delete old relationships beforehand.
 
@@ -107,8 +106,9 @@ foreach (var relInfo in relationshipInfo)
             // This is the fallback logic. If the above fails, make it inactive.
             newRel.IsActive = false;
             newRel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection; // Force single-direction
-            newRel.Description = "SCRIPT-CREATED: Set to inactive due to model conflict. Please resolve ambiguity, then activate and set cross-filter direction manually.";
 
+            // The 'Description' property does not exist in Tabular Editor 2, so the line was removed.
+            
             summary += relIdentifier + ": WARNING - Could not create as specified. (" + ex.Message.Trim() + ")\n";
             summary += "--> ACTION: Created as INACTIVE for manual review.\n";
             inactiveFallbackRels.Add(relIdentifier);
