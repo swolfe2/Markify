@@ -2,18 +2,20 @@
 ===========================================================================================
 RELATIONSHIP MIGRATION SCRIPT - THREE-PHASE LOGIC WITH VERIFICATION
 -------------------------------------------------------------------------------------------
-Author: Steve Wolfe (Data Viz CoE), Revised by Gemini
+Author: Steve Wolfe (Data Viz CoE), Revised by AI Assistant
 Purpose:
-This script uses a three-phase process.
+This script uses a three-phase process with enhanced deactivation logic.
 1. CREATE: All relationships are created as ACTIVE and SINGLE-DIRECTIONAL.
-2. VERIFIED UPGRADE: The script attempts to apply original properties and EXPLICITLY
-   VERIFIES that the change was successful. If not, it's flagged.
-3. REMEDIATE: Any relationship that failed verification is reliably set to INACTIVE.
+2. VERIFIED UPGRADE: The script attempts to apply original properties with try-catch
+   and EXPLICITLY VERIFIES that the change was successful. If not, it's flagged.
+3. REMEDIATE: Any relationship that failed verification is reliably set to INACTIVE
+   with explicit error handling and model refresh.
 
 Key Features:
-- Explicit verification in Phase 2 to reliably catch silent property changes.
-- Multi-phase logic to ensure commands are processed reliably by the Tabular engine.
-- Detailed final report serves as a clear "to-do list" for manual corrections.
+- Enhanced error handling with try-catch blocks for property assignments
+- Explicit model refresh between phases to ensure state consistency
+- Multiple verification attempts with different strategies
+- Forced deactivation with explicit error handling
 
 Output:
 - A phased summary of all actions and a final report on relationships needing review.
@@ -68,6 +70,7 @@ if (deleteOldRelationships) {
 var creationErrors = new List<string>();
 var newlyCreatedRels = new List<dynamic>();
 var relsToDeactivate = new List<TabularEditor.TOMWrapper.SingleColumnRelationship>();
+var deactivationFailures = new List<string>();
 
 // === PHASE 1: Create all relationships as Active, Single-Directional ===
 summary += "\n=== PHASE 1: Creating all relationships as Active and Single-Directional ===\n";
@@ -103,6 +106,14 @@ foreach (var relInfo in relationshipInfo) {
     }
 }
 
+// Force model refresh after Phase 1
+try {
+    Model.Database.Refresh();
+    summary += "Model refreshed after Phase 1.\n";
+} catch (Exception ex) {
+    summary += "Warning: Model refresh failed after Phase 1: " + ex.Message + "\n";
+}
+
 // === PHASE 2: Upgrade relationships and VERIFY properties ===
 summary += "\n=== PHASE 2: Upgrading relationships and verifying properties ===\n";
 foreach (var item in newlyCreatedRels) {
@@ -110,23 +121,68 @@ foreach (var item in newlyCreatedRels) {
     var originalInfo = item.OriginalInfo;
     var relIdentifier = newRel.FromTable.Name + " -> " + newRel.ToTable.Name;
 
-    // Attempt to apply original properties
-    newRel.SecurityFilteringBehavior = originalInfo.SecurityFilteringBehavior;
-    newRel.CrossFilteringBehavior = originalInfo.CrossFilteringBehavior;
-    newRel.IsActive = originalInfo.IsActive;
+    bool upgradeSuccessful = true;
+    string upgradeError = "";
 
-    // VERIFY that the upgrade was successful
-    bool propsMatch = (newRel.CrossFilteringBehavior == originalInfo.CrossFilteringBehavior) &&
-                      (newRel.SecurityFilteringBehavior == originalInfo.SecurityFilteringBehavior) &&
-                      (newRel.IsActive == originalInfo.IsActive);
+    // Attempt to apply original properties with explicit error handling
+    try {
+        // Try to set CrossFilteringBehavior first (most likely to fail)
+        if (originalInfo.CrossFilteringBehavior != CrossFilteringBehavior.OneDirection) {
+            var originalCrossFilter = newRel.CrossFilteringBehavior;
+            newRel.CrossFilteringBehavior = originalInfo.CrossFilteringBehavior;
+            
+            // Immediate verification
+            if (newRel.CrossFilteringBehavior != originalInfo.CrossFilteringBehavior) {
+                upgradeSuccessful = false;
+                upgradeError += "CrossFilteringBehavior assignment failed silently. ";
+                newRel.CrossFilteringBehavior = originalCrossFilter; // Revert
+            }
+        }
+    } catch (Exception ex) {
+        upgradeSuccessful = false;
+        upgradeError += "CrossFilteringBehavior error: " + ex.Message + ". ";
+    }
 
-    if (propsMatch) {
+    try {
+        // Try to set SecurityFilteringBehavior
+        newRel.SecurityFilteringBehavior = originalInfo.SecurityFilteringBehavior;
+        if (newRel.SecurityFilteringBehavior != originalInfo.SecurityFilteringBehavior) {
+            upgradeSuccessful = false;
+            upgradeError += "SecurityFilteringBehavior assignment failed silently. ";
+        }
+    } catch (Exception ex) {
+        upgradeSuccessful = false;
+        upgradeError += "SecurityFilteringBehavior error: " + ex.Message + ". ";
+    }
+
+    try {
+        // Try to set IsActive
+        newRel.IsActive = originalInfo.IsActive;
+        if (newRel.IsActive != originalInfo.IsActive) {
+            upgradeSuccessful = false;
+            upgradeError += "IsActive assignment failed silently. ";
+        }
+    } catch (Exception ex) {
+        upgradeSuccessful = false;
+        upgradeError += "IsActive error: " + ex.Message + ". ";
+    }
+
+    // Final verification after all property assignments
+    bool finalVerification = (newRel.CrossFilteringBehavior == originalInfo.CrossFilteringBehavior) &&
+                           (newRel.SecurityFilteringBehavior == originalInfo.SecurityFilteringBehavior) &&
+                           (newRel.IsActive == originalInfo.IsActive);
+
+    if (upgradeSuccessful && finalVerification) {
         summary += "  • SUCCESS (Upgrade): " + relIdentifier + " matches original properties.\n";
     } else {
-        // The upgrade failed silently. Flag for deactivation.
-        string originalState = string.Format("Active={0}, Filter={1}", originalInfo.IsActive, originalInfo.CrossFilteringBehavior);
-        string actualState = string.Format("Active={0}, Filter={1}", newRel.IsActive, newRel.CrossFilteringBehavior);
-        summary += "  • WARNING (Upgrade Failed): " + relIdentifier + ". Original: " + originalState + ", Actual: " + actualState + ". Flagged for deactivation.\n";
+        // The upgrade failed. Flag for deactivation.
+        string originalState = string.Format("Active={0}, Filter={1}, Security={2}", 
+            originalInfo.IsActive, originalInfo.CrossFilteringBehavior, originalInfo.SecurityFilteringBehavior);
+        string actualState = string.Format("Active={0}, Filter={1}, Security={2}", 
+            newRel.IsActive, newRel.CrossFilteringBehavior, newRel.SecurityFilteringBehavior);
+        summary += "  • WARNING (Upgrade Failed): " + relIdentifier + ". " + upgradeError.Trim() + "\n";
+        summary += "    Original: " + originalState + "\n";
+        summary += "    Actual: " + actualState + ". Flagged for deactivation.\n";
         relsToDeactivate.Add(newRel);
     }
 }
@@ -135,20 +191,105 @@ foreach (var item in newlyCreatedRels) {
 summary += "\n=== PHASE 3: Deactivating relationships that failed to upgrade ===\n";
 if (relsToDeactivate.Count > 0) {
     summary += "Forcing " + relsToDeactivate.Count + " relationship(s) to INACTIVE state.\n";
+    
     foreach (var rel in relsToDeactivate) {
-        rel.IsActive = false;
-        // Also ensure it's single-directional for a truly "safe" state
-        rel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
-        summary += "  • REMEDIATED: " + rel.FromTable.Name + " -> " + rel.ToTable.Name + " is now INACTIVE.\n";
+        var relIdentifier = rel.FromTable.Name + " -> " + rel.ToTable.Name;
+        bool deactivationSuccessful = false;
+        string deactivationError = "";
+        
+        // Multiple deactivation strategies
+        try {
+            // Strategy 1: Direct deactivation
+            rel.IsActive = false;
+            rel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
+            
+            // Verify deactivation worked
+            if (!rel.IsActive && rel.CrossFilteringBehavior == CrossFilteringBehavior.OneDirection) {
+                deactivationSuccessful = true;
+                summary += "  • SUCCESS (Deactivated): " + relIdentifier + " is now INACTIVE.\n";
+            } else {
+                deactivationError = "Direct deactivation verification failed. ";
+            }
+        } catch (Exception ex) {
+            deactivationError += "Direct deactivation error: " + ex.Message + ". ";
+        }
+        
+        // Strategy 2: If direct deactivation failed, try force refresh and retry
+        if (!deactivationSuccessful) {
+            try {
+                // Force a model state refresh
+                Model.Database.Refresh();
+                
+                // Retry deactivation
+                rel.IsActive = false;
+                rel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
+                
+                if (!rel.IsActive) {
+                    deactivationSuccessful = true;
+                    summary += "  • SUCCESS (Deactivated after refresh): " + relIdentifier + " is now INACTIVE.\n";
+                } else {
+                    deactivationError += "Retry after refresh failed. ";
+                }
+            } catch (Exception ex) {
+                deactivationError += "Refresh and retry error: " + ex.Message + ". ";
+            }
+        }
+        
+        // Strategy 3: If all else fails, try to delete and recreate as inactive
+        if (!deactivationSuccessful) {
+            try {
+                // Store relationship details before deletion
+                var fromCol = rel.FromColumn;
+                var toCol = rel.ToColumn;
+                var fromCard = rel.FromCardinality;
+                var toCard = rel.ToCardinality;
+                var relName = rel.Name;
+                
+                // Delete the problematic relationship
+                rel.Delete();
+                
+                // Recreate as inactive
+                var newInactiveRel = Model.AddRelationship();
+                newInactiveRel.FromColumn = fromCol;
+                newInactiveRel.ToColumn = toCol;
+                newInactiveRel.FromCardinality = fromCard;
+                newInactiveRel.ToCardinality = toCard;
+                if (!string.IsNullOrEmpty(relName)) newInactiveRel.Name = relName;
+                newInactiveRel.IsActive = false;
+                newInactiveRel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
+                
+                if (!newInactiveRel.IsActive) {
+                    deactivationSuccessful = true;
+                    summary += "  • SUCCESS (Recreated as inactive): " + relIdentifier + " recreated as INACTIVE.\n";
+                } else {
+                    deactivationError += "Recreation as inactive failed. ";
+                }
+            } catch (Exception ex) {
+                deactivationError += "Delete and recreate error: " + ex.Message + ". ";
+            }
+        }
+        
+        if (!deactivationSuccessful) {
+            summary += "  • CRITICAL FAILURE (Deactivation): " + relIdentifier + " - " + deactivationError.Trim() + "\n";
+            deactivationFailures.Add(relIdentifier);
+        }
     }
 } else {
     summary += "No relationships required deactivation.\n";
 }
 
+// Final model refresh
+try {
+    Model.Database.Refresh();
+    summary += "Final model refresh completed.\n";
+} catch (Exception ex) {
+    summary += "Warning: Final model refresh failed: " + ex.Message + "\n";
+}
+
 // === PHASE 4: Final Summary Report ===
-if (creationErrors.Count > 0 || relsToDeactivate.Count > 0) {
+if (creationErrors.Count > 0 || deactivationFailures.Count > 0 || relsToDeactivate.Count > 0) {
     summary += "\n===================================================================\n";
-    summary += "ACTION REQUIRED: Review Relationship Creation Issues\n";
+    summary += "ACTION REQUIRED: Review Relationship Issues\n";
     summary += "===================================================================\n";
 
     if(creationErrors.Count > 0) {
@@ -156,22 +297,37 @@ if (creationErrors.Count > 0 || relsToDeactivate.Count > 0) {
         foreach(var id in creationErrors) summary += "  • " + id + "\n";
     }
 
-    if(relsToDeactivate.Count > 0) {
-        summary += "\nThe following relationships could not be upgraded and were reliably forced to be INACTIVE:\n";
-        foreach (var rel in relsToDeactivate) summary += "  • " + rel.FromTable.Name + " -> " + rel.ToTable.Name + "\n";
+    if(deactivationFailures.Count > 0) {
+        summary += "\nCRITICAL: The following relationships could NOT be deactivated automatically:\n";
+        foreach(var id in deactivationFailures) summary += "  • " + id + "\n";
+        summary += "These relationships may be in an inconsistent state and require MANUAL intervention.\n";
+    }
+
+    var successfulDeactivations = relsToDeactivate.Count - deactivationFailures.Count;
+    if(successfulDeactivations > 0) {
+        summary += "\nThe following relationships were successfully set to INACTIVE:\n";
+        summary += "Count: " + successfulDeactivations + " relationships\n";
+        summary += "(These relationships exist but are disabled until you manually resolve conflicts)\n";
     }
 
     summary += "\n--- Why Upgrades Fail ---\n";
     summary += "An upgrade typically fails due to:\n";
     summary += "1. Ambiguous Paths: The most common cause. Another active relationship path already exists.\n";
     summary += "2. DirectQuery Limitations: Certain bi-directional relationships are not allowed in some DirectQuery modes.\n";
+    summary += "3. Model State: The Tabular Object Model may have state consistency issues.\n";
 
     summary += "\n--- YOUR MANUAL ACTIONS ---\n";
     summary += "1. For relationships that failed creation, you must create them manually.\n";
-    summary += "2. For relationships left INACTIVE, find them in the model view, activate them, and resolve any errors Power BI presents.\n";
+    summary += "2. For relationships that couldn't be deactivated, manually set them to inactive in the model view.\n";
+    summary += "3. For successfully deactivated relationships, find them in the model view, activate them, and resolve any errors Power BI presents.\n";
+    summary += "4. If you see CRITICAL deactivation failures, save your work and restart Tabular Editor.\n";
 }
 
 summary += "\n=== SCRIPT COMPLETE ===\n";
+summary += "Total relationships processed: " + relationshipInfo.Count + "\n";
+summary += "Creation failures: " + creationErrors.Count + "\n";
+summary += "Upgrade failures (deactivated): " + relsToDeactivate.Count + "\n";
+summary += "Deactivation failures: " + deactivationFailures.Count + "\n";
 
 // Output the summary to the Output window
 Info(summary);
