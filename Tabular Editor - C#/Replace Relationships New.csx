@@ -1,17 +1,18 @@
 /*
 ===========================================================================================
-RELATIONSHIP MIGRATION SCRIPT WITH DETAILED REPORTING (TE2 COMPATIBLE)
+RELATIONSHIP MIGRATION SCRIPT WITH PROPERTY VERIFICATION (TE2 COMPATIBLE)
 -------------------------------------------------------------------------------------------
 Author: Steve Wolfe (Data Viz CoE), Revised by Gemini
 Purpose:
-This script migrates relationships and includes detailed reporting and error handling. If a
-relationship cannot be created with its original properties (e.g., bi-directional), it's
-created as inactive, and the final report provides clear reasons and remediation steps.
+This script migrates relationships and includes a critical verification step. After creating
+a relationship, it confirms its properties match the original. If the model silently
+changes a property (e.g., bi-directional to single), the script logs a warning and sets
+the relationship to inactive for manual review.
 
 Key Features:
+- Explicit verification to catch "silent failures" where the model coerces properties.
 - Detailed final report explaining which relationships failed, why, and how to fix them.
 - User-friendly pop-up errors for incorrect table or column names.
-- If a relationship creation fails, it's automatically retried as inactive.
 - Includes an optional switch to delete old relationships beforehand.
 
 Output:
@@ -21,10 +22,10 @@ Output:
 */
 
 // --- CONFIGURATION ---
-var oldTableName = "Date";          // Original table to migrate relationships from
-var oldColumnName = "Date";         // Key column in the OLD table
-var newTableName = "Date Table";    // New table to migrate relationships to
-var newColumnName = "Date";         // Key column in the NEW table
+var oldTableName = "Material 1";     // Original table to migrate relationships from
+var oldColumnName = "Material";      // Key column in the OLD table
+var newTableName = "Material 2";     // New table to migrate relationships to
+var newColumnName = "Material";      // Key column in the NEW table
 
 // Set to 'true' to delete old relationships first. THIS IS HIGHLY RECOMMENDED.
 var deleteOldRelationships = true;
@@ -75,7 +76,7 @@ else
     summary += "=== SKIPPING DELETION of old relationships (Option Disabled) ===\n\n";
 }
 
-// Step 4: Create new relationships with inactive fallback
+// Step 4: Create new relationships with verification and fallback
 summary += "=== CREATING NEW RELATIONSHIPS ===\n";
 var inactiveFallbackRels = new List<string>();
 
@@ -99,20 +100,30 @@ foreach (var relInfo in relationshipInfo)
         newRel.RelyOnReferentialIntegrity = relInfo.RelyOnReferentialIntegrity;
         newRel.JoinOnDateBehavior = relInfo.JoinOnDateBehavior;
 
-        // Now, try to set properties that can cause ambiguity errors
-        try
+        // Attempt to set potentially problematic properties
+        newRel.CrossFilteringBehavior = relInfo.CrossFilteringBehavior;
+        newRel.IsActive = relInfo.IsActive;
+
+        // VERIFY if the properties were set correctly
+        bool propsMatch = (newRel.CrossFilteringBehavior == relInfo.CrossFilteringBehavior) && (newRel.IsActive == relInfo.IsActive);
+
+        if (propsMatch)
         {
-            newRel.CrossFilteringBehavior = relInfo.CrossFilteringBehavior;
-            newRel.IsActive = relInfo.IsActive;
             summary += relIdentifier + ": SUCCESS (Created with original properties).\n";
         }
-        catch (Exception ex)
+        else
         {
+            // The model coerced the properties without throwing an error. This is the silent failure.
+            string originalState = string.Format("Active={0}, Filter={1}", relInfo.IsActive, relInfo.CrossFilteringBehavior);
+            string actualState = string.Format("Active={0}, Filter={1}", newRel.IsActive, newRel.CrossFilteringBehavior);
+            
+            // Now force it to be inactive for safety and manual review
             newRel.IsActive = false;
             newRel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
-            
-            summary += relIdentifier + ": WARNING - Could not create as specified. (" + ex.Message.Trim() + ")\n";
-            summary += "--> ACTION: This relationship was created as INACTIVE for manual review.\n";
+
+            summary += relIdentifier + ": WARNING - Model silently changed relationship properties.\n";
+            summary += "--> Original Request: " + originalState + ". Result: " + actualState + ".\n";
+            summary += "--> ACTION: This relationship has been set to INACTIVE for manual review.\n";
             inactiveFallbackRels.Add(relIdentifier);
         }
 
@@ -122,6 +133,7 @@ foreach (var relInfo in relationshipInfo)
     }
     catch (Exception ex)
     {
+        // This catch block handles any other unexpected errors during creation.
         summary += relIdentifier + ": CRITICAL FAILURE - Could not create relationship. Error: " + ex.Message.Trim() + "\n";
     }
 }
@@ -139,7 +151,7 @@ if (inactiveFallbackRels.Count > 0)
     }
 
     summary += "\n--- Why This Happens ---\n";
-    summary += "This fallback is triggered when the data model rejects a property, usually for one of these reasons:\n";
+    summary += "This fallback is triggered when the data model rejects or silently changes a property, usually for one of these reasons:\n";
     summary += "1. Ambiguous Paths: The most common cause. This happens if the 'Old Date Table' still has other active relationships creating a conflict.\n";
     summary += "2. DirectQuery Limitations: You cannot create certain bi-directional relationships in a DirectQuery model that is connected to another Power BI semantic model.\n";
     summary += "3. Other Model Constraints: The model may have other validation rules that prevent the relationship.\n";
