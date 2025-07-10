@@ -14,7 +14,7 @@ Output:
 ===========================================================================================
 */
 
-var oldTableName = "Date";
+var oldTableName = "table_name";
 
 // Attempt to retrieve the table from the model
 var oldTable = Model.Tables[oldTableName];
