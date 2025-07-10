@@ -4,16 +4,15 @@ RELATIONSHIP MIGRATION SCRIPT WITH PROPERTY VERIFICATION (TE2 COMPATIBLE)
 -------------------------------------------------------------------------------------------
 Author: Steve Wolfe (Data Viz CoE), Revised by Gemini
 Purpose:
-This script migrates relationships and includes a critical verification step. After creating
-a relationship, it confirms its properties match the original. If the model silently
-changes a property (e.g., bi-directional to single), the script logs a warning and sets
-the relationship to inactive for manual review.
+This script migrates relationships and includes a critical verification step. If the model
+silently changes a property, the script now DELETES the incorrect relationship and
+RECREATES it as inactive to guarantee a safe, saveable state.
 
 Key Features:
 - Explicit verification to catch "silent failures" where the model coerces properties.
+- "Delete and Recreate" fallback logic to ensure failed relationships are always inactive.
 - Detailed final report explaining which relationships failed, why, and how to fix them.
 - User-friendly pop-up errors for incorrect table or column names.
-- Includes an optional switch to delete old relationships beforehand.
 
 Output:
 - A detailed summary of all actions with actionable advice for any failures.
@@ -22,10 +21,10 @@ Output:
 */
 
 // --- CONFIGURATION ---
-var oldTableName = "Material 1";     // Original table to migrate relationships from
-var oldColumnName = "Material";      // Key column in the OLD table
-var newTableName = "Material 2";     // New table to migrate relationships to
-var newColumnName = "Material";      // Key column in the NEW table
+var oldTableName = "Date";          // Original table to migrate relationships from
+var oldColumnName = "Date";         // Key column in the OLD table
+var newTableName = "Date Table";    // New table to migrate relationships to
+var newColumnName = "Date";         // Key column in the NEW table
 
 // Set to 'true' to delete old relationships first. THIS IS HIGHLY RECOMMENDED.
 var deleteOldRelationships = true;
@@ -110,30 +109,45 @@ foreach (var relInfo in relationshipInfo)
         if (propsMatch)
         {
             summary += relIdentifier + ": SUCCESS (Created with original properties).\n";
+            if (!string.IsNullOrEmpty(relInfo.Name)) {
+                newRel.Name = relInfo.Name.Replace(oldTableName, newTableName);
+            }
         }
         else
         {
-            // The model coerced the properties without throwing an error. This is the silent failure.
+            // The model coerced the properties. Log the details first.
             string originalState = string.Format("Active={0}, Filter={1}", relInfo.IsActive, relInfo.CrossFilteringBehavior);
             string actualState = string.Format("Active={0}, Filter={1}", newRel.IsActive, newRel.CrossFilteringBehavior);
             
-            // Now force it to be inactive for safety and manual review
-            newRel.IsActive = false;
-            newRel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
-
             summary += relIdentifier + ": WARNING - Model silently changed relationship properties.\n";
             summary += "--> Original Request: " + originalState + ". Result: " + actualState + ".\n";
-            summary += "--> ACTION: This relationship has been set to INACTIVE for manual review.\n";
+            summary += "--> ACTION: Deleting incorrect relationship and re-creating as INACTIVE for manual review.\n";
             inactiveFallbackRels.Add(relIdentifier);
-        }
+            
+            // FIX: Delete the bad relationship and create a new, safe one.
+            // 1. Get necessary info before deleting
+            var fromCol = newRel.FromColumn; var toCol = newRel.ToColumn; var fromCard = newRel.FromCardinality;
+            var toCard = newRel.ToCardinality; var security = newRel.SecurityFilteringBehavior; var relyOn = newRel.RelyOnReferentialIntegrity;
+            var joinOn = newRel.JoinOnDateBehavior; var originalName = string.IsNullOrEmpty(relInfo.Name) ? "" : relInfo.Name.Replace(oldTableName, newTableName);
 
-        if (!string.IsNullOrEmpty(relInfo.Name)) {
-            newRel.Name = relInfo.Name.Replace(oldTableName, newTableName);
+            // 2. Delete the coerced relationship
+            newRel.Delete();
+
+            // 3. Create a new one from scratch with guaranteed inactive properties
+            var fallbackRel = Model.AddRelationship();
+            fallbackRel.FromColumn = fromCol; fallbackRel.ToColumn = toCol; fallbackRel.FromCardinality = fromCard;
+            fallbackRel.ToCardinality = toCard; fallbackRel.SecurityFilteringBehavior = security; fallbackRel.RelyOnReferentialIntegrity = relyOn;
+            fallbackRel.JoinOnDateBehavior = joinOn;
+
+            // 4. Explicitly set the safe, inactive state
+            fallbackRel.IsActive = false;
+            fallbackRel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
+            
+            if(!string.IsNullOrEmpty(originalName)) { fallbackRel.Name = originalName; }
         }
     }
     catch (Exception ex)
     {
-        // This catch block handles any other unexpected errors during creation.
         summary += relIdentifier + ": CRITICAL FAILURE - Could not create relationship. Error: " + ex.Message.Trim() + "\n";
     }
 }
