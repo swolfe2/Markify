@@ -33,28 +33,28 @@ var deleteOldRelationships = true;
 // --- SCRIPT LOGIC ---
 
 // Step 1: Validate all user inputs with specific error messages
-var oldTable = Model.Tables[oldTableName];
+var oldTable = Model.Tables.FirstOrDefault(t => t.Name == oldTableName);
 if (oldTable == null)
 {
     Error("Unable to locate the 'Old Table' named \"" + oldTableName + "\".\nPlease validate your script inputs and try again.");
     return;
 }
 
-var newTable = Model.Tables[newTableName];
+var newTable = Model.Tables.FirstOrDefault(t => t.Name == newTableName);
 if (newTable == null)
 {
     Error("Unable to locate the 'New Table' named \"" + newTableName + "\".\nPlease validate your script inputs and try again.");
     return;
 }
 
-var oldColumn = oldTable.Columns[oldColumnName];
+var oldColumn = oldTable.Columns.FirstOrDefault(c => c.Name == oldColumnName);
 if (oldColumn == null)
 {
     Error("Unable to locate the 'Old Column' named \"" + oldColumnName + "\" on table \"" + oldTableName + "\".\nPlease validate your script inputs and try again.");
     return;
 }
 
-var newColumn = newTable.Columns[newColumnName];
+var newColumn = newTable.Columns.FirstOrDefault(c => c.Name == newColumnName);
 if (newColumn == null)
 {
     Error("Unable to locate the 'New Column' named \"" + newColumnName + "\" on table \"" + newTableName + "\".\nPlease validate your script inputs and try again.");
