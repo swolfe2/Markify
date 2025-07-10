@@ -71,8 +71,9 @@ if (deleteOldRelationships) {
 // Lists to track outcomes through the phases
 var creationErrors = new List<string>();
 var newlyCreatedRels = new List<dynamic>();
-var relsToDeactivate = new List<TabularEditor.TOMWrapper.SingleColumnRelationship>();
+var relsToDeactivate = new List<dynamic>();
 var deactivationFailures = new List<string>();
+var deletedRelationshipsForManualRebuild = new List<dynamic>();
 
 // === PHASE 1: Create all relationships as Active, Single-Directional ===
 summary += "\n=== PHASE 1: Creating all relationships as Active and Single-Directional ===\n";
@@ -185,7 +186,7 @@ foreach (var item in newlyCreatedRels) {
         summary += "  • WARNING (Upgrade Failed): " + relIdentifier + ". " + upgradeError.Trim() + "\n";
         summary += "    Original: " + originalState + "\n";
         summary += "    Actual: " + actualState + ". Flagged for deactivation.\n";
-        relsToDeactivate.Add(newRel);
+        relsToDeactivate.Add(new { RelToFix = newRel, OriginalInfo = originalInfo });
     }
 }
 
@@ -194,7 +195,9 @@ summary += "\n=== PHASE 3: Deactivating or Deleting relationships that failed to
 if (relsToDeactivate.Count > 0) {
     summary += "Attempting to remediate " + relsToDeactivate.Count + " relationship(s) that failed to upgrade.\n";
     
-    foreach (var rel in relsToDeactivate) {
+    foreach (var item in relsToDeactivate) {
+        var rel = item.RelToFix as TabularEditor.TOMWrapper.SingleColumnRelationship;
+        var originalInfo = item.OriginalInfo;
         var relIdentifier = rel.FromTable.Name + " -> " + rel.ToTable.Name;
         
         try {
@@ -215,6 +218,7 @@ if (relsToDeactivate.Count > 0) {
                 var fromTableName = rel.FromTable.Name;
                 var toTableName = rel.ToTable.Name;
                 rel.Delete();
+                deletedRelationshipsForManualRebuild.Add(originalInfo); // Capture details for manual rebuild
                 summary += "  • SUCCESS (Deleted): The relationship between " + fromTableName + " and " + toTableName + " has been DELETED and must be created manually.\n";
             } catch (Exception deleteEx) {
                 summary += "  • CRITICAL FAILURE (Deletion Failed): Could not delete " + relIdentifier + ". MANUAL INTERVENTION IS URGENTLY REQUIRED. Reason: " + deleteEx.Message.Trim() + "\n";
@@ -245,8 +249,27 @@ if (creationErrors.Count > 0 || deactivationFailures.Count > 0 || relsToDeactiva
         foreach(var id in creationErrors) summary += "  • " + id + "\n";
     }
 
+    if(deletedRelationshipsForManualRebuild.Count > 0) {
+        summary += "\nMANUAL ACTION: The following relationships were DELETED and must be recreated manually with these properties:\n";
+        foreach(var info in deletedRelationshipsForManualRebuild) {
+            var fromTable = info.FromColumn.Table.Name == oldTableName ? newTableName : info.FromColumn.Table.Name;
+            var toTable = info.ToColumn.Table.Name == oldTableName ? newTableName : info.ToColumn.Table.Name;
+            
+            summary += string.Format(
+                "  • From: '{0}'[{1}]  To: '{2}'[{3}]\n",
+                fromTable, info.FromColumn.Name,
+                toTable, info.ToColumn.Name
+            );
+            summary += string.Format(
+                "    - Properties: IsActive={0}, Cardinality={1}-to-{2}, CrossFilter={3}, SecurityFilter={4}\n",
+                info.IsActive, info.FromCardinality, info.ToCardinality, 
+                info.CrossFilteringBehavior, info.SecurityFilteringBehavior
+            );
+        }
+    }
+
     if(deactivationFailures.Count > 0) {
-        summary += "\nCRITICAL: The following relationships could NOT be deactivated automatically:\n";
+        summary += "\nCRITICAL: The following relationships could NOT be deactivated OR deleted automatically:\n";
         foreach(var id in deactivationFailures) summary += "  • " + id + "\n";
         summary += "These relationships may be in an inconsistent state and require MANUAL intervention.\n";
     }
