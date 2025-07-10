@@ -1,22 +1,21 @@
 /*
 ===========================================================================================
-RELATIONSHIP MIGRATION SCRIPT - "CREATE SAFE, THEN UPGRADE" LOGIC
+RELATIONSHIP MIGRATION SCRIPT - VERIFICATION + TWO-PHASE LOGIC
 -------------------------------------------------------------------------------------------
 Author: Steve Wolfe (Data Viz CoE), Revised by Gemini
 Purpose:
-This script uses a "Create Safe, then Upgrade" strategy. It first creates all new
-relationships as INACTIVE and single-directional. It then attempts to "upgrade" them to
-their original properties. If the upgrade fails, the relationship is reliably left in its
-safe, inactive state for manual review. This is the most robust method.
+This script uses a robust two-phase process. It first creates all relationships and
+uses explicit VERIFICATION to detect any "silent failures" where the model changes a
+property. Any mismatched relationships are added to a list. In a second phase, it
+reliably forces every relationship on that list to become INACTIVE.
 
 Key Features:
-- "Create Safe, then Upgrade" logic to work with the Tabular engine's transaction model.
-- Guarantees failed relationships are left inactive.
-- Detailed final report explaining why an upgrade might fail.
-- User-friendly pop-up errors for incorrect table or column names.
+- Explicit verification to reliably catch silent property changes.
+- Two-phase "Detect then Remediate" logic for maximum reliability.
+- Detailed final report explaining which relationships failed, why, and how to fix them.
 
 Output:
-- An accurate summary of successful upgrades and relationships left inactive for review.
+- An accurate summary of successful creations and relationships forced to be inactive.
 
 ===========================================================================================
 */
@@ -76,9 +75,9 @@ else
     summary += "=== SKIPPING DELETION of old relationships (Option Disabled) ===\n\n";
 }
 
-// Step 4: Create new relationships using "Create Safe, then Upgrade" logic
-summary += "=== CREATING NEW RELATIONSHIPS ===\n";
-var relsThatNeedReview = new List<string>();
+// Step 4: Phase 1 - Create new relationships and IDENTIFY any problems
+summary += "=== PHASE 1: CREATING AND VERIFYING RELATIONSHIPS ===\n";
+var relsToFix = new List<TabularEditor.TOMWrapper.SingleColumnRelationship>();
 
 foreach (var relInfo in relationshipInfo)
 {
@@ -86,32 +85,30 @@ foreach (var relInfo in relationshipInfo)
 
     try
     {
-        // Create the relationship in a guaranteed-safe state first
         var newRel = Model.AddRelationship();
+
         if (relInfo.OldTableWasFrom) { newRel.FromColumn = newColumn; newRel.ToColumn = relInfo.ToColumn; } 
         else { newRel.FromColumn = relInfo.FromColumn; newRel.ToColumn = newColumn; }
         
         newRel.FromCardinality = relInfo.FromCardinality; newRel.ToCardinality = relInfo.ToCardinality;
         newRel.SecurityFilteringBehavior = relInfo.SecurityFilteringBehavior; newRel.RelyOnReferentialIntegrity = relInfo.RelyOnReferentialIntegrity;
         newRel.JoinOnDateBehavior = relInfo.JoinOnDateBehavior;
-        
-        // ** SET TO SAFE STATE **
-        newRel.IsActive = false;
-        newRel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
 
-        // Now, ATTEMPT to "upgrade" the relationship to its original state
-        try
-        {
-            newRel.CrossFilteringBehavior = relInfo.CrossFilteringBehavior;
-            newRel.IsActive = relInfo.IsActive;
+        // Attempt to set properties "hot"
+        newRel.CrossFilteringBehavior = relInfo.CrossFilteringBehavior;
+        newRel.IsActive = relInfo.IsActive;
+
+        // VERIFY if the properties were applied correctly
+        bool propsMatch = (newRel.CrossFilteringBehavior == relInfo.CrossFilteringBehavior) && (newRel.IsActive == relInfo.IsActive);
+
+        if (propsMatch) {
             summary += relIdentifier + ": SUCCESS (Created with original properties).\n";
-        }
-        catch (Exception ex)
-        {
-            // The upgrade failed. The relationship will be left INACTIVE.
-            summary += relIdentifier + ": WARNING - Could not apply original state due to a model conflict (" + ex.Message.Trim() + ").\n";
-            summary += "--> ACTION: Relationship was left INACTIVE for manual review.\n";
-            relsThatNeedReview.Add(relIdentifier);
+        } else {
+            string originalState = string.Format("Active={0}, Filter={1}", relInfo.IsActive, relInfo.CrossFilteringBehavior);
+            string actualState = string.Format("Active={0}, Filter={1}", newRel.IsActive, newRel.CrossFilteringBehavior);
+            summary += relIdentifier + ": WARNING - Model silently changed relationship properties.\n";
+            summary += "--> Original: " + originalState + ". Result: " + actualState + ". Flagged for remediation.\n";
+            relsToFix.Add(newRel); // Add the problematic relationship to the "fix-it" list
         }
 
         if (!string.IsNullOrEmpty(relInfo.Name)) { newRel.Name = relInfo.Name.Replace(oldTableName, newTableName); }
@@ -122,21 +119,40 @@ foreach (var relInfo in relationshipInfo)
     }
 }
 
-// Step 5: Final Summary Report
-if (relsThatNeedReview.Count > 0)
+// Step 5: Phase 2 - REMEDIATE the relationships that were flagged in the previous step
+summary += "\n=== PHASE 2: APPLYING FALLBACKS TO FLAGGED RELATIONSHIPS ===\n";
+if(relsToFix.Count > 0)
+{
+    summary += "Forcing " + relsToFix.Count + " relationship(s) to INACTIVE state for manual review.\n";
+    foreach(var rel in relsToFix)
+    {
+        var relId = rel.FromTable.Name + " -> " + rel.ToTable.Name;
+        rel.IsActive = false;
+        rel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
+        summary += "  • Set relationship " + relId + " to INACTIVE.\n";
+    }
+}
+else
+{
+    summary += "No relationships required remediation.\n";
+}
+
+
+// Step 6: Final Summary Report
+if (relsToFix.Count > 0)
 {
     summary += "\n===================================================================\n";
-    summary += "ACTION REQUIRED: Review Inactive Relationships\n";
+    summary += "ACTION REQUIRED: Review Remediated Relationships\n";
     summary += "===================================================================\n";
-    summary += "The following relationships could not be upgraded to their original state and were left INACTIVE:\n";
-    foreach (var relId in relsThatNeedReview)
+    summary += "The following relationships could not be created with their original properties and were reliably forced to be INACTIVE:\n";
+    foreach (var rel in relsToFix)
     {
-        summary += "  • " + relId + "\n";
+        summary += "  • " + rel.FromTable.Name + " -> " + rel.ToTable.Name + "\n";
     }
 
-    summary += "\n--- Why an Upgrade Fails ---\n";
-    summary += "An upgrade can fail for several reasons, most commonly:\n";
-    summary += "1. Ambiguous Paths: The most frequent cause. This happens if the 'Old Date Table' still has other active relationships creating a conflict in the model.\n";
+    summary += "\n--- Why This Happens ---\n";
+    summary += "This can happen when the data model rejects or silently changes a property, usually for one of these reasons:\n";
+    summary += "1. Ambiguous Paths: The most common cause. This happens if the 'Old Date Table' still has other active relationships creating a conflict.\n";
     summary += "2. DirectQuery Limitations: You cannot create certain bi-directional relationships in a DirectQuery model that is connected to another Power BI semantic model.\n";
     summary += "3. Other Model Constraints: The model may have other validation rules that prevent the relationship.\n";
 
