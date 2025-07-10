@@ -85,7 +85,7 @@ else
     var relatedTables = relationships.Select(r => (r.FromTable == oldTable) ? r.ToTable : r.FromTable).Distinct().ToList();
     foreach (var table in relatedTables)
     {
-        var mixedMode = (table.Mode != oldTable.Mode) ? " **\*\*\* MIXED MODE \*\*\***" : "";
+        var mixedMode = (table.Mode != oldTable.Mode) ? " **** MIXED MODE ****" : "";
         summary += "  - `" + table.Name + "`: `" + table.Mode.ToString() + "`" + mixedMode + "\n";
     }
     
