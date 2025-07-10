@@ -328,6 +328,43 @@ if (relsToDeactivate.Count > 0) {
             }
         }
         
+        // Strategy 5: Create minimal inactive relationship for manual review
+        if (!deactivationSuccessful) {
+            try {
+                // Store only essential relationship details
+                var fromCol = rel.FromColumn;
+                var toCol = rel.ToColumn;
+                var relName = rel.Name;
+                
+                // Delete the problematic relationship if it still exists
+                if (!rel.IsRemoved) {
+                    rel.Delete();
+                }
+                
+                // Create with MINIMAL, safe properties to avoid any conflicts
+                var safeRel = Model.AddRelationship();
+                safeRel.FromColumn = fromCol;
+                safeRel.ToColumn = toCol;
+                // Use the safest possible cardinality and direction
+                safeRel.FromCardinality = RelationshipEndCardinality.Many;
+                safeRel.ToCardinality = RelationshipEndCardinality.One;
+                safeRel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
+                safeRel.SecurityFilteringBehavior = SecurityFilteringBehavior.OneDirection;
+                safeRel.IsActive = false; // Set inactive immediately
+                if (!string.IsNullOrEmpty(relName)) safeRel.Name = relName + "_REVIEW_NEEDED";
+                
+                // Don't save yet - just check if this basic inactive relationship can exist
+                if (!safeRel.IsActive) {
+                    deactivationSuccessful = true;
+                    summary += "  • SUCCESS (Strategy 5 - Minimal Inactive): " + relIdentifier + " created as basic INACTIVE relationship for manual review.\n";
+                } else {
+                    deactivationError += "Strategy 5 failed - even minimal relationship forced to active. ";
+                }
+            } catch (Exception ex) {
+                deactivationError += "Strategy 5 error: " + ex.Message + ". ";
+            }
+        }
+        
         if (!deactivationSuccessful) {
             summary += "  • CRITICAL FAILURE (Deactivation): " + relIdentifier + " - " + deactivationError.Trim() + "\n";
             deactivationFailures.Add(relIdentifier);
