@@ -2,25 +2,26 @@
 using ToM = Microsoft.AnalysisServices.Tabular;
 /*
 ===========================================================================================
-RELATIONSHIP MIGRATION SCRIPT - THREE-PHASE LOGIC WITH VERIFICATION
+RELATIONSHIP MIGRATION SCRIPT - V2 (FINAL)
 -------------------------------------------------------------------------------------------
 Author: Steve Wolfe (Data Viz CoE), Revised by AI Assistant
 Purpose:
-This script uses a three-phase process with enhanced deactivation logic.
-1. CREATE: All relationships are created as ACTIVE and SINGLE-DIRECTIONAL.
-2. VERIFIED UPGRADE: The script attempts to apply original properties with try-catch
-   and EXPLICITLY VERIFIES that the change was successful. If not, it's flagged.
-3. REMEDIATE: Any relationship that failed verification is reliably set to INACTIVE
-   with explicit error handling and model refresh.
+This script uses a robust three-phase process to migrate relationships from an old
+table to a new one. It is designed to be failsafe.
 
-Key Features:
-- Enhanced error handling with try-catch blocks for property assignments
-- Explicit model refresh between phases to ensure state consistency
-- Multiple verification attempts with different strategies
-- Forced deactivation with explicit error handling
+1. CREATE: All relationships are created in a basic, active, single-directional state.
+2. VERIFIED UPGRADE: The script attempts to apply original properties (bidirectional
+   filtering, etc.) and verifies the change.
+3. REMEDIATE:
+    - If an upgrade fails due to model constraints (e.g., ambiguity), the script
+      first attempts to set the relationship to INACTIVE.
+    - If even that fails, it DELETES the relationship entirely, preventing the model
+      from being left in an inconsistent state.
 
 Output:
-- A phased summary of all actions and a final report on relationships needing review.
+- A CONCISE summary is shown in the Tabular Editor popup window.
+- A FULL, DETAILED report is saved to a text file on your Desktop, including
+  step-by-step "recipes" for manually recreating any deleted relationships.
 
 ===========================================================================================
 */
@@ -37,7 +38,9 @@ var deleteOldRelationships = true;
 // --- SCRIPT LOGIC ---
 
 // Initial setup and validation
-var summary = "RELATIONSHIP MIGRATION SCRIPT:\n";
+var summary = "RELATIONSHIP MIGRATION SCRIPT - FULL REPORT\n";
+summary += "Generated: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "\n\n";
+
 var oldTable = Model.Tables.FirstOrDefault(t => t.Name == oldTableName);
 if (oldTable == null) { Error("Unable to locate the 'Old Table' named \"" + oldTableName + "\"."); return; }
 var newTable = Model.Tables.FirstOrDefault(t => t.Name == newTableName);
@@ -57,7 +60,7 @@ foreach (var oldRel in Model.Relationships.Where(r => (r.FromTable == oldTable &
         FromCardinality = oldRel.FromCardinality, ToCardinality = oldRel.ToCardinality, Name = oldRel.Name
     });
 }
-summary += "Found " + relationshipInfo.Count + " relationships to migrate.\n";
+summary += "Found " + relationshipInfo.Count + " relationships to migrate from table '" + oldTableName + "'.\n";
 
 // Delete old relationships if configured
 if (deleteOldRelationships) {
@@ -84,13 +87,10 @@ foreach (var relInfo in relationshipInfo) {
     var fromColName = relInfo.FromColumn.Name;
     var toColName = relInfo.ToColumn.Name;
 
-    // Determine the identifier for logging before potential errors
     var relIdentifier = (fromTableName == oldTableName ? newTableName : fromTableName) + " -> " + (toTableName == oldTableName ? newTableName : toTableName);
 
     try {
         var newRel = Model.AddRelationship();
-        
-        // Determine correct from/to columns for the new relationship
         newRel.FromColumn = fromTableName == oldTableName ? newTable.Columns[fromColName] : Model.Tables[fromTableName].Columns[fromColName];
         newRel.ToColumn = toTableName == oldTableName ? newTable.Columns[toColName] : Model.Tables[toTableName].Columns[toColName];
 
@@ -98,7 +98,6 @@ foreach (var relInfo in relationshipInfo) {
         newRel.ToCardinality = relInfo.ToCardinality;
         if (!string.IsNullOrEmpty(relInfo.Name)) newRel.Name = relInfo.Name.Replace(oldTableName, newTableName);
 
-        // Create in a safe, active state
         newRel.IsActive = true;
         newRel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
 
@@ -110,7 +109,6 @@ foreach (var relInfo in relationshipInfo) {
     }
 }
 
-// Force model state update after Phase 1
 try {
     Model.Database.TOMDatabase.Model.SaveChanges();
     summary += "Model changes saved after Phase 1.\n";
@@ -128,18 +126,14 @@ foreach (var item in newlyCreatedRels) {
     bool upgradeSuccessful = true;
     string upgradeError = "";
 
-    // Attempt to apply original properties with explicit error handling
     try {
-        // Try to set CrossFilteringBehavior first (most likely to fail)
         if (originalInfo.CrossFilteringBehavior != CrossFilteringBehavior.OneDirection) {
             var originalCrossFilter = newRel.CrossFilteringBehavior;
             newRel.CrossFilteringBehavior = originalInfo.CrossFilteringBehavior;
-            
-            // Immediate verification
             if (newRel.CrossFilteringBehavior != originalInfo.CrossFilteringBehavior) {
                 upgradeSuccessful = false;
                 upgradeError += "CrossFilteringBehavior assignment failed silently. ";
-                newRel.CrossFilteringBehavior = originalCrossFilter; // Revert
+                newRel.CrossFilteringBehavior = originalCrossFilter;
             }
         }
     } catch (Exception ex) {
@@ -148,7 +142,6 @@ foreach (var item in newlyCreatedRels) {
     }
 
     try {
-        // Try to set SecurityFilteringBehavior
         newRel.SecurityFilteringBehavior = originalInfo.SecurityFilteringBehavior;
         if (newRel.SecurityFilteringBehavior != originalInfo.SecurityFilteringBehavior) {
             upgradeSuccessful = false;
@@ -160,7 +153,6 @@ foreach (var item in newlyCreatedRels) {
     }
 
     try {
-        // Try to set IsActive
         newRel.IsActive = originalInfo.IsActive;
         if (newRel.IsActive != originalInfo.IsActive) {
             upgradeSuccessful = false;
@@ -171,7 +163,6 @@ foreach (var item in newlyCreatedRels) {
         upgradeError += "IsActive error: " + ex.Message + ". ";
     }
 
-    // Final verification after all property assignments
     bool finalVerification = (newRel.CrossFilteringBehavior == originalInfo.CrossFilteringBehavior) &&
                            (newRel.SecurityFilteringBehavior == originalInfo.SecurityFilteringBehavior) &&
                            (newRel.IsActive == originalInfo.IsActive);
@@ -179,14 +170,11 @@ foreach (var item in newlyCreatedRels) {
     if (upgradeSuccessful && finalVerification) {
         summary += "  • SUCCESS (Upgrade): " + relIdentifier + " matches original properties.\n";
     } else {
-        // The upgrade failed. Flag for deactivation.
-        string originalState = string.Format("Active={0}, Filter={1}, Security={2}", 
-            originalInfo.IsActive, originalInfo.CrossFilteringBehavior, originalInfo.SecurityFilteringBehavior);
-        string actualState = string.Format("Active={0}, Filter={1}, Security={2}", 
-            newRel.IsActive, newRel.CrossFilteringBehavior, newRel.SecurityFilteringBehavior);
+        string originalState = string.Format("Active={0}, Filter={1}, Security={2}", originalInfo.IsActive, originalInfo.CrossFilteringBehavior, originalInfo.SecurityFilteringBehavior);
+        string actualState = string.Format("Active={0}, Filter={1}, Security={2}", newRel.IsActive, newRel.CrossFilteringBehavior, newRel.SecurityFilteringBehavior);
         summary += "  • WARNING (Upgrade Failed): " + relIdentifier + ". " + upgradeError.Trim() + "\n";
         summary += "    Original: " + originalState + "\n";
-        summary += "    Actual: " + actualState + ". Flagged for deactivation.\n";
+        summary += "    Actual: " + actualState + ". Flagged for remediation.\n";
         relsToDeactivate.Add(new { RelToFix = newRel, OriginalInfo = originalInfo });
     }
 }
@@ -202,25 +190,22 @@ if (relsToDeactivate.Count > 0) {
         var relIdentifier = rel.FromTable.Name + " -> " + rel.ToTable.Name;
         
         try {
-            // Final attempt: Directly set to inactive.
             rel.IsActive = false;
-            rel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection; // Reset to be safe
+            rel.CrossFilteringBehavior = CrossFilteringBehavior.OneDirection;
             
             if (!rel.IsActive) {
                 summary += "  • SUCCESS (Deactivated): " + relIdentifier + " has been set to INACTIVE for manual review.\n";
                 successfullyDeactivatedRels.Add(relIdentifier);
             } else {
-                // This will force the catch block for the deletion logic.
                 throw new InvalidOperationException("Deactivation failed silently. Relationship remains active.");
             }
         } catch (Exception ex) {
-            // If deactivation fails (due to ambiguity), delete the relationship entirely as a fallback.
             summary += "  • WARNING (Deactivation Failed): Could not set " + relIdentifier + " to inactive. Reason: " + ex.Message.Trim() + "\n";
             try {
                 var fromTableName = rel.FromTable.Name;
                 var toTableName = rel.ToTable.Name;
                 rel.Delete();
-                deletedRelationshipsForManualRebuild.Add(originalInfo); // Capture details for manual rebuild
+                deletedRelationshipsForManualRebuild.Add(originalInfo);
                 summary += "  • SUCCESS (Deleted): The relationship between " + fromTableName + " and " + toTableName + " has been DELETED and must be created manually.\n";
             } catch (Exception deleteEx) {
                 summary += "  • CRITICAL FAILURE (Deletion Failed): Could not delete " + relIdentifier + ". MANUAL INTERVENTION IS URGENTLY REQUIRED. Reason: " + deleteEx.Message.Trim() + "\n";
@@ -229,10 +214,9 @@ if (relsToDeactivate.Count > 0) {
         }
     }
 } else {
-    summary += "No relationships required deactivation.\n";
+    summary += "No relationships required remediation.\n";
 }
 
-// Final model save
 try {
     Model.Database.TOMDatabase.Model.SaveChanges();
     summary += "Final model save completed.\n";
@@ -241,64 +225,83 @@ try {
 }
 
 // === PHASE 4: Final Summary Report ===
-if (creationErrors.Count > 0 || deactivationFailures.Count > 0 || relsToDeactivate.Count > 0) {
-    summary += "\n===================================================================\n";
-    summary += "ACTION REQUIRED: Review Relationship Issues\n";
-    summary += "===================================================================\n";
+summary += "\n\n===================================================================\n";
+summary += "FINAL SUMMARY & ACTION ITEMS\n";
+summary += "===================================================================\n";
 
-    if(creationErrors.Count > 0) {
-        summary += "\nThe following relationships failed during initial creation and DO NOT EXIST in the model:\n";
-        foreach(var id in creationErrors) summary += "  • " + id + "\n";
-    }
-
-    if(successfullyDeactivatedRels.Count > 0) {
-        summary += "\nThe following relationships were successfully set to INACTIVE for manual review:\n";
-        foreach(var id in successfullyDeactivatedRels) summary += "  • " + id + "\n";
-    }
-
-    if(deletedRelationshipsForManualRebuild.Count > 0) {
-        summary += "\nMANUAL ACTION: The following relationships were DELETED and must be recreated manually with these properties:\n";
-        foreach(var info in deletedRelationshipsForManualRebuild) {
-            var fromTable = info.FromColumn.Table.Name == oldTableName ? newTableName : info.FromColumn.Table.Name;
-            var toTable = info.ToColumn.Table.Name == oldTableName ? newTableName : info.ToColumn.Table.Name;
-            
-            summary += string.Format(
-                "  • From: '{0}'[{1}]  To: '{2}'[{3}]\n",
-                fromTable, info.FromColumn.Name,
-                toTable, info.ToColumn.Name
-            );
-            summary += string.Format(
-                "    - Properties: IsActive={0}, Cardinality={1}-to-{2}, CrossFilter={3}, SecurityFilter={4}\n",
-                info.IsActive, info.FromCardinality, info.ToCardinality, 
-                info.CrossFilteringBehavior, info.SecurityFilteringBehavior
-            );
-        }
-    }
-
-    if(deactivationFailures.Count > 0) {
-        summary += "\nCRITICAL: The following relationships could NOT be deactivated OR deleted automatically:\n";
-        foreach(var id in deactivationFailures) summary += "  • " + id + "\n";
-        summary += "These relationships may be in an inconsistent state and require MANUAL intervention.\n";
-    }
-
-    summary += "\n--- Why Upgrades Fail ---\n";
-    summary += "An upgrade typically fails due to:\n";
-    summary += "1. Ambiguous Paths: The most common cause. Another active relationship path already exists.\n";
-    summary += "2. DirectQuery Limitations: Certain bi-directional relationships are not allowed in some DirectQuery modes.\n";
-    summary += "3. Model State: The Tabular Object Model may have state consistency issues.\n";
-
-    summary += "\n--- YOUR MANUAL ACTIONS ---\n";
-    summary += "1. For relationships that failed creation, you must create them manually.\n";
-    summary += "2. For relationships that couldn't be deactivated, manually set them to inactive in the model view.\n";
-    summary += "3. For successfully deactivated relationships, find them in the model view, activate them, and resolve any errors Power BI presents.\n";
-    summary += "4. If you see CRITICAL deactivation failures, save your work and restart Tabular Editor.\n";
+if (creationErrors.Count == 0 && successfullyDeactivatedRels.Count == 0 && deletedRelationshipsForManualRebuild.Count == 0 && deactivationFailures.Count == 0) {
+    summary += "\n✅ All relationships migrated successfully with no issues detected.\n";
 }
 
-summary += "\n=== SCRIPT COMPLETE ===\n";
-summary += "Total relationships processed: " + relationshipInfo.Count + "\n";
-summary += "Creation failures: " + creationErrors.Count + "\n";
-summary += "Upgrade failures (deactivated): " + relsToDeactivate.Count + "\n";
-summary += "Deactivation failures: " + deactivationFailures.Count + "\n";
+if(creationErrors.Count > 0) {
+    summary += "\nThe following relationships failed during initial creation and DO NOT EXIST in the model:\n";
+    foreach(var id in creationErrors) summary += "  • " + id + "\n";
+}
 
-// Output the summary to the Output window
-Info(summary);
+if(successfullyDeactivatedRels.Count > 0) {
+    summary += "\nThe following relationships were successfully set to INACTIVE for manual review:\n";
+    foreach(var id in successfullyDeactivatedRels) summary += "  • " + id + "\n";
+}
+
+if(deletedRelationshipsForManualRebuild.Count > 0) {
+    summary += "\nMANUAL ACTION: The following relationships were DELETED and must be recreated manually with these properties:\n";
+    foreach(var info in deletedRelationshipsForManualRebuild) {
+        var fromTable = info.FromColumn.Table.Name == oldTableName ? newTableName : info.FromColumn.Table.Name;
+        var toTable = info.ToColumn.Table.Name == oldTableName ? newTableName : info.ToColumn.Table.Name;
+        
+        summary += string.Format(
+            "  • From: '{0}'[{1}]  To: '{2}'[{3}]\n",
+            fromTable, info.FromColumn.Name,
+            toTable, info.ToColumn.Name
+        );
+        summary += string.Format(
+            "    - Properties: IsActive={0}, Cardinality={1}-to-{2}, CrossFilter={3}, SecurityFilter={4}\n",
+            info.IsActive, info.FromCardinality, info.ToCardinality, 
+            info.CrossFilteringBehavior, info.SecurityFilteringBehavior
+        );
+    }
+}
+
+if(deactivationFailures.Count > 0) {
+    summary += "\nCRITICAL: The following relationships could NOT be deactivated OR deleted automatically:\n";
+    foreach(var id in deactivationFailures) summary += "  • " + id + "\n";
+    summary += "These relationships may be in an inconsistent state and require MANUAL INTERVENTION.\n";
+}
+
+summary += "\n--- Why Upgrades Fail ---\n";
+summary += "An upgrade typically fails due to:\n";
+summary += "1. Ambiguous Paths: The most common cause. Another active relationship path already exists.\n";
+summary += "2. DirectQuery Limitations: Certain bi-directional relationships are not allowed in some DirectQuery modes.\n";
+summary += "3. Model State: The Tabular Object Model may have state consistency issues.\n";
+
+
+summary += "\n\n=== SCRIPT COMPLETE ===\n";
+summary += "Total relationships processed: " + relationshipInfo.Count + "\n";
+summary += "Successfully created/upgraded: " + (relationshipInfo.Count - relsToDeactivate.Count - creationErrors.Count) + "\n";
+summary += "Successfully deactivated: " + successfullyDeactivatedRels.Count + "\n";
+summary += "Deleted for manual rebuild: " + deletedRelationshipsForManualRebuild.Count + "\n";
+summary += "Critical failures (unresolved): " + deactivationFailures.Count + "\n";
+
+// --- SAVE FULL REPORT AND SHOW CONCISE SUMMARY ---
+
+var fileName = "Relationship_Migration_Report_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".txt";
+var filePath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + "\\" + fileName;
+var popupSummary = "";
+
+try 
+{
+    System.IO.File.WriteAllText(filePath, summary);
+    popupSummary += "SCRIPT COMPLETE.\n\n";
+    popupSummary += "Successfully created/upgraded: " + (relationshipInfo.Count - relsToDeactivate.Count - creationErrors.Count) + "\n";
+    popupSummary += "Successfully deactivated: " + successfullyDeactivatedRels.Count + "\n";
+    popupSummary += "Deleted for manual rebuild: " + deletedRelationshipsForManualRebuild.Count + "\n";
+    popupSummary += "Critical failures: " + deactivationFailures.Count + "\n\n";
+    popupSummary += "A detailed report has been saved to your Desktop:\n" + fileName;
+}
+catch (Exception ex)
+{
+    popupSummary = "SCRIPT COMPLETE. Could not save full report to Desktop: " + ex.Message;
+}
+
+// Show the concise summary in the Tabular Editor Output window
+Info(popupSummary); 
