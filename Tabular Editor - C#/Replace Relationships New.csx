@@ -108,7 +108,7 @@ foreach (var relInfo in relationshipInfo) {
 
 // Force model state update after Phase 1
 try {
-    Model.SaveChanges();
+    Model.Database.TOMDatabase.Model.SaveChanges();
     summary += "Model changes saved after Phase 1.\n";
 } catch (Exception ex) {
     summary += "Warning: Model save failed after Phase 1: " + ex.Message + "\n";
@@ -218,7 +218,7 @@ if (relsToDeactivate.Count > 0) {
          if (!deactivationSuccessful) {
              try {
                  // Force model state save to commit any pending changes
-                 Model.SaveChanges();
+                 Model.Database.TOMDatabase.Model.SaveChanges();
                  
                  // Retry deactivation
                  rel.IsActive = false;
@@ -280,7 +280,7 @@ if (relsToDeactivate.Count > 0) {
 
 // Final model save
 try {
-    Model.SaveChanges();
+    Model.Database.TOMDatabase.Model.SaveChanges();
     summary += "Final model save completed.\n";
 } catch (Exception ex) {
     summary += "Warning: Final model save failed: " + ex.Message + "\n";
