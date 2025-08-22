@@ -1,0 +1,12 @@
+PBIX Purge Run: 2025-08-22T10:56:22
+Target folder: C:\Users\U15405\OneDrive - Kimberly-Clark\Downloads
+Mode: SAFE DELETE (Recycle Bin)
+
+Total .pbix files deleted: 6
+Deleted files:
+- Complex Model - Child 2.pbix
+- Complex Model.pbix
+- Composite Model - Simple - Child 2.pbix
+- Composite Model - Simple.pbix
+- Import Model - Simple - Child 2.pbix
+- Import Model - Simple.pbix
