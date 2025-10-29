@@ -68,7 +68,8 @@ beginDialog:
         allowInterruptions: true
       variable: Topic.UserResponse
       prompt: ""
-      entity: String
+      entity:
+        kind: EmbeddedEntity
     - kind: ConditionGroup
       id: check_response_type
       conditions:
