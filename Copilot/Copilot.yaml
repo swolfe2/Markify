@@ -68,6 +68,7 @@ beginDialog:
         allowInterruptions: true
       variable: Topic.UserResponse
       prompt: ""
+      entity: String
     - kind: ConditionGroup
       id: check_response_type
       conditions:
@@ -76,7 +77,7 @@ beginDialog:
           actions:
             - kind: AnswerQuestionWithAI
               id: answer_from_button
-              userInput: =Topic.UserResponse
+              userInput: =Text(Topic.UserResponse)
         - id: when_no_response
           condition: =IsBlank(Topic.UserResponse)
           actions:
