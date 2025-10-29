@@ -70,6 +70,9 @@ beginDialog:
       prompt: ""
       entity:
         kind: EmbeddedEntity
+      output:
+        binding:
+          text: Topic.UserResponse
     - kind: ConditionGroup
       id: check_response_type
       conditions:
@@ -78,7 +81,7 @@ beginDialog:
           actions:
             - kind: AnswerQuestionWithAI
               id: answer_from_button
-              userInput: =Text(Topic.UserResponse)
+              userInput: =Topic.UserResponse
         - id: when_no_response
           condition: =IsBlank(Topic.UserResponse)
           actions:
