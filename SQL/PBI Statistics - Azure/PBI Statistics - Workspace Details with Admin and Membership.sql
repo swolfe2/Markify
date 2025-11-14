@@ -25,7 +25,7 @@ Get the subdomain values
 */
 SubDomain
 AS (
-	SELECT dd.DisplayName AS "GlobalFunction",
+	SELECT dd.DisplayName AS "GlobalFunction",a
 		dd.DomainID AS "SubdomainID",
 		dd.ContributorsScope AS "SubDomainContributorsScope",
 		dd.[Description] AS "SubDomainDescription",
@@ -37,7 +37,20 @@ AS (
 		dd.Description,
 		dd.ContributorsScope,
 		dd.ParentDomainID
-	)
+	),
+/*
+Sort the roles
+*/
+RoleSort AS (
+    SELECT 'Authorizer' AS Role, 1 AS Sort
+    UNION ALL
+    SELECT 'Delegate', 2
+    UNION ALL
+    SELECT 'Member', 3
+    UNION ALL
+    SELECT 'Owner', 4
+)
+
 
 /*
 Combine Domains, Subdomains and Workspace Details
@@ -63,7 +76,13 @@ SELECT
 	sd.SubDomainID,
 	pd.Segment,
 	pd.ABU,
-	sd.GlobalFunction
+	sd.GlobalFunction,
+	wud.DisplayName,
+	mam.Display_Name AS 'UserName',
+	LOWER(mam.Email_Address) AS 'EmailAddress',
+	UPPER(mam.User_ID) AS 'UserID',
+	mam.Member,
+	mam.Role
 FROM ParentDomain pd
 LEFT JOIN SubDomain sd ON pd.DomainID = sd.ParentDomainID
 INNER JOIN PBI_Platform_Automation.DomainWorkspace dw 
@@ -71,6 +90,21 @@ INNER JOIN PBI_Platform_Automation.DomainWorkspace dw
 INNER JOIN PBI_Platform_Automation.WorkspaceDetail wd
 	ON wd.WorkspaceID = dw.WorkspaceID
 	AND wd.IsOnDedicatedCapacity = 1
+INNER JOIN PBI_Platform_Automation.WorkspaceUserDetail wud
+	ON wud.WorkspaceID = wd.WorkspaceID
+	AND wud.DisplayName NOT IN ('PBI_ALLUSERS',
+    'PBI_LC_PROUSER',
+    'PBI_Support',
+    'PBI_PL_SERVICEADMIN',
+    'PBI_FFID_USERS',
+    'PBI_COLIBRA_ADMIN_AAD',
+    'PBI_PL_GATEWAY_LOGFILES',
+    'PBI_PL_QA_ADH',
+    'sp-pbi-platform-p-1')
+INNER JOIN PBI_Groups.MembersAndManagers mam
+	ON mam.Group_Name = wud.DisplayName
+INNER JOIN RoleSort rs
+	ON rs.Role = mam.Role
 GROUP BY dw.WorkspaceID,
 	wd.WorkspaceName,
 	wd.WorkspaceID,
@@ -80,4 +114,16 @@ GROUP BY dw.WorkspaceID,
 	sd.SubDomainID,
 	sd.GlobalFunction,
 	sd.SubDomainDescription,
-	sd.SubDomainContributorsScope
+	sd.SubDomainContributorsScope,
+	wud.DisplayName,
+	mam.Display_Name,
+	mam.Email_Address,
+	mam.User_ID,
+	mam.Member,
+	mam.Role,
+	rs.Sort
+	
+ORDER BY wd.WorkspaceName ASC,
+wud.DisplayName ASC,
+rs.Sort ASC,
+mam.Email_Address ASC

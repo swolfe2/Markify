@@ -37,47 +37,49 @@ AS (
 		dd.Description,
 		dd.ContributorsScope,
 		dd.ParentDomainID
-	)
+	),
 
 /*
-Combine Domains, Subdomains and Workspace Details
+Get the unique Workspaces that were created in the past 7 days
+*/
+WorkspaceCreations
+AS (
+	SELECT
+	al.WorkspaceID,
+	al.CreationDate
+	FROM PBI_Platform_Automation.PBIActivityLog al
+	WHERE Activity = 'CreateFolder'
+	AND CreationDate >= GETDATE() - 7
+	GROUP BY al.WorkspaceID,
+	al.CreationDate
+)
+
+/*
+Combine Domains, Subdomains by Activity Dates
 */
 SELECT 
-	wd.WorkspaceName,
-	wd.WorkspaceID,
-	CASE WHEN LEFT(wd.WorkspaceName, 3) = 'GL ' THEN 'Global'
-		WHEN LEFT(wd.WorkspaceName, 3) = 'AP ' THEN 'Asia Pac'
-		WHEN LEFT(wd.WorkspaceName, 3) = 'NA ' THEN 'North America'
-		WHEN LEFT(wd.WorkspaceName, 4) = 'LAO ' THEN 'Latin America'
-		WHEN LEFT(wd.WorkspaceName, 5) = 'EMEA ' THEN 'EMEA'
-	ELSE 'Naming Error'
-	END AS WorkspaceRegion,
-	CASE WHEN RIGHT(wd.WorkspaceName, 3) = '- D' THEN 'Development'
-		WHEN RIGHT(wd.WorkspaceName, 3) = '- Q' THEN 'Quality'
-		WHEN RIGHT(wd.WorkspaceName, 7) = '- ADHOC' THEN 'Adhoc'
-		WHEN RIGHT(wd.WorkspaceName, 8) = '- PUBLIC' THEN 'Public'
-		WHEN LEFT(wd.WorkspaceName, 3) IN ('GL ', 'AP ', 'NA ', 'LAO', 'EME') THEN 'Production Certified'
-	ELSE 'Naming Error'
-	END AS WorkspaceType,
+	dw.WorkspaceID,
+	dw.DisplayName,
 	pd.DomainID,
 	sd.SubDomainID,
 	pd.Segment,
 	pd.ABU,
-	sd.GlobalFunction
+	sd.GlobalFunction,
+	wc.CreationDate
 FROM ParentDomain pd
 LEFT JOIN SubDomain sd ON pd.DomainID = sd.ParentDomainID
 INNER JOIN PBI_Platform_Automation.DomainWorkspace dw 
 	ON dw.DomainID = sd.SubdomainID
-INNER JOIN PBI_Platform_Automation.WorkspaceDetail wd
-	ON wd.WorkspaceID = dw.WorkspaceID
-	AND wd.IsOnDedicatedCapacity = 1
+INNER JOIN WorkspaceCreations wc
+	ON wc.WorkspaceId = dw.WorkspaceID
 GROUP BY dw.WorkspaceID,
-	wd.WorkspaceName,
-	wd.WorkspaceID,
+	dw.DisplayName,
+	pd.DomainID,
 	pd.Segment,
 	pd.ABU,
-	pd.DomainID,
+	pd.[Description],
 	sd.SubDomainID,
 	sd.GlobalFunction,
 	sd.SubDomainDescription,
-	sd.SubDomainContributorsScope
+	sd.SubDomainContributorsScope,
+	wc.CreationDate;

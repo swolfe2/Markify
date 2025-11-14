@@ -1,15 +1,15 @@
-PBIX Purge Run: 2025-10-10T10:00:06
+PBIX Purge Run: 2025-11-14T10:00:12
 Target folder: C:\Users\U15405\OneDrive - Kimberly-Clark\Downloads
 Mode: SAFE DELETE (Recycle Bin)
 
 Total .pbix files deleted: 6
 Deleted files:
-- Data Viz SME Group Ticket Analysis.pbix
-- Holistic Retailer Search Dashboard (1).pbix
-- Holistic Retailer Search Dashboard.pbix
-- Marvel KCP.pbix
-- OTIF Loss Bridge & Fill Rate Dashboard.pbix
-- Power BI Capacity Alerts.pbix
+- GSA Accounting Model History.pbix
+- GSA Purchase Model Current.pbix
+- GSA Purchase Model History.pbix
+- NA Customer Daily Sales.pbix
+- POS Ship Model.pbix
+- WMS_NA_Version_2.0.pbix
 
 Errors:
-- Error deleting Ship-to Dashboard.pbix: [WinError -2144927705] OLE error 0x80270027: 'C:\\Users\\U15405\\OneDrive - Kimberly-Clark\\Downloads\\Ship-to Dashboard.pbix'
+- Error deleting PBI Workspace AD Group.pbix: [WinError -2144927705] OLE error 0x80270027: 'C:\\Users\\U15405\\OneDrive - Kimberly-Clark\\Downloads\\PBI Workspace AD Group.pbix'
