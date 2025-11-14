@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <title>VizBot Bro</title>
+  <defs>
+    <style>
+      .outline { stroke: #0E2339; stroke-width: 18; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+    </style>
+    <clipPath id="tummyClip">
+      <rect x="253" y="548" width="518" height="244" rx="22"/>
+    </clipPath>
+    <linearGradient id="pbiGrad1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fae78b"/>
+      <stop offset="100%" stop-color="#f3cf31"/>
+    </linearGradient>
+    <linearGradient id="pbiGrad2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f9e584"/>
+      <stop offset="100%" stop-color="#e09b00"/>
+    </linearGradient>
+    <linearGradient id="pbiGrad3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ecba0d"/>
+      <stop offset="100%" stop-color="#b35500"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Antenna -->
+  <rect x="506" y="80" width="12" height="90" fill="#0E2339"/>
+  <circle cx="512" cy="65" r="36" fill="#FF9500" stroke="#0E2339" stroke-width="18"/>
+
+  <!-- Head -->
+  <rect x="225" y="160" width="574" height="340" rx="60" fill="#63B3E1" stroke="#0E2339" stroke-width="18"/>
+
+  <!-- Eye Containers -->
+  <circle cx="390" cy="295" r="60" fill="#142630"/>
+  <circle cx="635" cy="295" r="60" fill="#142630"/>
+
+  <!-- White in Eye -->
+  <circle cx="390" cy="295" r="18" fill="#FFFFFF"/>
+  <circle cx="635" cy="295" r="18" fill="#FFFFFF"/>
+  <path d="M400,390 A110,90 0 0,0 614,390" stroke="#142630" stroke-width="18" fill="none"/>
+
+  <!-- Rotated Arms -->
+  <!-- Left arm rotated +45° (pivot y shifted to 570) -->
+  <g transform="rotate(45 205 570)">
+    <rect x="190" y="480" width="80" height="330" rx="45" fill="#63B3E1" stroke="#0E2339" stroke-width="18"/>
+  </g>
+  <!-- Right arm rotated -45° (pivot y shifted to 570) -->
+  <g transform="rotate(-45 819 570)">
+    <rect x="755" y="480" width="80" height="330" rx="45" fill="#63B3E1" stroke="#0E2339" stroke-width="18"/>
+  </g>
+
+  <!-- Body -->
+  <rect x="205" y="500" width="614" height="360" rx="80" fill="#63B3E1" stroke="#0E2339" stroke-width="18"/>
+
+  <!-- Tummy screen -->
+  <rect x="245" y="540" width="534" height="260" rx="30" fill="#FFFFFF" stroke="#0E2339" stroke-width="16"/>
+
+  <!-- Bars -->
+  <g clip-path="url(#tummyClip)">
+    <rect x="293" y="658" width="170" height="110" rx="20" fill="url(#pbiGrad1)"/>
+    <rect x="427" y="618" width="170" height="150" rx="20" fill="url(#pbiGrad2)"/>
+    <rect x="561" y="572" width="170" height="196" rx="20" fill="url(#pbiGrad3)"/>
+  </g>
+
+  <!-- Legs -->
+  <rect x="292" y="860" width="130" height="130" rx="20" fill="#63B3E1" stroke="#0E2339" stroke-width="18"/>
+  <rect x="602" y="860" width="130" height="130" rx="20" fill="#63B3E1" stroke="#0E2339" stroke-width="18"/>
+
+  <!-- Foot pads -->
+  <rect x="312" y="910" width="90" height="60" rx="16" fill="#277598"/>
+  <rect x="622" y="910" width="90" height="60" rx="16" fill="#277598"/>
+</svg>

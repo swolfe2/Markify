@@ -1,0 +1,145 @@
+kind: AdaptiveDialog
+beginDialog:
+  kind: OnConversationStart
+  id: start
+  actions:
+    - kind: AdaptiveCardPrompt
+      id: ac_welcome
+      card: |-
+        {
+          "$schema": "https://adaptivecards.io/schemas/adaptive-card.json",
+          "type": "AdaptiveCard",
+          "version": "1.5",
+          "body": [
+            {
+              "type": "ColumnSet",
+              "columns": [
+                {
+                  "type": "Column",
+                  "width": "auto",
+                  "verticalContentAlignment": "Center",
+                  "items": [
+                    {
+                      "type": "TextBlock",
+                      "text": "Hello, I'm **VizBot**!",
+                      "maxLines": 1,
+                      "size": "Large"
+                    }
+                  ]
+                },
+                {
+                  "type": "Column",
+                  "width": "auto",
+                  "verticalContentAlignment": "Center",
+                  "items": [
+                    {
+                      "type": "Image",
+                      "url": "https://kimberlyclark.sharepoint.com/sites/H318/Shared%20Documents/Copilot%20Studio%20Agents/VizBot/Images/Vizbot-transparent-48x48_v1.png",
+                      "width": "48px",
+                      "height": "48px",
+                      "altText": "VizBot",
+                      "spacing": "None"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "TextBlock",
+              "text": "I'm a virtual assistant to help with all things Power BI at Kimberly-Clark.",
+              "wrap": true,
+              "spacing": "Small"
+            },
+            {
+              "type": "TextBlock",
+              "text": "I always start by searching our [**Power BI Central**](https://kimberlyclark.sharepoint.com/Sites/H318/SitePages/Power-BI-Central.aspx) documentation for the most accurate, K-C specific guidance. I’ll also add trusted external resources like [Microsoft docs](https://learn.microsoft.com/en-us/power-bi/), [SQLBI](https://www.sqlbi.com/), and [approved learning channels](https://kimberlyclark.sharepoint.com/Sites/H318/SitePages/Power-BI-Training.aspx#external-learning-content) when needed.",
+              "wrap": true,
+              "spacing": "Medium"
+            },
+            {
+              "type": "TextBlock",
+              "text": "Choose a prompt below or type your own and submit!",
+              "wrap": true,
+              "weight": "Bolder",
+              "spacing": "Medium"
+            }
+          ],
+          "actions": [
+            {
+              "type": "Action.Submit",
+              "title": "How do I get a Power BI Pro license?",
+              "associatedInputs": "none",
+              "data": {
+                "prompt": "How do I get a Power BI Pro license?"
+              }
+            },
+            {
+              "type": "Action.Submit",
+              "title": "How do I get access to a Power BI report / Workspace?",
+              "associatedInputs": "none",
+              "data": {
+                "prompt": "How do I get access to a Power BI report / Workspace?"
+              }
+            },
+            {
+              "type": "Action.Submit",
+              "title": "How can semantic models be reused by others?",
+              "associatedInputs": "none",
+              "data": {
+                "prompt": "How can semantic models be reused by others?"
+              }
+            }
+          ]
+        }
+      output:
+        binding:
+          actionSubmitId: Topic.actionSubmitId
+          prompt: Topic.prompt
+
+      outputType:
+        properties:
+          actionSubmitId: String
+          prompt: String
+
+    - kind: SetVariable
+      id: set_query
+      variable: Topic.Query
+      value: =Topic.prompt
+
+    - kind: ConditionGroup
+      id: branch_on_query
+      conditions:
+        - id: when_pro_license_exact
+          condition: =Text(Lower(Trim(Topic.Query))) = "how do i get a power bi pro license?"
+          actions:
+            - kind: BeginDialog
+              id: UQVFS4
+              dialog: crd3b_vizBot.topic.PowerBIProLicense
+
+        - id: when_access_exact
+          condition: =Text(Lower(Trim(Topic.Query))) = "how do i get access to a power bi report / workspace?"
+          actions:
+            - kind: BeginDialog
+              id: DKVpJe
+              dialog: crd3b_vizBot.topic.PowerBIAccess
+
+        - id: when_shared_exact
+          condition: =Text(Lower(Trim(Topic.Query))) = "how can semantic models be reused by others?"
+          actions:
+            - kind: BeginDialog
+              id: ggGjUP
+              dialog: crd3b_vizBot.topic.BuildPermissionsSharedSemanticModels
+
+        - id: when_query_present
+          condition: =!IsBlank(Topic.Query)
+          actions:
+            - kind: AnswerQuestionWithAI
+              id: answer_ai
+              userInput: =Topic.Query
+
+        - id: when_query_blank
+          condition: =IsBlank(Topic.Query)
+          actions:
+            - kind: SendActivity
+              id: nudge_user
+              activity: Please click a prompt or type into the field and press Ask this.
