@@ -1,0 +1,11 @@
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+
+[tool.ruff.lint]
+ignore = [
+    "BLE001",
+    "S110",
+    "E501",  # Line too long (we allow up to 100 chars)
+]
+
