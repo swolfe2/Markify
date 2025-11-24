@@ -15,6 +15,7 @@ AS (
 		LTRIM(SUBSTRING(dd.DisplayName, CHARINDEX(' - ', dd.DisplayName) + 3, LEN(dd.DisplayName))) AS ABU
 	FROM PBI_Platform_Automation.DomainDetail dd
 	WHERE ParentDomainID IS NULL
+		AND DisplayName LIKE '% - %'
 	GROUP BY dd.DomainID,
 		dd.DisplayName,
 		dd.Description,

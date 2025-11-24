@@ -1,15 +1,10 @@
-PBIX Purge Run: 2025-11-14T10:00:12
+PBIX Purge Run: 2025-11-21T10:00:07
 Target folder: C:\Users\U15405\OneDrive - Kimberly-Clark\Downloads
 Mode: SAFE DELETE (Recycle Bin)
 
-Total .pbix files deleted: 6
-Deleted files:
-- GSA Accounting Model History.pbix
-- GSA Purchase Model Current.pbix
-- GSA Purchase Model History.pbix
-- NA Customer Daily Sales.pbix
-- POS Ship Model.pbix
-- WMS_NA_Version_2.0.pbix
+Total .pbix files deleted: 0
+No .pbix files deleted.
 
 Errors:
 - Error deleting PBI Workspace AD Group.pbix: [WinError -2144927705] OLE error 0x80270027: 'C:\\Users\\U15405\\OneDrive - Kimberly-Clark\\Downloads\\PBI Workspace AD Group.pbix'
+- Error deleting POS Ship Model.pbix: [WinError -2144927705] OLE error 0x80270027: 'C:\\Users\\U15405\\OneDrive - Kimberly-Clark\\Downloads\\POS Ship Model.pbix'

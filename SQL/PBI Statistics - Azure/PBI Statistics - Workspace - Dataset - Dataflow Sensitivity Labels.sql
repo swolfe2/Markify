@@ -105,11 +105,12 @@ WITH (
     sensitivityLabelLabelId uniqueidentifier   '$.sensitivityLabel.labelId'
 ) AS f
 WHERE f.sensitivityLabelLabelId IS NOT NULL
-)
+),
 
 /*
 Combine and union
 */
+FinalUnion AS (
 SELECT  
 du.WorkspaceID,
 du.WorkspaceName,
@@ -139,4 +140,20 @@ dat.ObjectType,
 dat.DatasetID AS ObjectID,
 dat.DatasetName AS ObjectName,
 dat.SensitivityLabelId
-FROM DatasetsUnpacked dat
+FROM DatasetsUnpacked dat)
+
+/*
+Final query, ordered
+*/
+SELECT
+fu.WorkspaceID,
+fu.WorkspaceName,
+fu.ObjectType,
+fu.ObjectID,
+fu.ObjectName,
+fu.SensitivityLabelId
+FROM FinalUnion fu
+ORDER BY 
+fu.WorkspaceName ASC,
+ObjectName ASC, 
+ObjectType ASC
