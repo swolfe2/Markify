@@ -62,35 +62,47 @@ def waiting(sleep_seconds, icon):
         time.sleep(1)
 
 
+def log_error(error_message):
+    """Log errors to a file."""
+    with open("error.log", "a") as f:
+        f.write(f"{datetime.now()}: {error_message}\n")
+
+
 def run_script(icon):
     """Run the main script."""
     global num_moves, PIXEL_MOVE, stop_flag
-    while not stop_flag:
-        now_time = datetime.now().strftime("%H:%M:%S")
-        if not is_now_in_time_period(TIME_START, TIME_END, now_time):
-            print("\033[2J\033[H", end="")
-            print(
-                f"Sold work today! We ran a total of {num_moves} {'time' if num_moves == 1 else 'times'}."
-            )
-            stop_flag = True
-            break
+    try:
+        while not stop_flag:
+            now_time = datetime.now().strftime("%H:%M:%S")
+            if not is_now_in_time_period(TIME_START, TIME_END, now_time):
+                print("\033[2J\033[H", end="")
+                print(
+                    f"Solid work today! We ran a total of {num_moves} {'time' if num_moves == 1 else 'times'}."
+                )
+                stop_flag = True
+                break
 
-        waiting(random.randint(MIN_SECONDS, MAX_SECONDS), icon)
+            waiting(random.randint(MIN_SECONDS, MAX_SECONDS), icon)
 
-        if stop_flag:
-            break
+            if stop_flag:
+                break
 
-        w, h = pyautogui.size()
-        x, y = pyautogui.position()
+            w, h = pyautogui.size()
+            x, y = pyautogui.position()
 
-        if x + PIXEL_MOVE <= 1 or x + PIXEL_MOVE >= w:
-            PIXEL_MOVE = -PIXEL_MOVE
+            if x + PIXEL_MOVE <= 1 or x + PIXEL_MOVE >= w:
+                PIXEL_MOVE = -PIXEL_MOVE
 
-        pyautogui.press("numlock")
-        pyautogui.press("numlock")
-        num_moves += 1
-
-    icon.stop()
+            pyautogui.press("numlock")
+            pyautogui.press("numlock")
+            num_moves += 1
+    except Exception as e:
+        error_message = f"An error occurred: {e}"
+        log_error(error_message)
+        update_tooltip(icon, error_message)
+        time.sleep(10)  # Keep the error message visible for a while
+    finally:
+        icon.stop()
 
 
 def quit_app(icon, item):
@@ -101,21 +113,29 @@ def quit_app(icon, item):
 
 
 def main():
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    icon_path = os.path.join(script_dir, "icon", "python.ico")
+    try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        icon_path = os.path.join(script_dir, "icon", "python.ico")
 
-    icon = pystray.Icon("test_icon")
-    icon.icon = Image.open(icon_path)
-    icon.title = os.path.basename(__file__)
-    icon.menu = pystray.Menu(pystray.MenuItem("Quit", quit_app))
+        icon = pystray.Icon("test_icon")
+        icon.icon = Image.open(icon_path)
+        icon.title = os.path.basename(__file__)
+        icon.menu = pystray.Menu(pystray.MenuItem("Quit", quit_app))
 
-    thread = threading.Thread(target=run_script, args=(icon,))
-    thread.start()
+        thread = threading.Thread(target=run_script, args=(icon,))
+        thread.start()
 
-    icon.run()
+        icon.run()
 
-    if stop_flag:
-        icon.stop()
+        if stop_flag:
+            icon.stop()
+    except Exception as e:
+        log_error(f"An error occurred during startup: {e}")
+        # If the icon is running, update its tooltip.
+        if "icon" in locals() and icon.visible:
+            update_tooltip(icon, f"Startup error: {e}")
+            time.sleep(10)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -1,10 +1,13 @@
-PBIX Purge Run: 2025-11-21T10:00:07
+PBIX Purge Run: 2025-12-05T10:00:07
 Target folder: C:\Users\U15405\OneDrive - Kimberly-Clark\Downloads
 Mode: SAFE DELETE (Recycle Bin)
 
-Total .pbix files deleted: 0
-No .pbix files deleted.
+Total .pbix files deleted: 3
+Deleted files:
+- PBI Workspace AD Group (1).pbix
+- PBI Workspace AD Group (2).pbix
+- PBI Workspace AD Group.pbix
 
 Errors:
-- Error deleting PBI Workspace AD Group.pbix: [WinError -2144927705] OLE error 0x80270027: 'C:\\Users\\U15405\\OneDrive - Kimberly-Clark\\Downloads\\PBI Workspace AD Group.pbix'
-- Error deleting POS Ship Model.pbix: [WinError -2144927705] OLE error 0x80270027: 'C:\\Users\\U15405\\OneDrive - Kimberly-Clark\\Downloads\\POS Ship Model.pbix'
+- Error deleting Global Email Marketing Report.pbix: [WinError -2144927705] OLE error 0x80270027: 'C:\\Users\\U15405\\OneDrive - Kimberly-Clark\\Downloads\\Global Email Marketing Report.pbix'
+- Error deleting Power BI Scheduled Refresh Analysis.pbix: [WinError -2144927705] OLE error 0x80270027: 'C:\\Users\\U15405\\OneDrive - Kimberly-Clark\\Downloads\\Power BI Scheduled Refresh Analysis.pbix'
