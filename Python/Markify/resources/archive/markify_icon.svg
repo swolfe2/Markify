@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Rounded rectangle background -->
+  <rect x="8" y="8" width="240" height="240" rx="32" ry="32" fill="#1E1E2E"/>
+  
+  <defs>
+    <!-- Gradient for smooth W to M transition -->
+    <linearGradient id="blueToGray" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#2B5797"/>
+      <stop offset="100%" style="stop-color:#2B5797"/>
+    </linearGradient>
+    <linearGradient id="grayToPurple" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#7C3AED"/>
+      <stop offset="100%" style="stop-color:#7C3AED"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- W shape (left half) - Blue -->
+  <polygon 
+    points="32,60 56,60 80,160 104,60 128,60 128,80 112,80 88,180 64,80 48,80 72,180 48,180"
+    fill="#2B5797"
+  />
+  
+  <!-- Simplified W on left -->
+  <path d="M 30 65 L 50 65 L 75 170 L 100 65 L 125 65 L 125 85 L 110 85 L 85 180 L 65 180 L 40 85 L 30 85 Z" 
+        fill="#2B5797"/>
+  
+  <!-- M shape (right half) - Purple -->  
+  <path d="M 131 65 L 131 180 L 151 180 L 151 100 L 175 150 L 199 100 L 199 180 L 219 180 L 219 65 L 195 65 L 175 120 L 155 65 Z"
+        fill="#7C3AED"/>
+</svg>
