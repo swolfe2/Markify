@@ -1,0 +1,17 @@
+# Markify Development Dependencies
+# Install with: pip install -r requirements.txt
+# 
+# Note: Markify has ZERO runtime dependencies - it uses only Python stdlib!
+# These are only needed for development/testing.
+
+# Testing
+pytest>=7.0
+
+# Linting & Formatting
+ruff>=0.1.0
+
+# Security Scanning
+bandit>=1.7.0
+
+# Building Executable
+pyinstaller>=6.0
