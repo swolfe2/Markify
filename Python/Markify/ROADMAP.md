@@ -64,6 +64,7 @@ This document tracks planned enhancements and feature ideas for the Word to Mark
 - [ ] **Undo/Redo in Preview** - Allow edits before saving
 
 ### Medium Priority
+- [ ] **PyPI Publishing** - Make installable via `pip install markify`
 - [ ] **Export to PDF** - Direct PDF generation from Markdown
 - [ ] **Syntax Highlighting Themes** - Customizable code block colors
 - [ ] **PowerPoint to Markdown** - Extract slides/speaker notes
