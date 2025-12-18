@@ -70,10 +70,23 @@ Get-ChildItem *.docx | ForEach-Object { python src/markify_core.py $_.FullName }
     *   Automatically detects Power Query (M) code patterns (e.g., `let ... in`).
     *   Automatically detects DAX code (measures, CALCULATE, SUMX, etc.).
     *   Automatically detects Python code (def, class, import, etc.).
+    *   Automatically detects SQL code (SELECT, INSERT, JOIN, etc.).
     *   **Optional API formatting** via [powerqueryformatter.com](https://powerqueryformatter.com) and [daxformatter.com](https://daxformatter.com).
     *   Detects code inside Word tables and extracts it as a clean fenced code block.
     *   Preserves **line numbers** (e.g., `1 let`) and **indentation**.
     *   **Customizable patterns** via JSON config file (Options → Edit Patterns).
+*   **Multiple Conversion Modes**:
+    *   📋 **Clipboard Mode**: Paste text directly from Word → instant Markdown conversion.
+    *   👁 **Watch Mode**: Auto-convert all `.docx` files dropped into a watched folder.
+    *   📝 **MD → DOCX**: Reverse conversion from Markdown back to Word documents.
+    *   🔍 **Diff View**: Side-by-side comparison of two Markdown files with highlighting.
+*   **Source/Destination Flexibility**:
+    *   **Folder Drag & Drop**: Drop entire folders to recursively convert all documents.
+    *   **YAML Front Matter**: Auto-generate Hugo/Jekyll-compatible metadata headers.
+    *   **Custom Output Folder**: Save all conversions to a designated folder.
+*   **Export Options**:
+    *   **Template System**: User-defined templates with variables (`{{filename}}`, `{{date}}`).
+    *   **Confluence/Jira Syntax**: Export Markdown as Confluence wiki markup.
 *   **Preview Before Save**:
     *   View converted Markdown before saving.
     *   Syntax highlighting for headers.
@@ -82,8 +95,18 @@ Get-ChildItem *.docx | ForEach-Object { python src/markify_core.py $_.FullName }
     *   Quick access to last 5 conversions.
     *   Clickable links to source and output files.
     *   Smart de-duplication and sorting.
+*   **Keyboard Shortcuts**:
+    *   Press **F1** to view all keyboard shortcuts.
+    *   Quick access to common operations.
+*   **Export Statistics**:
+    *   Preview shows word count, reading time.
+    *   Header breakdown (H1:2, H2:5, etc.).
+*   **Table of Contents Generation**:
+    *   Auto-generate linked TOC from headers.
+    *   Optional via Options dialog.
 *   **Drag & Drop Support**:
     *   Drop `.docx` files directly onto the application window.
+    *   Drop folders to batch-convert all files inside.
     *   Zero-dependency Windows implementation.
 *   **Options Dialog**:
     *   Toggle **DAX formatting**, **Power Query formatting**, and **Image Extraction**.
@@ -142,6 +165,7 @@ Several excellent Python packages convert DOCX to Markdown. Here's how Markify c
 | M/Power Query detection | ✅ | ❌ | ❌ | ❌ |
 | DAX code detection | ✅ | ❌ | ❌ | ❌ |
 | Python code detection | ✅ | ❌ | ❌ | ❌ |
+| SQL code detection | ✅ | ❌ | ❌ | ❌ |
 | Auto-format DAX/M code (API) | ✅ | ❌ | ❌ | ❌ |
 | Image extraction | ✅ | ❌ | ❌ | ❌ |
 | Multi-format (PDF, PPTX, etc.) | ❌ | ✅ | ❌ | ✅ |

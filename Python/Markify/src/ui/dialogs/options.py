@@ -109,6 +109,26 @@ class OptionsDialog:
             font=("Segoe UI", 10), relief=tk.FLAT
         ).pack(anchor=tk.W)
         
+        # Front matter checkbox (only show if variable is provided)
+        if "add_front_matter_var" in cfg:
+            tk.Checkbutton(
+                main, text="Add YAML front matter (for Hugo/Jekyll)",
+                variable=cfg["add_front_matter_var"],
+                bg=c["bg"], fg=c["fg"], selectcolor=c["bg"],
+                activebackground=c["bg"], activeforeground=c["fg"],
+                font=("Segoe UI", 10), relief=tk.FLAT
+            ).pack(anchor=tk.W)
+        
+        # TOC generation checkbox (only show if variable is provided)
+        if "add_toc_var" in cfg:
+            tk.Checkbutton(
+                main, text="Generate Table of Contents",
+                variable=cfg["add_toc_var"],
+                bg=c["bg"], fg=c["fg"], selectcolor=c["bg"],
+                activebackground=c["bg"], activeforeground=c["fg"],
+                font=("Segoe UI", 10), relief=tk.FLAT
+            ).pack(anchor=tk.W)
+        
         # Separator
         ttk.Separator(main, orient='horizontal').pack(fill='x', pady=15)
         

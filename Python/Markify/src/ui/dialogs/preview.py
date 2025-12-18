@@ -192,12 +192,57 @@ class PreviewDialog:
         )
         save_btn.pack(side=tk.RIGHT)
         
-        # Line count info
-        line_count = len(self.content.split('\n'))
-        char_count = len(self.content)
-        info_text = f"{line_count} lines, {char_count:,} characters"
-        tk.Label(btn_row, text=info_text, bg=c["bg"], fg=c["muted"],
-                 font=("Segoe UI", 8)).pack(side=tk.LEFT, padx=20)
+        # Statistics panel
+        stats_frame = tk.Frame(btn_row, bg=c["bg"])
+        stats_frame.pack(side=tk.LEFT, padx=20)
+        
+        # Calculate statistics
+        stats = self._calculate_stats()
+        
+        # Word count and reading time
+        info_text = f"{stats['words']:,} words • {stats['reading_time']} read • {stats['lines']} lines"
+        tk.Label(stats_frame, text=info_text, bg=c["bg"], fg=c["muted"],
+                 font=("Segoe UI", 8)).pack(side=tk.LEFT)
+        
+        # Header breakdown (if any headers exist)
+        if stats['headers']:
+            header_info = " • Headers: " + ", ".join(f"H{k}:{v}" for k, v in sorted(stats['headers'].items()))
+            tk.Label(stats_frame, text=header_info, bg=c["bg"], fg=c["muted"],
+                     font=("Segoe UI", 8)).pack(side=tk.LEFT)
+    
+    def _calculate_stats(self) -> dict:
+        """Calculate document statistics."""
+        import re
+        
+        lines = self.content.split('\n')
+        
+        # Word count (simple split on whitespace, excluding code blocks)
+        words = len(self.content.split())
+        
+        # Reading time at 200 words per minute
+        minutes = words / 200
+        if minutes < 1:
+            reading_time = "<1 min"
+        else:
+            reading_time = f"{int(round(minutes))} min"
+        
+        # Header count by level
+        headers = {}
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith('#'):
+                # Count leading #
+                level = len(stripped) - len(stripped.lstrip('#'))
+                if 1 <= level <= 6:
+                    headers[level] = headers.get(level, 0) + 1
+        
+        return {
+            'lines': len(lines),
+            'chars': len(self.content),
+            'words': words,
+            'reading_time': reading_time,
+            'headers': headers
+        }
     
     def _apply_highlighting(self):
         """Apply basic syntax highlighting for code blocks."""

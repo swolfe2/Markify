@@ -11,6 +11,7 @@ import re
 
 from logging_config import get_logger
 from core.html_to_md import html_to_markdown, clean_text_for_markdown
+from core.detectors import detect_code_language
 
 # Import Windows clipboard for HTML access
 try:
@@ -267,12 +268,84 @@ class ClipboardModeDialog:
         """Convert HTML content to Markdown."""
         try:
             markdown = html_to_markdown(html)
+            # Apply code block detection
+            markdown = self._detect_and_wrap_code_blocks(markdown)
             self._set_output(markdown)
             lines = markdown.count('\n') + 1
             self.status_var.set(f"✓ Converted from HTML ({lines} lines)")
         except Exception as e:
             logger.error(f"HTML conversion error: {e}")
             self.status_var.set("Error converting HTML")
+    
+    def _detect_and_wrap_code_blocks(self, text: str) -> str:
+        """
+        Detect code patterns in text and wrap them in code fences.
+        
+        Looks for common code patterns:
+        - let ... in (Power Query)
+        - := with DAX functions
+        - Python imports/defs
+        """
+        lines = text.split('\n')
+        result = []
+        code_buffer = []
+        in_code = False
+        current_lang = None
+        
+        def clean_code_buffer(buffer):
+            """Remove all empty lines from code buffer."""
+            # Strip all empty lines - Word HTML inserts a blank line after each code line
+            return [line for line in buffer if line.strip()]
+        
+        for line in lines:
+            stripped = line.strip()
+            
+            # Skip if already in a code block
+            if stripped.startswith('```'):
+                if in_code:
+                    # End our detected block first
+                    result.append(f'```{current_lang or ""}')
+                    result.extend(clean_code_buffer(code_buffer))
+                    result.append('```')
+                    code_buffer = []
+                    in_code = False
+                    current_lang = None
+                result.append(line)
+                continue
+            
+            # Detect code language
+            lang = detect_code_language(stripped) if stripped else None
+            
+            if lang:
+                if not in_code:
+                    # Start new code block
+                    in_code = True
+                    current_lang = lang
+                code_buffer.append(line)
+            else:
+                if in_code:
+                    # Check if this is a continuation (empty line or indented)
+                    if not stripped or line.startswith(' ') or line.startswith('\t'):
+                        code_buffer.append(line)
+                    else:
+                        # End code block
+                        result.append(f'```{current_lang or ""}')
+                        result.extend(clean_code_buffer(code_buffer))
+                        result.append('```')
+                        code_buffer = []
+                        in_code = False
+                        current_lang = None
+                        result.append(line)
+                else:
+                    result.append(line)
+        
+        # Close any remaining code block
+        if in_code and code_buffer:
+            result.append(f'```{current_lang or ""}')
+            result.extend(clean_code_buffer(code_buffer))
+            result.append('```')
+        
+        return '\n'.join(result)
     
     def _convert_plain_text(self):
         """Convert plain text input to Markdown."""

@@ -15,6 +15,7 @@ This document tracks planned enhancements and feature ideas for the Word to Mark
 - [x] Table conversion
 - [x] DAX code detection with language-tagged fences
 - [x] Python code detection with language-tagged fences
+- [x] SQL code detection with language-tagged fences
 - [x] DAX Formatter API integration module
 - [x] Power Query Formatter API integration module
 - [x] Hyperlink preservation (converts Word links to Markdown)
@@ -34,24 +35,58 @@ This document tracks planned enhancements and feature ideas for the Word to Mark
 - [x] Excel Table Import (Convert `.xlsx` tables to Markdown tables, zero deps)
 - [x] Watch Mode (Monitor folder and auto-convert new `.docx`/`.xlsx` files)
 - [x] Custom App Icon (W→M branded icon with transparent background)
-- [x] SQL Code Detection (SELECT, INSERT, JOIN patterns with DAX conflict avoidance)
 - [x] Mermaid Diagram Viewer (Auto-adds [mermaid.live](https://mermaid.live/) links to mermaid code blocks)
+- [x] Folder Mode (Drop a folder → convert all `.docx`/`.xlsx` files recursively)
+- [x] Front Matter Generation (YAML header with title, date, slug for Hugo/Jekyll)
+- [x] Reverse Conversion (MD → DOCX using pure Python XML generation)
+- [x] Template System (User-defined templates with variables `{{filename}}`, `{{date}}`)
+- [x] Confluence Wiki Syntax (Output in Confluence/Jira markup instead of Markdown)
+- [x] Diff View (Compare two `.md` files side-by-side with highlighting)
 
 ---
 
 ## Planned / In Progress 🚧
 
+### Quick Wins (Low Effort, High Value)
+- [x] **Table of Contents Generation** - Auto-generate TOC from headers ✅
+- [x] **Footnote Conversion** - Word footnotes → Markdown `[^1]` format ✅
+- [x] **Obsidian Export** - Wikilinks `[[page]]`, callout blocks support ✅
+- [x] **Export Statistics** - Word count, reading time, header structure ✅
+- [x] **Keyboard Shortcuts Panel** - Show all hotkeys (F1 key) ✅
+
 ### High Priority
+- [x] **Round-Trip Fidelity Fixes** - Ensure Word↔Markdown conversions preserve: ✅
+  - [x] Table formatting (rows on separate lines)
+  - [ ] Code block fencing and line breaks
+  - [ ] Multi-line paragraph preservation
+- [x] **CI/CD Round-Trip Testing** - Automated tests for: ✅
+  - [x] Word → Markdown → Word fidelity
+  - [x] Markdown → Word → Markdown fidelity
+  - [x] XML element count validation
+- [ ] **Improved Error Handling** - Better user feedback for corrupted/locked files
+- [ ] **Undo/Redo in Preview** - Allow edits before saving
+- [ ] **Word Style Mapping** - Custom mapping of Word styles → Markdown elements
+- [ ] **Cross-Reference Support** - Handle Word bookmarks and cross-refs
 
 ### Medium Priority
-- [ ] **Reverse Conversion (MD → DOCX)**: Convert Markdown back to Word documents
-- [ ] **Front Matter Generation**: Auto-generate YAML front matter for static site generators
-- [ ] **Folder Mode**: Drop a folder → convert all `.docx` files recursively
+- [ ] **Export to PDF** - Direct PDF generation from Markdown
+- [ ] **Syntax Highlighting Themes** - Customizable code block colors
+- [ ] **PowerPoint to Markdown** - Extract slides/speaker notes
+- [ ] **Markdown Linting** - Check for broken links, missing alt text
+- [ ] **Git Integration** - Auto-commit after conversion
+- [ ] **Presentation Mode** - View Markdown as slides (reveal.js style)
+- [ ] **Azure DevOps Wiki Format** - Direct export to ADO wiki syntax
 
 ### Low Priority / Nice-to-Have
-- [ ] **Template System**: User-defined templates with variables (`{{filename}}`, `{{date}}`)
-- [ ] **Confluence Wiki Syntax**: Output in Confluence/Jira markup instead of Markdown
-- [ ] **Diff View**: Compare two `.md` files side-by-side
+- [ ] **Auto-Update Check** - Notify users of new versions
+- [ ] **Localization (i18n)** - Multi-language UI support
+- [ ] **Plugin System** - User-extensible converters/formatters
+- [ ] **SharePoint/OneDrive Integration** - Direct cloud file access
+
+### Power BI Specific (Future)
+- [ ] **DAX Studio Integration** - Import queries directly
+- [ ] **Power BI Report Metadata** - Extract info from `.pbix`
+- [ ] **Tabular Editor Integration** - Import model documentation
 
 ---
 
@@ -60,3 +95,4 @@ This document tracks planned enhancements and feature ideas for the Word to Mark
 See [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute to this project.
 
 Ideas and pull requests are welcome!
+

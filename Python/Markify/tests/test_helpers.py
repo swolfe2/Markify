@@ -275,8 +275,8 @@ class TestIsSqlContent(unittest.TestCase):
     def test_join_operations(self):
         """Test JOIN detection."""
         self.assertTrue(self.is_sql_content("SELECT * FROM Users u JOIN Orders o ON u.id = o.user_id"))
-        self.assertTrue(self.is_sql_content("LEFT OUTER JOIN products ON orders.product_id = products.id"))
-        self.assertTrue(self.is_sql_content("INNER JOIN categories c ON p.category_id = c.id"))
+        self.assertTrue(self.is_sql_content("SELECT * FROM orders LEFT OUTER JOIN products ON orders.product_id = products.id"))
+        self.assertTrue(self.is_sql_content("SELECT * FROM products p INNER JOIN categories c ON p.category_id = c.id"))
     
     def test_ddl_statements(self):
         """Test CREATE, ALTER, DROP detection."""

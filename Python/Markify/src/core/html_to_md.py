@@ -33,14 +33,23 @@ class HTMLToMarkdownConverter(HTMLParser):
         
         if tag in ('h1', 'h2', 'h3', 'h4', 'h5', 'h6'):
             level = int(tag[1])
-            self.output.append('\n' + '#' * level + ' ')
+            # Ensure we start on a new line
+            if self.output and not self.output[-1].endswith('\n'):
+                self.output.append('\n')
+            self.output.append('#' * level + ' ')
         
         elif tag == 'p':
-            if self.output and not self.output[-1].endswith('\n\n'):
-                self.output.append('\n\n')
+            # Only add newline if not at start and previous isn't already newlines
+            if self.output:
+                last = self.output[-1]
+                if not last.endswith('\n\n') and not last.endswith('\n'):
+                    self.output.append('\n')
         
         elif tag == 'br':
-            self.output.append('\n')
+            # br inside a paragraph just continues the line in markdown
+            # only add newline if there's content before it
+            if self.output and self.output[-1].strip():
+                self.output.append(' ')
         
         elif tag in ('strong', 'b'):
             self.output.append('**')
@@ -105,10 +114,12 @@ class HTMLToMarkdownConverter(HTMLParser):
             self.tag_stack.pop()
         
         if tag in ('h1', 'h2', 'h3', 'h4', 'h5', 'h6'):
-            self.output.append('\n\n')
+            self.output.append('\n')
         
         elif tag == 'p':
-            self.output.append('\n')
+            # End paragraph with newline for separation
+            if self.output and not self.output[-1].endswith('\n'):
+                self.output.append('\n')
         
         elif tag in ('strong', 'b'):
             self.output.append('**')
@@ -199,9 +210,29 @@ class HTMLToMarkdownConverter(HTMLParser):
     def get_markdown(self) -> str:
         """Get the converted Markdown output."""
         result = ''.join(self.output)
-        # Clean up excessive newlines
+        
+        # Fix tables that got concatenated on single line
+        # Pattern: | ... | | --- | ... | | data |  -> split into proper rows
+        result = re.sub(r'\| \| ---', '|\n| ---', result)
+        result = re.sub(r'\| \| (\d)', r'|\n| \1', result)  # Data rows starting with numbers
+        result = re.sub(r'\| \| ([A-Za-z])', r'|\n| \1', result)  # Data rows starting with letters
+        
+        # Clean up excessive newlines (3+ -> 2)
         result = re.sub(r'\n{3,}', '\n\n', result)
-        return result.strip()
+        
+        # Remove single blank lines between what should be continuous content
+        # But keep double newlines between sections
+        lines = result.split('\n')
+        cleaned = []
+        prev_empty = False
+        for line in lines:
+            is_empty = not line.strip()
+            if is_empty and prev_empty:
+                continue  # Skip consecutive empty lines
+            cleaned.append(line)
+            prev_empty = is_empty
+        
+        return '\n'.join(cleaned).strip()
 
 
 def html_to_markdown(html: str) -> str:

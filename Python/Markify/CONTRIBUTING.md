@@ -31,7 +31,26 @@ python src/markify_app.py
 
 ### Running Tests
 ```bash
-python -m pytest tests/
+python -m pytest tests/ -v
+```
+
+**Test Coverage includes:**
+- `test_helpers.py` - Core conversion logic and code detection
+- `test_detectors.py` - Power Query, DAX, Python, SQL pattern detection
+- `test_html_to_md.py` - HTML-to-Markdown conversion (clipboard mode)
+- `test_clipboard_code_detection.py` - Code block detection and formatting
+- `test_templates.py` - Template variable substitution
+- `test_confluence.py` - Confluence wiki syntax export
+- `test_diff_view.py` - Side-by-side diff comparison
+- `test_folder_scanner.py` - Recursive folder processing
+- `test_front_matter.py` - YAML front matter generation
+- `test_md_to_docx.py` - Reverse conversion (MD → DOCX)
+- `test_round_trip.py` - Round-trip fidelity (DOCX↔MD↔DOCX)
+- `test_quick_wins.py` - TOC generator, Obsidian export, footnotes
+
+**Run with coverage report:**
+```bash
+python -m pytest tests/ --cov=src --cov-report=term-missing
 ```
 
 ---

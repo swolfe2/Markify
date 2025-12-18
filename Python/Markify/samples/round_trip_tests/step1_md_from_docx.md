@@ -6,11 +6,11 @@ This document showcases Markify's conversion capabilities.
 
 ## 1.1 Sub-header (Level 2)
 
-Markify detects Word heading styles and emoji headers.
+Markify detects Word heading styles and converts them to Markdown headers.
 
 # 2. Formatting & Links
 
-Text can be bold or italic. Visit https://github.com
+Text can be bold or italic. Visit https://github.com for more info.
 
 # 3. Sample Table
 
@@ -24,13 +24,23 @@ Text can be bold or italic. Visit https://github.com
 
 ```powerquery
 let
-    Source = Excel.Workbook(File.Contents("data.xlsx"))
-in
-    Source
+    Source = Excel.Workbook(File.Contents("data.xlsx")),
 ```
+
+Output = Source{0}[Data]
+
+in
+
+Output
 
 # 5. DAX Example
 
-```dax
 Revenue := SUMX(Sales, Sales[Qty] * Sales[Price])
-```
+
+# 6. Python Example
+
+import pandas as pd
+
+def load_data(path):
+
+return pd.read_csv(path)

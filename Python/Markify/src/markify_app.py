@@ -60,6 +60,30 @@ try:
     from core.mermaid import add_mermaid_links_to_markdown
 except ImportError:
     add_mermaid_links_to_markdown = None
+
+# Import folder scanning utilities for folder drag-and-drop
+try:
+    from core.folder_scanner import expand_paths
+except ImportError:
+    expand_paths = None
+
+# Import front matter utilities for static site generators
+try:
+    from core.frontmatter import add_front_matter_to_markdown
+except ImportError:
+    add_front_matter_to_markdown = None
+
+# Import MD to DOCX converter for reverse conversion
+try:
+    from core.md_to_docx import convert_md_file
+except ImportError:
+    convert_md_file = None
+
+# Import TOC generator
+try:
+    from core.toc_generator import insert_toc
+except ImportError:
+    insert_toc = None
 try:
 
     import win_dnd  # noqa: E402
@@ -72,8 +96,10 @@ from ui.dialogs.success import show_success_dialog
 from ui.dialogs.error import show_error_dialog
 from ui.dialogs.options import OptionsDialog
 from ui.dialogs.preview import show_preview_dialog
+from ui.dialogs.shortcuts_dialog import show_shortcuts_dialog
 from ui.clipboard_mode import show_clipboard_mode
 from ui.dialogs.watch import show_watch_mode
+from ui.dialogs.diff_viewer import show_diff_viewer
 from ui.styles import configure_styles, update_widget_tree
 
 # Theme colors will be loaded dynamically based on user preference
@@ -91,7 +117,7 @@ class ConverterApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Markify")
-        self.root.geometry("600x580")
+        self.root.geometry("600x660")
         
         # Initialize Preferences
         self.prefs = Preferences()
@@ -111,6 +137,11 @@ class ConverterApp:
         except Exception:  # nosec B110
             pass  # Fallback to default if something fails
 
+        # Keyboard Bindings
+        self.root.bind("<F1>", lambda e: self.open_shortcuts())
+        self.root.bind("<Control-Shift-slash>", lambda e: self.open_shortcuts())
+        self.root.bind("<Control-o>", lambda e: self.select_file())
+        
         # Style Configuration
         self._configure_styles()
         
@@ -222,10 +253,12 @@ class ConverterApp:
         mode_frame.pack(fill=tk.X, padx=40, pady=(0, 15))
         mode_frame.columnconfigure(0, weight=1)
         mode_frame.columnconfigure(1, weight=1)
+        mode_frame.rowconfigure(0, weight=1)
+        mode_frame.rowconfigure(1, weight=1)
         
-        # Clipboard Mode container
+        # Row 0, Col 0: Clipboard Mode
         clipboard_container = tk.Frame(mode_frame, bg=c["bg"])
-        clipboard_container.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        clipboard_container.grid(row=0, column=0, sticky="nsew", padx=(0, 5), pady=(0, 10))
         
         self.clipboard_btn = tk.Button(
             clipboard_container,
@@ -248,9 +281,9 @@ class ConverterApp:
             font=("Segoe UI", 8)
         ).pack(pady=(3, 0))
         
-        # Watch Mode container
+        # Row 0, Col 1: Watch Mode
         watch_container = tk.Frame(mode_frame, bg=c["bg"])
-        watch_container.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+        watch_container.grid(row=0, column=1, sticky="nsew", padx=(5, 0), pady=(0, 10))
         
         self.watch_btn = tk.Button(
             watch_container,
@@ -269,6 +302,56 @@ class ConverterApp:
         
         tk.Label(
             watch_container, text="Auto-convert folder",
+            bg=c["bg"], fg=c.get("fg_secondary", c["fg"]),
+            font=("Segoe UI", 8)
+        ).pack(pady=(3, 0))
+        
+        # Row 1, Col 0: MD → DOCX
+        reverse_container = tk.Frame(mode_frame, bg=c["bg"])
+        reverse_container.grid(row=1, column=0, sticky="nsew", padx=(0, 5))
+        
+        self.reverse_btn = tk.Button(
+            reverse_container,
+            text="📝 MD → DOCX",
+            font=("Segoe UI", 10, "bold"),
+            bg=c["secondary_bg"],
+            fg=c["fg"],
+            activebackground=c["border"],
+            activeforeground=c["fg"],
+            relief=tk.FLAT,
+            cursor="hand2",
+            command=self.convert_md_to_docx,
+            pady=8
+        )
+        self.reverse_btn.pack(fill=tk.X)
+        
+        tk.Label(
+            reverse_container, text="Markdown → Word",
+            bg=c["bg"], fg=c.get("fg_secondary", c["fg"]),
+            font=("Segoe UI", 8)
+        ).pack(pady=(3, 0))
+        
+        # Row 1, Col 1: Diff View
+        diff_container = tk.Frame(mode_frame, bg=c["bg"])
+        diff_container.grid(row=1, column=1, sticky="nsew", padx=(5, 0))
+        
+        self.diff_btn = tk.Button(
+            diff_container,
+            text="🔍 DIFF VIEW",
+            font=("Segoe UI", 10, "bold"),
+            bg=c["secondary_bg"],
+            fg=c["fg"],
+            activebackground=c["border"],
+            activeforeground=c["fg"],
+            relief=tk.FLAT,
+            cursor="hand2",
+            command=self.open_diff_viewer,
+            pady=8
+        )
+        self.diff_btn.pack(fill=tk.X)
+        
+        tk.Label(
+            diff_container, text="Compare files",
             bg=c["bg"], fg=c.get("fg_secondary", c["fg"]),
             font=("Segoe UI", 8)
         ).pack(pady=(3, 0))
@@ -301,6 +384,12 @@ class ConverterApp:
         
         self.show_preview_var = tk.BooleanVar(value=self.prefs.get("show_preview", True))
         self.show_preview_var.trace_add('write', self.on_pref_change)
+        
+        self.add_front_matter_var = tk.BooleanVar(value=self.prefs.get("add_front_matter", False))
+        self.add_front_matter_var.trace_add('write', self.on_pref_change)
+        
+        self.add_toc_var = tk.BooleanVar(value=self.prefs.get("add_toc", False))
+        self.add_toc_var.trace_add('write', self.on_pref_change)
         
         # Options dialog will be created on-demand
         self.options_dialog = None
@@ -420,6 +509,8 @@ class ConverterApp:
         self.prefs.set("format_pq", self.format_pq_var.get())
         self.prefs.set("extract_images", self.extract_images_var.get())
         self.prefs.set("show_preview", self.show_preview_var.get())
+        self.prefs.set("add_front_matter", self.add_front_matter_var.get())
+        self.prefs.set("add_toc", self.add_toc_var.get())
 
     def toggle_options(self, event=None):
         """Open the Options dialog."""
@@ -435,6 +526,8 @@ class ConverterApp:
             "format_pq_var": self.format_pq_var,
             "extract_images_var": self.extract_images_var,
             "show_preview_var": self.show_preview_var,
+            "add_front_matter_var": self.add_front_matter_var,
+            "add_toc_var": self.add_toc_var,
             "output_mode_var": self.output_mode_var,
             "custom_path_var": self.custom_path_var,
             "theme_var": self.theme_var,
@@ -498,18 +591,34 @@ class ConverterApp:
             self.prefs.set("custom_output_dir", folder_selected)
 
     def on_drop_files(self, file_paths):
-        """Handle files dropped onto the window"""
+        """Handle files and folders dropped onto the window"""
         valid_extensions = ('.docx', '.xlsx')
-        valid_files = [f for f in file_paths if f.lower().endswith(valid_extensions)]
+        
+        # Use folder scanner if available (handles both files and folders)
+        if expand_paths:
+            valid_files = expand_paths(file_paths)
+        else:
+            # Fallback: only accept individual files (no folder support)
+            valid_files = [f for f in file_paths if os.path.isfile(f) and f.lower().endswith(valid_extensions)]
         
         if not valid_files:
-            messagebox.showwarning("Invalid File", "Please drop .docx or .xlsx files only.")
+            # Check if user dropped folders but no files were found
+            dropped_folders = [p for p in file_paths if os.path.isdir(p)]
+            if dropped_folders:
+                messagebox.showinfo("No Files Found", 
+                    f"No .docx or .xlsx files found in the dropped folder(s).")
+            else:
+                messagebox.showwarning("Invalid File", "Please drop .docx or .xlsx files only.")
             return
 
         # Bring window to front
         self.root.deiconify()
         self.root.lift()
         self.root.focus_force()
+        
+        # Show count if multiple files from folder
+        if len(valid_files) > 1:
+            logger.info(f"Processing {len(valid_files)} files from dropped paths")
         
         # Process them
         self.process_files(valid_files)
@@ -525,6 +634,10 @@ class ConverterApp:
         else:
             messagebox.showwarning("Help", f"README.md not found at {readme_path}")
     
+    def open_shortcuts(self):
+        """Open the Keyboard Shortcuts dialog."""
+        show_shortcuts_dialog(self.root, self.colors)
+    
     def open_clipboard_mode(self):
         """Open the Clipboard Mode dialog."""
         show_clipboard_mode(self.root, self.colors, self.prefs, on_close=self.refresh_recents)
@@ -536,6 +649,50 @@ class ConverterApp:
             self.root, self.colors, self.prefs,
             on_close=self.refresh_recents
         )
+    
+    def convert_md_to_docx(self):
+        """Open file dialog to select MD file and convert to DOCX."""
+        if not convert_md_file:
+            messagebox.showwarning("Not Available", 
+                "MD to DOCX conversion is not available.")
+            return
+        
+        # File dialog
+        initial_dir = self.prefs.get("last_directory", "")
+        file_path = filedialog.askopenfilename(
+            title="Select Markdown File",
+            initialdir=initial_dir if initial_dir else None,
+            filetypes=[("Markdown Files", "*.md"), ("All Files", "*.*")]
+        )
+        
+        if not file_path:
+            return
+        
+        # Save directory preference
+        self.prefs.set("last_directory", os.path.dirname(file_path))
+        
+        # Convert
+        self.status_var.set(f"Converting {os.path.basename(file_path)} to DOCX...")
+        self.root.update()
+        
+        success, result = convert_md_file(file_path)
+        
+        if success:
+            self.status_var.set("Conversion complete!")
+            show_success_dialog(
+                self.root, 
+                self.colors,
+                output_path=result,
+                message=f"Created: {os.path.basename(result)}",
+                on_close=self.refresh_recents
+            )
+        else:
+            self.status_var.set("Conversion failed")
+            messagebox.showerror("Conversion Error", result)
+    
+    def open_diff_viewer(self):
+        """Open the Diff View dialog to compare two files."""
+        show_diff_viewer(self.root, self.colors)
 
     def select_file(self):
         initial_dir = self.prefs.get("last_directory", "")
@@ -693,6 +850,13 @@ class ConverterApp:
                 # Add mermaid.live links to any mermaid code blocks
                 if add_mermaid_links_to_markdown:
                     content = add_mermaid_links_to_markdown(content)
+                
+                # Add YAML front matter for static site generators
+                if add_front_matter_to_markdown and self.prefs.get("add_front_matter", False):
+                    content = add_front_matter_to_markdown(
+                        content,
+                        filename=os.path.basename(source_path)
+                    )
                 
                 # Check if preview mode
                 if self.prefs.get("show_preview", True):
@@ -853,6 +1017,17 @@ class ConverterApp:
                 # Add mermaid.live links to any mermaid code blocks
                 if add_mermaid_links_to_markdown:
                     content = add_mermaid_links_to_markdown(content)
+                
+                # Add YAML front matter for static site generators
+                if add_front_matter_to_markdown and self.prefs.get("add_front_matter", False):
+                    content = add_front_matter_to_markdown(
+                        content,
+                        filename=os.path.basename(source_path)
+                    )
+                
+                # Add Table of Contents if enabled
+                if insert_toc and self.prefs.get("add_toc", False):
+                    content = insert_toc(content, position="after_title", max_depth=3)
                 
                 # Check if preview mode - return content without writing
                 if self.prefs.get("show_preview", True):
