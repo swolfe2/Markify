@@ -50,6 +50,9 @@ from core.docx.parser import (
     get_paragraph_text,
     _extract_run_text,
     is_list_item,
+    is_code_style,
+    is_blockquote_style_para,
+    get_paragraph_style,
     get_list_type,
     get_list_indent_level,
     detect_header_level,
@@ -311,12 +314,22 @@ def get_docx_content(
         
         if tag == 'w:p':
             text = get_paragraph_text(child, include_formatting=True, hyperlink_map=rels_map, image_handler=image_handler)
+            
+            # Extract bookmarks from this paragraph (for anchor targets)
+            bookmarks = []
+            for bookmark in child.findall('.//w:bookmarkStart', ns):
+                bm_name = bookmark.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}name', '')
+                # Skip internal Word bookmarks (start with _ like _GoBack)
+                if bm_name and not bm_name.startswith('_'):
+                    bookmarks.append(bm_name)
 
             is_list = is_list_item(child)
+            is_code_para = is_code_style(child)
+            is_blockquote = is_blockquote_style_para(child)
             list_type = get_list_type(child) if is_list else None
             list_indent = get_list_indent_level(child) if is_list else 0
             style_heading_level = get_heading_style_level(child)
-            elements.append({'type': 'para', 'text': text, 'is_list': is_list, 'list_type': list_type, 'list_indent': list_indent, 'style_heading_level': style_heading_level})
+            elements.append({'type': 'para', 'text': text, 'is_list': is_list, 'is_code': is_code_para, 'is_blockquote': is_blockquote, 'bookmarks': bookmarks, 'list_type': list_type, 'list_indent': list_indent, 'style_heading_level': style_heading_level})
         elif tag == 'w:tbl':
             elements.append({'type': 'table', 'element': child})
     
@@ -341,6 +354,26 @@ def get_docx_content(
         
         if not text:
             i += 1
+            continue
+        
+        # Check for Code style paragraphs (from MD→DOCX conversion)
+        # Group consecutive Code style paragraphs into a fenced code block
+        if elem.get('is_code', False):
+            code_lines = [elem['text']]  # Preserve original text
+            j = i + 1
+            while j < len(elements):
+                if elements[j]['type'] != 'para':
+                    break
+                if not elements[j].get('is_code', False):
+                    break
+                code_lines.append(elements[j]['text'])
+                j += 1
+            
+            # Detect language and emit fenced block
+            code_content = '\n'.join(code_lines)
+            lang = detect_code_language(code_content) or ''
+            lines.append(f"```{lang}\n{code_content}\n```")
+            i = j
             continue
         
         # Check if this starts a code block (look for 'let')
@@ -442,8 +475,21 @@ def get_docx_content(
             i += 1
             continue
         
-        # Regular paragraph
-        lines.append(text)
+        # Blockquote styled paragraph
+        if elem.get('is_blockquote', False):
+            # Prefix each line with >
+            quoted_lines = [f"> {line}" for line in text.split('\n')]
+            lines.append('\n'.join(quoted_lines))
+            i += 1
+            continue
+        
+        # Regular paragraph - add anchor tags for bookmarks first
+        bookmarks = elem.get('bookmarks', [])
+        anchor_tags = ''.join([f'<a id="{bm}"></a>' for bm in bookmarks])
+        if anchor_tags:
+            lines.append(anchor_tags + text)
+        else:
+            lines.append(text)
         i += 1
     
     return lines

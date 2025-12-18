@@ -43,7 +43,10 @@ def get_paragraph_text(
         tag = child.tag.replace('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}', 'w:')
         
         if tag == 'w:hyperlink':
-            # Extract hyperlink URL from r:id attribute
+            # Check for internal anchor (cross-reference) first
+            anchor = child.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}anchor', '')
+            
+            # Extract hyperlink URL from r:id attribute (for external links)
             r_id = child.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id', '')
             url = hyperlink_map.get(r_id, '')
             
@@ -52,11 +55,16 @@ def get_paragraph_text(
             for run in child.findall('.//w:r', NS):
                 link_text += _extract_run_text(run, image_handler=image_handler)
             
-            # Format as Markdown link if we have both text and URL
-            if link_text.strip() and url:
-                text += f"[{link_text.strip()}]({url})"
-            elif link_text.strip():
-                text += link_text  # No URL found, just use text
+            # Format as Markdown link
+            if link_text.strip():
+                if anchor:
+                    # Internal cross-reference - link to anchor
+                    text += f"[{link_text.strip()}](#{anchor})"
+                elif url:
+                    # External hyperlink
+                    text += f"[{link_text.strip()}]({url})"
+                else:
+                    text += link_text  # No URL or anchor found, just use text
                 
         elif tag == 'w:r':
             run_text = _extract_run_text(child, include_formatting, image_handler=image_handler)
@@ -107,6 +115,23 @@ def _extract_run_text(
             run_text = f"*{run_text}*"
     
     return run_text
+
+
+# =============================================================================
+# Code Style Detection
+# =============================================================================
+
+def is_code_style(para: ET.Element) -> bool:
+    """Check if paragraph has Code style (used for MD→DOCX code blocks)."""
+    pPr = para.find('w:pPr', NS)
+    if pPr is not None:
+        pStyle = pPr.find('w:pStyle', NS)
+        if pStyle is not None:
+            style_val = pStyle.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val', '')
+            # Check for Code style applied by md_to_docx.py
+            if style_val == 'Code':
+                return True
+    return False
 
 
 # =============================================================================
@@ -196,25 +221,28 @@ def detect_header_level(text: str) -> int:
 
 
 def get_heading_style_level(para: ET.Element) -> int:
-    """Detect heading level from Word's built-in heading styles."""
+    """Detect heading level from Word styles using configurable mappings."""
+    # Import here to avoid circular imports
+    from config import get_heading_level_for_style
+    
+    style_name = get_paragraph_style(para)
+    if style_name:
+        return get_heading_level_for_style(style_name)
+    return 0  # Not a styled heading
+
+
+def get_paragraph_style(para: ET.Element) -> str:
+    """Get the style name of a paragraph, or empty string if none."""
     pPr = para.find('w:pPr', NS)
     if pPr is not None:
         pStyle = pPr.find('w:pStyle', NS)
         if pStyle is not None:
-            style_val = pStyle.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val', '')
-            # Map Word styles to Markdown heading levels
-            if style_val == 'Title':
-                return 1
-            elif style_val == 'Heading1':
-                return 1
-            elif style_val == 'Heading2':
-                return 2
-            elif style_val == 'Heading3':
-                return 3
-            elif style_val == 'Heading4':
-                return 4
-            elif style_val == 'Heading5':
-                return 5
-            elif style_val == 'Heading6':
-                return 6
-    return 0  # Not a styled heading
+            return pStyle.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val', '')
+    return ''
+
+
+def is_blockquote_style_para(para: ET.Element) -> bool:
+    """Check if paragraph has a blockquote style."""
+    from config import is_blockquote_style
+    style_name = get_paragraph_style(para)
+    return is_blockquote_style(style_name) if style_name else False

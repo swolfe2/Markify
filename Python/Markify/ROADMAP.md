@@ -42,31 +42,26 @@ This document tracks planned enhancements and feature ideas for the Word to Mark
 - [x] Template System (User-defined templates with variables `{{filename}}`, `{{date}}`)
 - [x] Confluence Wiki Syntax (Output in Confluence/Jira markup instead of Markdown)
 - [x] Diff View (Compare two `.md` files side-by-side with highlighting)
+- [x] Table of Contents Generation (Auto-generate TOC from headers)
+- [x] Footnote Conversion (Word footnotes → Markdown `[^1]` format)
+- [x] Obsidian Export (Wikilinks `[[page]]`, callout blocks support)
+- [x] Export Statistics (Word count, reading time, header structure)
+- [x] Keyboard Shortcuts Panel (Show all hotkeys via F1 key)
+- [x] Round-Trip Table Fidelity (Tables preserved in Word↔Markdown cycles)
+- [x] CI/CD Round-Trip Testing (Automated tests for Word↔MD fidelity)
+- [x] Standardized App Icon (Icon displayed on all dialogs and windows)
+- [x] Changelog (CHANGELOG.md with "What's New" in-app viewer)
+- [x] Round-Trip Fidelity Fixes (Code block fencing, multi-line paragraphs)
+- [x] Improved Error Handling (User-friendly messages for locked/corrupted files)
+- [x] Word Style Mapping (Custom mapping of Word styles → Markdown elements)
+- [x] Cross-Reference Support (Handle Word bookmarks and cross-refs)
 
 ---
 
 ## Planned / In Progress 🚧
 
-### Quick Wins (Low Effort, High Value)
-- [x] **Table of Contents Generation** - Auto-generate TOC from headers ✅
-- [x] **Footnote Conversion** - Word footnotes → Markdown `[^1]` format ✅
-- [x] **Obsidian Export** - Wikilinks `[[page]]`, callout blocks support ✅
-- [x] **Export Statistics** - Word count, reading time, header structure ✅
-- [x] **Keyboard Shortcuts Panel** - Show all hotkeys (F1 key) ✅
-
 ### High Priority
-- [x] **Round-Trip Fidelity Fixes** - Ensure Word↔Markdown conversions preserve: ✅
-  - [x] Table formatting (rows on separate lines)
-  - [ ] Code block fencing and line breaks
-  - [ ] Multi-line paragraph preservation
-- [x] **CI/CD Round-Trip Testing** - Automated tests for: ✅
-  - [x] Word → Markdown → Word fidelity
-  - [x] Markdown → Word → Markdown fidelity
-  - [x] XML element count validation
-- [ ] **Improved Error Handling** - Better user feedback for corrupted/locked files
 - [ ] **Undo/Redo in Preview** - Allow edits before saving
-- [ ] **Word Style Mapping** - Custom mapping of Word styles → Markdown elements
-- [ ] **Cross-Reference Support** - Handle Word bookmarks and cross-refs
 
 ### Medium Priority
 - [ ] **Export to PDF** - Direct PDF generation from Markdown

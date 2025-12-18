@@ -225,7 +225,22 @@ def parse_markdown(content: str) -> List[Block]:
             para_lines.append(next_line)
             i += 1
         
-        blocks.append(Paragraph(' '.join(para_lines)))
+        # Join paragraph lines, preserving Markdown hard breaks
+        # Hard break: trailing double-space or backslash
+        processed_lines = []
+        for line in para_lines:
+            if line.endswith('  '):
+                # Trailing double-space = hard break, keep newline
+                processed_lines.append(line.rstrip() + '\n')
+            elif line.endswith('\\'):
+                # Trailing backslash = hard break, keep newline
+                processed_lines.append(line[:-1] + '\n')
+            else:
+                processed_lines.append(line)
+        
+        # Join with space, but hard breaks already have \n embedded
+        final_text = ' '.join(processed_lines)
+        blocks.append(Paragraph(final_text))
     
     return blocks
 
@@ -238,12 +253,25 @@ def _process_inline_formatting(text: str) -> str:
     """
     Convert inline markdown formatting to Word XML runs.
     
-    Handles: **bold**, *italic*, `code`, [links](url)
+    Handles: **bold**, *italic*, `code`, [links](url), line breaks
     """
     result = []
     i = 0
     
     while i < len(text):
+        # Line break (Markdown hard break or embedded newline)
+        if text[i] == '\n':
+            result.append('<w:r><w:br/></w:r>')
+            i += 1
+            continue
+        
+        # Handle Markdown hard line break (two trailing spaces before newline)
+        # This is already handled above when we see \n, but we need to strip trailing spaces
+        if i + 2 < len(text) and text[i:i+2] == '  ' and (i + 2 >= len(text) or text[i+2] == '\n'):
+            # Skip the trailing spaces, the \n will be converted to <w:br/>
+            i += 2
+            continue
+            
         # Bold (**text**)
         bold_match = re.match(r'\*\*(.+?)\*\*', text[i:])
         if bold_match:

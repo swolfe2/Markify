@@ -107,6 +107,9 @@ from ui.dialogs.success import show_success_dialog
 from ui.dialogs.watch import show_watch_mode
 from ui.styles import configure_styles, update_widget_tree
 
+# Error classification for user-friendly messages
+from core.error_types import classify_docx_error, classify_xlsx_error
+
 # Theme colors will be loaded dynamically based on user preference
 # These are module-level defaults that get updated when the app loads
 _current_theme = get_theme(get_default_theme())
@@ -1059,16 +1062,9 @@ class ConverterApp:
                     },
                 )
         except Exception as e:
-            error_msg = str(e)
-            return (
-                False,
-                None,
-                {
-                    "title": "Excel Conversion Error",
-                    "message": f"Failed to convert {os.path.basename(source_path)}",
-                    "details": error_msg,
-                },
-            )
+            # Use structured error classification
+            error_info = classify_xlsx_error(e, source_path)
+            return (False, None, error_info)
 
     def _on_xlsx_complete(self, result, source_path):
         """Callback when Excel file conversion finishes."""
@@ -1303,28 +1299,9 @@ class ConverterApp:
                 )
 
         except Exception as e:
-            error_msg = str(e)
-            if "Permission denied" in error_msg or "being used" in error_msg.lower():
-                return (
-                    False,
-                    None,
-                    {
-                        "title": "File Access Error",
-                        "message": "Cannot access the Word document.",
-                        "details": f"📄 {os.path.basename(source_path)}",
-                        "hint": "Please close the file in Word and try again.",
-                    },
-                )
-            else:
-                return (
-                    False,
-                    None,
-                    {
-                        "title": "Conversion Error",
-                        "message": f"Failed to convert {os.path.basename(source_path)}",
-                        "details": error_msg,
-                    },
-                )
+            # Use structured error classification for better user feedback
+            error_info = classify_docx_error(e, source_path)
+            return (False, None, error_info)
 
     def convert_single_file(self, source_path):
         # Wrapper for synchronous batch mode

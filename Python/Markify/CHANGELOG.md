@@ -6,6 +6,27 @@ Format based on Keep a Changelog (keepachangelog.com).
 
 ---
 
+## [1.2.0] - 2025-12-18
+
+### ✨ Added
+- **Round-Trip Fidelity Fixes** - Code block fencing and multi-line paragraph preservation
+- **Word Style Mapping** - Configurable mapping of Word styles → Markdown elements
+  - `heading_styles`: Map custom styles to heading levels
+  - `blockquote_styles`: Quote, IntenseQuote → `>` blockquotes
+  - `code_styles`: Code, PlainText → fenced code blocks
+  - Config file: `%APPDATA%/Markify/style_mappings.json`
+- **Cross-Reference Support** - Handle Word bookmarks and internal cross-refs
+  - Internal hyperlinks → `[text](#anchor)` format
+  - Bookmarks → `<a id="name"></a>` anchor tags
+- **Improved Error Handling** - User-friendly error messages with actionable hints
+  - Specific detection for locked files, corrupted documents, password protection
+
+### 🔧 Changed
+- Refactored `get_heading_style_level()` to use configurable mappings
+- Added `src/core/error_types.py` for structured error classification
+
+---
+
 ## [1.1.0] - 2025-12-18
 
 ### ✨ Added
