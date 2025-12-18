@@ -785,7 +785,7 @@ class ConverterApp:
     def open_help(self):
         readme_path = resource_path("README.md")
         if os.path.exists(readme_path):
-            MarkdownViewer(self.root, readme_path, self.colors)
+            MarkdownViewer(self.root, readme_path, self.colors, icon_path=self.icon_path)
         else:
             messagebox.showwarning("Help", f"README.md not found at {readme_path}")
 
@@ -793,18 +793,18 @@ class ConverterApp:
         """Open the Changelog viewer."""
         changelog_path = resource_path("CHANGELOG.md")
         if os.path.exists(changelog_path):
-            MarkdownViewer(self.root, changelog_path, self.colors)
+            MarkdownViewer(self.root, changelog_path, self.colors, icon_path=self.icon_path)
         else:
             messagebox.showwarning("Changelog", f"CHANGELOG.md not found at {changelog_path}")
 
     def open_shortcuts(self):
         """Open the Keyboard Shortcuts dialog."""
-        show_shortcuts_dialog(self.root, self.colors)
+        show_shortcuts_dialog(self.root, self.colors, icon_path=self.icon_path)
 
     def open_clipboard_mode(self):
         """Open the Clipboard Mode dialog."""
         show_clipboard_mode(
-            self.root, self.colors, self.prefs, on_close=self.refresh_recents
+            self.root, self.colors, self.prefs, on_close=self.refresh_recents, icon_path=self.icon_path
         )
 
     def open_watch_mode(self):
@@ -812,7 +812,7 @@ class ConverterApp:
         from ui.dialogs.watch import WatchModeDialog
 
         WatchModeDialog(
-            self.root, self.colors, self.prefs, on_close=self.refresh_recents
+            self.root, self.colors, self.prefs, on_close=self.refresh_recents, icon_path=self.icon_path
         )
 
     def convert_md_to_docx(self):
@@ -851,6 +851,7 @@ class ConverterApp:
                 output_path=result,
                 message=f"Created: {os.path.basename(result)}",
                 on_close=self.refresh_recents,
+                icon_path=self.icon_path,
             )
         else:
             self.status_var.set("Conversion failed")
@@ -858,7 +859,7 @@ class ConverterApp:
 
     def open_diff_viewer(self):
         """Open the Diff View dialog to compare two files."""
-        show_diff_viewer(self.root, self.colors)
+        show_diff_viewer(self.root, self.colors, icon_path=self.icon_path)
 
     def select_file(self):
         initial_dir = self.prefs.get("last_directory", "")
@@ -1094,6 +1095,7 @@ class ConverterApp:
                     output_file_path,
                     content,
                     on_open_options=self.toggle_options,
+                    icon_path=self.icon_path,
                 )
 
                 if user_approved:
@@ -1109,6 +1111,7 @@ class ConverterApp:
                             output_file_path,
                             single_mode=True,
                             on_run_cmd=self._run_cmd,
+                            icon_path=self.icon_path,
                         )
                     except Exception as e:
                         self.status_var.set("Save Failed.")
@@ -1131,6 +1134,7 @@ class ConverterApp:
                     output_file,
                     single_mode=True,
                     on_run_cmd=self._run_cmd,
+                    icon_path=self.icon_path,
                 )
         else:
             self.status_var.set("Excel Conversion Failed.")
@@ -1166,6 +1170,7 @@ class ConverterApp:
                     output_file_path,
                     content,
                     on_open_options=self.toggle_options,
+                    icon_path=self.icon_path,
                 )
 
                 if user_approved:
@@ -1182,6 +1187,7 @@ class ConverterApp:
                             output_file_path,
                             single_mode=True,
                             on_run_cmd=self._run_cmd,
+                            icon_path=self.icon_path,
                         )
                     except Exception as e:
                         self.status_var.set("Save Failed.")
@@ -1205,6 +1211,7 @@ class ConverterApp:
                     output_file,
                     single_mode=True,
                     on_run_cmd=self._run_cmd,
+                    icon_path=self.icon_path,
                 )
         else:
             self.status_var.set("Conversion Failed.")

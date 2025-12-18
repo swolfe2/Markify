@@ -163,6 +163,6 @@ class ShortcutsDialog:
         self.dialog.protocol("WM_DELETE_WINDOW", on_close)
 
 
-def show_shortcuts_dialog(parent: tk.Tk, colors: Dict[str, str]):
+def show_shortcuts_dialog(parent: tk.Tk, colors: Dict[str, str], icon_path: str = None):
     """Show the keyboard shortcuts dialog."""
-    ShortcutsDialog(parent, colors)
+    ShortcutsDialog(parent, colors, icon_path=icon_path)

@@ -435,6 +435,6 @@ class ClipboardModeDialog:
         self.dialog.destroy()
 
 
-def show_clipboard_mode(parent: tk.Tk, colors: Dict[str, str], prefs: Optional[Any] = None, on_close: Optional[Any] = None) -> ClipboardModeDialog:
+def show_clipboard_mode(parent: tk.Tk, colors: Dict[str, str], prefs: Optional[Any] = None, on_close: Optional[Any] = None, icon_path: str = None) -> ClipboardModeDialog:
     """Show the Clipboard Mode dialog."""
-    return ClipboardModeDialog(parent, colors, prefs, on_close)
+    return ClipboardModeDialog(parent, colors, prefs, on_close, icon_path=icon_path)

@@ -301,7 +301,8 @@ def show_preview_dialog(
     source_path: str,
     output_path: str,
     content: str,
-    on_open_options: Optional[Callable[[], None]] = None
+    on_open_options: Optional[Callable[[], None]] = None,
+    icon_path: str = None
 ) -> bool:
     """
     Show preview dialog and return True if user clicked Save.
@@ -313,10 +314,11 @@ def show_preview_dialog(
         output_path: Path where .md will be saved.
         content: Markdown content to preview.
         on_open_options: Callback to open options dialog.
+        icon_path: Path to application icon.
     
     Returns:
         True if user clicked Save, False if cancelled.
     """
-    dialog = PreviewDialog(parent, colors, source_path, output_path, content, on_open_options=on_open_options)
+    dialog = PreviewDialog(parent, colors, source_path, output_path, content, on_open_options=on_open_options, icon_path=icon_path)
     return dialog.result
 

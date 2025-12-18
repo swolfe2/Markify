@@ -312,9 +312,9 @@ class DiffViewerDialog:
         )
 
 
-def show_diff_viewer(parent: tk.Tk, colors: dict):
+def show_diff_viewer(parent: tk.Tk, colors: dict, icon_path: str = None):
     """Show the diff viewer dialog."""
-    DiffViewerDialog(parent, colors)
+    DiffViewerDialog(parent, colors, icon_path=icon_path)
 
 
 # Utility functions for programmatic comparison
