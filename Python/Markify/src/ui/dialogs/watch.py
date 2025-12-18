@@ -31,7 +31,8 @@ class WatchModeDialog:
         parent: tk.Tk, 
         colors: Dict[str, str],
         prefs: Optional[object] = None,
-        on_close: Optional[Callable[[], None]] = None
+        on_close: Optional[Callable[[], None]] = None,
+        icon_path: str = None
     ):
         """
         Initialize the Watch Mode dialog.
@@ -41,6 +42,7 @@ class WatchModeDialog:
             colors: Theme color dictionary
             prefs: Preferences object for persistence
             on_close: Callback when dialog is closed
+            icon_path: Path to application icon
         """
         self.parent = parent
         self.colors = colors
@@ -56,6 +58,13 @@ class WatchModeDialog:
         self.dialog.geometry("500x450")
         self.dialog.configure(bg=colors["bg"])
         self.dialog.transient(parent)
+        
+        # Set icon if provided
+        if icon_path:
+            try:
+                self.dialog.iconbitmap(icon_path)
+            except Exception:
+                pass
         
         # Center on parent
         self.dialog.update_idletasks()

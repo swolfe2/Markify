@@ -12,7 +12,8 @@ def show_error_dialog(
     title: str = "Error",
     message: str = "An error occurred",
     details: str = "",
-    hint: str = ""
+    hint: str = "",
+    icon_path: str = None
 ) -> None:
     """
     Show a modern styled error dialog.
@@ -24,6 +25,7 @@ def show_error_dialog(
         message: Main error message.
         details: Optional detailed error information.
         hint: Optional hint for resolution.
+        icon_path: Path to application icon.
     """
     c = colors
     dialog = tk.Toplevel(parent)
@@ -31,6 +33,13 @@ def show_error_dialog(
     dialog.geometry("500x280")
     dialog.configure(bg=c["bg"])
     dialog.resizable(False, False)
+    
+    # Set icon if provided
+    if icon_path:
+        try:
+            dialog.iconbitmap(icon_path)
+        except Exception:
+            pass
     
     # Center on parent
     dialog.transient(parent)

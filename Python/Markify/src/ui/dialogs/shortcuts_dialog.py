@@ -49,7 +49,7 @@ class ShortcutsDialog:
     Dialog showing all available keyboard shortcuts.
     """
     
-    def __init__(self, parent: tk.Tk, colors: Dict[str, str]):
+    def __init__(self, parent: tk.Tk, colors: Dict[str, str], icon_path: str = None):
         self.parent = parent
         self.colors = colors
         
@@ -57,6 +57,13 @@ class ShortcutsDialog:
         self.dialog.title("Keyboard Shortcuts")
         self.dialog.configure(bg=colors["bg"])
         self.dialog.resizable(True, True)
+        
+        # Set icon if provided
+        if icon_path:
+            try:
+                self.dialog.iconbitmap(icon_path)
+            except Exception:
+                pass
         
         # Size and position
         w, h = 500, 450

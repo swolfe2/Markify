@@ -1,3 +1,5 @@
+![Markify](resources/markify_icon.png)
+
 # Markify (Word to Markdown Converter)
 
 ![Markify Demo](samples/demos/Markify_Demo_optimized.gif)

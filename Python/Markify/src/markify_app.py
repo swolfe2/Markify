@@ -134,6 +134,7 @@ class ConverterApp:
         self.root.configure(bg=self.colors["bg"])
 
         # Set App Icon (load .ico from resources folder for Windows taskbar)
+        self.icon_path = None
         try:
             script_dir = os.path.dirname(os.path.abspath(__file__))
             icon_path = os.path.join(
@@ -141,6 +142,7 @@ class ConverterApp:
             )
 
             if os.path.exists(icon_path):
+                self.icon_path = icon_path
                 self.root.iconbitmap(icon_path)
         except Exception:  # nosec B110
             pass  # Fallback to default if something fails
@@ -159,13 +161,32 @@ class ConverterApp:
         self.main_frame = ttk.Frame(root, padding="40")
         self.main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Title
-        title_label = ttk.Label(self.main_frame, text="Markify", style="Title.TLabel")
-        title_label.pack(pady=(0, 10))
+        # Header Row: Icon + Title + Version side by side
+        header_frame = tk.Frame(self.main_frame, bg=c["bg"])
+        header_frame.pack(pady=(0, 5))
 
-        # Subtitle/Version
-        ver_label = ttk.Label(self.main_frame, text="v1.0", style="Sub.TLabel")
-        ver_label.pack(pady=(0, 5))
+        # App Icon (PNG) - shown to left of title
+        try:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            png_path = os.path.join(
+                os.path.dirname(script_dir), "resources", "markify_icon.png"
+            )
+            if os.path.exists(png_path):
+                self.app_icon_image = tk.PhotoImage(file=png_path)
+                # Subsample to make it ~40px (smaller for inline with title)
+                self.app_icon_image = self.app_icon_image.subsample(3, 3)
+                icon_label = tk.Label(header_frame, image=self.app_icon_image, bg=c["bg"])
+                icon_label.pack(side=tk.LEFT, padx=(0, 10))
+        except Exception:
+            pass  # If icon fails, just skip it
+
+        # Title (to right of icon)
+        title_label = ttk.Label(header_frame, text="Markify", style="Title.TLabel")
+        title_label.pack(side=tk.LEFT)
+
+        # Version (to right of title)
+        ver_label = ttk.Label(header_frame, text="v1.0", style="Sub.TLabel")
+        ver_label.pack(side=tk.LEFT, padx=(10, 0))
 
         # GitHub Link
         github_link = tk.Label(
@@ -176,13 +197,25 @@ class ConverterApp:
             font=("Segoe UI", 9, "underline"),
             cursor="hand2",
         )
-        github_link.pack(pady=(0, 20))
+        github_link.pack(pady=(0, 5))
         github_link.bind(
             "<Button-1>",
             lambda e: subprocess.Popen(
                 ["start", "https://github.com/swolfe2/code-examples"], shell=True
             ),
         )  # nosec B602 B607
+
+        # What's New link (clickable text)
+        whatsnew_link = tk.Label(
+            self.main_frame,
+            text="📋 What's New in v1.0",
+            bg=self.colors["bg"],
+            fg=self.colors["muted"],
+            font=("Segoe UI", 9, "underline"),
+            cursor="hand2",
+        )
+        whatsnew_link.pack(pady=(0, 15))
+        whatsnew_link.bind("<Button-1>", lambda e: self.open_changelog())
 
         # === ACTION ROW: Main Button (left) + Options/Help (right) ===
         action_row = tk.Frame(self.main_frame, bg=c["bg"])
@@ -648,7 +681,7 @@ class ConverterApp:
             "theme_names": get_theme_names(),
             "on_browse": self.browse_output_folder,
         }
-        self.options_dialog = OptionsDialog(self.root, self.colors, config)
+        self.options_dialog = OptionsDialog(self.root, self.colors, config, icon_path=self.icon_path)
 
     def on_output_mode_change(self, *args):
         mode = self.output_mode_var.get()
@@ -755,6 +788,14 @@ class ConverterApp:
             MarkdownViewer(self.root, readme_path, self.colors)
         else:
             messagebox.showwarning("Help", f"README.md not found at {readme_path}")
+
+    def open_changelog(self):
+        """Open the Changelog viewer."""
+        changelog_path = resource_path("CHANGELOG.md")
+        if os.path.exists(changelog_path):
+            MarkdownViewer(self.root, changelog_path, self.colors)
+        else:
+            messagebox.showwarning("Changelog", f"CHANGELOG.md not found at {changelog_path}")
 
     def open_shortcuts(self):
         """Open the Keyboard Shortcuts dialog."""
@@ -913,6 +954,7 @@ class ConverterApp:
                 single_mode=False,
                 count=success_count,
                 on_run_cmd=self._run_cmd,
+                icon_path=self.icon_path,
             )
 
     def _process_single_async(self, source_path):

@@ -20,7 +20,8 @@ class DiffViewerDialog:
         parent: tk.Tk,
         colors: dict,
         file1_path: Optional[str] = None,
-        file2_path: Optional[str] = None
+        file2_path: Optional[str] = None,
+        icon_path: str = None
     ):
         """
         Create a diff viewer dialog.
@@ -30,6 +31,7 @@ class DiffViewerDialog:
             colors: Theme color dictionary
             file1_path: Optional path to first file
             file2_path: Optional path to second file
+            icon_path: Path to application icon
         """
         self.parent = parent
         self.colors = colors
@@ -42,6 +44,13 @@ class DiffViewerDialog:
         self.dialog.geometry("1000x700")
         self.dialog.configure(bg=colors["bg"])
         self.dialog.transient(parent)
+        
+        # Set icon if provided
+        if icon_path:
+            try:
+                self.dialog.iconbitmap(icon_path)
+            except Exception:
+                pass
         
         self._create_widgets()
         

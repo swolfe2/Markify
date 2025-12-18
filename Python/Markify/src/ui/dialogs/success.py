@@ -17,7 +17,8 @@ def show_success_dialog(
     path_arg: str,
     single_mode: bool = True,
     count: int = 0,
-    on_run_cmd: Callable[[List[str]], None] = None
+    on_run_cmd: Callable[[List[str]], None] = None,
+    icon_path: str = None
 ) -> None:
     """
     Show a success dialog after conversion.
@@ -29,12 +30,20 @@ def show_success_dialog(
         single_mode: True for single file, False for batch.
         count: Number of files converted in batch mode.
         on_run_cmd: Callback to run external commands (e.g., open in VS Code).
+        icon_path: Path to application icon.
     """
     c = colors
     dialog = tk.Toplevel(parent)
     dialog.title("Success")
     dialog.geometry("650x300")
     dialog.configure(bg=c["bg"])
+    
+    # Set icon if provided
+    if icon_path:
+        try:
+            dialog.iconbitmap(icon_path)
+        except Exception:
+            pass
     
     # Center
     x = parent.winfo_x() + (parent.winfo_width() // 2) - 325

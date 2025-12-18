@@ -34,7 +34,8 @@ class PreviewDialog:
         output_path: str,
         content: str,
         on_save: Optional[Callable[[], None]] = None,
-        on_open_options: Optional[Callable[[], None]] = None
+        on_open_options: Optional[Callable[[], None]] = None,
+        icon_path: str = None
     ):
         self.parent = parent
         self.colors = colors
@@ -50,6 +51,13 @@ class PreviewDialog:
         self.dialog.title("Preview Conversion")
         self.dialog.configure(bg=colors["bg"])
         self.dialog.resizable(True, True)
+        
+        # Set icon if provided
+        if icon_path:
+            try:
+                self.dialog.iconbitmap(icon_path)
+            except Exception:
+                pass
         
         # Size and position (centered on parent) - increased height for wrapped paths
         w, h = 700, 620

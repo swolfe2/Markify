@@ -30,7 +30,7 @@ class ClipboardModeDialog:
     Right pane: Markdown output (auto-updates)
     """
     
-    def __init__(self, parent: tk.Tk, colors: Dict[str, str], prefs: Optional[Any] = None, on_close: Optional[Any] = None):
+    def __init__(self, parent: tk.Tk, colors: Dict[str, str], prefs: Optional[Any] = None, on_close: Optional[Any] = None, icon_path: str = None):
         self.parent = parent
         self.colors = colors
         self.prefs = prefs
@@ -40,6 +40,13 @@ class ClipboardModeDialog:
         self.dialog.withdraw()  # Hide until positioned
         self.dialog.title("Clipboard Mode - Paste to Markdown")
         self.dialog.configure(bg=colors["bg"])
+        
+        # Set icon if provided
+        if icon_path:
+            try:
+                self.dialog.iconbitmap(icon_path)
+            except Exception:
+                pass
         
         # Size and position
         w, h = 900, 600
