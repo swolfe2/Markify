@@ -1,6 +1,6 @@
 # Markify (Word to Markdown Converter)
 
-![Markify Demo](samples/Markify_Demo_optimized.gif)
+![Markify Demo](samples/demos/Markify_Demo_optimized.gif)
 
 This utility converts Microsoft Word documents (`.docx`) to Markdown (`.md`) format with high fidelity, preserving headers, tables, code blocks, and indentation.
 
