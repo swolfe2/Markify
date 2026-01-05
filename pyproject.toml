@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "markify"
+version = "1.0.0"
+description = "Convert Word documents to Markdown with zero dependencies"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Steve Wolfe", email = "swolfe2@gmail.com"}
+]
+keywords = ["markdown", "docx", "word", "converter", "documentation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Win32 (MS Windows)",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Documentation",
+    "Topic :: Office/Business :: Office Suites",
+    "Topic :: Text Processing :: Markup :: Markdown",
+]
+requires-python = ">=3.10"
+dependencies = []  # Zero dependencies - uses only stdlib!
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+    "bandit>=1.7.0",
+    "pyinstaller>=6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/swolfe2/markify"
+Repository = "https://github.com/swolfe2/markify"
+Issues = "https://github.com/swolfe2/markify/issues"
+Changelog = "https://github.com/swolfe2/markify/blob/main/CHANGELOG.md"
+
+[project.scripts]
+markify = "markify_core:main"
+
+[project.gui-scripts]
+markify-gui = "markify_app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "C4", "UP"]
+ignore = ["E501"]  # Line length handled separately
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]

@@ -1,0 +1,58 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Build artifacts (PyInstaller)
+build/
+dist/
+*.spec
+*.exe
+
+# Cache directories
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# IDE/Editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Logs
+*.log
+logs/
+
+# User preferences (stored in %APPDATA%)
+prefs.json
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Large sample files (keep the repo lean)
+# samples/*.gif
+
+# Distribution files
+*.tar.gz
+*.zip
+
+# Security scan results
+bandit*.csv
+*bandit*.csv
