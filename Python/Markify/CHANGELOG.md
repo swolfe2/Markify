@@ -6,7 +6,7 @@ Format based on Keep a Changelog (keepachangelog.com).
 
 ---
 
-## [1.2.0] - 2025-12-18
+## [1.2.0] - 2026-01-03
 
 ### ✨ Added
 - **Round-Trip Fidelity Fixes** - Code block fencing and multi-line paragraph preservation
@@ -27,7 +27,7 @@ Format based on Keep a Changelog (keepachangelog.com).
 
 ---
 
-## [1.1.0] - 2025-12-18
+## [1.1.0] - 2025-12-22
 
 ### ✨ Added
 - **App Icon** - Custom Markify logo in title bar, taskbar, and main window
@@ -52,7 +52,7 @@ Format based on Keep a Changelog (keepachangelog.com).
 
 ---
 
-## [1.0.0] - 2025-12-15
+## [1.0.0] - 2025-12-21
 
 ### ✨ Added
 - **Clipboard Mode** - Paste formatted text from Word → instant Markdown conversion
@@ -71,7 +71,7 @@ Format based on Keep a Changelog (keepachangelog.com).
 
 ---
 
-## [0.9.0] - 2025-12-01
+## [0.9.0] - 2025-12-20
 
 ### ✨ Added
 - **Code Block Detection** - Auto-detect Power Query, DAX, Python, SQL
@@ -86,10 +86,10 @@ Format based on Keep a Changelog (keepachangelog.com).
 
 ---
 
-## [0.8.0] - 2025-11-15
+## [0.8.0] - 2025-12-20
 
 ### ✨ Added
-- Initial public release
+- Initial release
 - Basic DOCX to Markdown conversion
 - GUI application with file selection
 - Header detection (Title, Heading 1-6)
