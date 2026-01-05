@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "markify"
-version = "1.2.0"
+version = "1.0.0"
 description = "Convert Word documents to Markdown with zero dependencies"
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [
-    {name = "Steve Wolfe", email = "steve.wolfe@kcc.com"}
+    {name = "Steve Wolfe", email = "swolfe2@gmail.com"}
 ]
 keywords = ["markdown", "docx", "word", "converter", "documentation"]
 classifiers = [

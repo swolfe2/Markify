@@ -6,13 +6,12 @@ from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Dict
 
 
-def configure_styles(colors: Dict[str, str]) -> None:
+def configure_styles(colors: dict[str, str]) -> None:
     """
     Configure ttk styles for the application.
-    
+
     Args:
         colors: Theme color dictionary.
     """
@@ -21,9 +20,9 @@ def configure_styles(colors: Dict[str, str]) -> None:
         style.theme_use('clam')
     except Exception:  # nosec B110
         pass  # Fallback if clam theme missing
-    
+
     c = colors  # Shorthand
-    
+
     # Frame Styles
     style.configure("TFrame", background=c["bg"])
     style.configure("Card.TFrame", background=c["bg"], relief=tk.RAISED, borderwidth=0)
@@ -37,10 +36,10 @@ def configure_styles(colors: Dict[str, str]) -> None:
     style.configure("Path.TLabel", background=c["bg"], foreground=c["muted"], font=("Consolas", 10))
 
 
-def update_widget_tree(parent: tk.Widget, old: Dict[str, str], new: Dict[str, str]) -> None:
+def update_widget_tree(parent: tk.Widget, old: dict[str, str], new: dict[str, str]) -> None:
     """
     Recursively update widget colors by matching against old theme.
-    
+
     Args:
         parent: Parent widget to update.
         old: Old theme color dictionary.
@@ -58,7 +57,7 @@ def update_widget_tree(parent: tk.Widget, old: Dict[str, str], new: Dict[str, st
                 widget.configure(bg=new["accent"])
             elif current_bg == old["border"]:
                 widget.configure(bg=new["border"])
-            
+
             # Update Foreground
             current_fg = widget.cget("fg")
             if current_fg == old["fg"]:
@@ -71,7 +70,7 @@ def update_widget_tree(parent: tk.Widget, old: Dict[str, str], new: Dict[str, st
                 widget.configure(fg=new["error"])
             elif current_fg == old["success"]:
                 widget.configure(fg=new["success"])
-            
+
             # Update Active Colors (for Buttons/Checkbuttons)
             if "activebackground" in widget.keys():
                 current_abg = widget.cget("activebackground")
@@ -81,48 +80,48 @@ def update_widget_tree(parent: tk.Widget, old: Dict[str, str], new: Dict[str, st
                     widget.configure(activebackground=new["accent"])
                 elif current_abg == old["accent_hover"]:
                     widget.configure(activebackground=new["accent_hover"])
-                    
+
             if "activeforeground" in widget.keys():
                 current_afg = widget.cget("activeforeground")
                 if current_afg == old["fg"]:
                     widget.configure(activeforeground=new["fg"])
-                    
+
             # Update Select Colors (Checkbuttons/Radiobuttons)
             if "selectcolor" in widget.keys():
                 current_sc = widget.cget("selectcolor")
                 if current_sc == old["bg"]:
                     widget.configure(selectcolor=new["bg"])
-                    
+
             # Update Entry Insert Cursor
             if "insertbackground" in widget.keys():
                 current_ib = widget.cget("insertbackground")
                 if current_ib == old["fg"]:
                     widget.configure(insertbackground=new["fg"])
                 elif current_ib == old["bg"]:
-                    widget.configure(insertbackground=new["bg"]) 
+                    widget.configure(insertbackground=new["bg"])
 
         except Exception:  # nosec B110
             # Some widgets might not have bg/fg attributes or throw errors
             pass
-        
+
         # Recurse
         if widget.winfo_children():
             update_widget_tree(widget, old, new)
 
 
-def get_button_style(colors: Dict[str, str], variant: str = "primary") -> Dict:
+def get_button_style(colors: dict[str, str], variant: str = "primary") -> dict:
     """
     Get button style kwargs for consistent styling.
-    
+
     Args:
         colors: Theme color dictionary.
         variant: "primary", "secondary", or "danger".
-    
+
     Returns:
         Dictionary of button style kwargs.
     """
     c = colors
-    
+
     if variant == "primary":
         bg = c["accent"]
         fg = c.get("accent_fg", "#ffffff")
@@ -135,7 +134,7 @@ def get_button_style(colors: Dict[str, str], variant: str = "primary") -> Dict:
     else:
         bg = c["accent"]
         fg = "#ffffff"
-    
+
     return {
         "font": ("Segoe UI", 10),
         "bg": bg,

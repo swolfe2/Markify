@@ -33,7 +33,7 @@ VSVersionInfo(
          StringStruct(u'FileDescription', u'Markify'),
          StringStruct(u'FileVersion', u'1.0.0.0'),
          StringStruct(u'InternalName', u'Markify'),
-         StringStruct(u'LegalCopyright', u'Copyright (c) 2025 Steve Wolfe'),
+         StringStruct(u'LegalCopyright', u'Copyright (c) 2026 Steve Wolfe'),
          StringStruct(u'OriginalFilename', u'Markify.exe'),
          StringStruct(u'ProductName', u'Markify'),
          StringStruct(u'ProductVersion', u'1.0.0.0')])

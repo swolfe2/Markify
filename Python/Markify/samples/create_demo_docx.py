@@ -3,7 +3,12 @@ Script to create a proper sample DOCX with correct formatting for Markify demo.
 Includes styles.xml for proper header and code formatting in Word.
 """
 import zipfile
-from xml.etree.ElementTree import Element, SubElement, tostring, register_namespace
+from xml.etree.ElementTree import (  # nosec B405 - Safe: only used for creating demo files, not parsing untrusted XML
+    Element,
+    SubElement,
+    register_namespace,
+    tostring,
+)
 
 # Word namespaces
 WORD_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
@@ -90,14 +95,14 @@ DOC_RELS_XML = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 def create_paragraph(text, style=None, bold=False, italic=False, font=None, size=None):
     """Create a Word paragraph element."""
     p = Element(f'{{{WORD_NS}}}p')
-    
+
     pPr = SubElement(p, f'{{{WORD_NS}}}pPr')
     if style:
         pStyle = SubElement(pPr, f'{{{WORD_NS}}}pStyle')
         pStyle.set(f'{{{WORD_NS}}}val', style)
-    
+
     r = SubElement(p, f'{{{WORD_NS}}}r')
-    
+
     rPr = SubElement(r, f'{{{WORD_NS}}}rPr')
     if bold:
         SubElement(rPr, f'{{{WORD_NS}}}b')
@@ -110,18 +115,18 @@ def create_paragraph(text, style=None, bold=False, italic=False, font=None, size
     if size:
         sz = SubElement(rPr, f'{{{WORD_NS}}}sz')
         sz.set(f'{{{WORD_NS}}}val', str(size))
-    
+
     t = SubElement(r, f'{{{WORD_NS}}}t')
     t.set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
     t.text = text
-    
+
     return p
 
 
 def create_table(rows):
     """Create a Word table with the given rows (list of lists)."""
     tbl = Element(f'{{{WORD_NS}}}tbl')
-    
+
     # Table properties with borders
     tblPr = SubElement(tbl, f'{{{WORD_NS}}}tblPr')
     tblStyle = SubElement(tblPr, f'{{{WORD_NS}}}tblStyle')
@@ -136,14 +141,14 @@ def create_table(rows):
         b.set(f'{{{WORD_NS}}}sz', '4')
         b.set(f'{{{WORD_NS}}}space', '0')
         b.set(f'{{{WORD_NS}}}color', '000000')
-    
+
     # Table grid
     tblGrid = SubElement(tbl, f'{{{WORD_NS}}}tblGrid')
     if rows:
         for _ in rows[0]:
             gc = SubElement(tblGrid, f'{{{WORD_NS}}}gridCol')
             gc.set(f'{{{WORD_NS}}}w', '2000')
-    
+
     # Rows
     for i, row_data in enumerate(rows):
         tr = SubElement(tbl, f'{{{WORD_NS}}}tr')
@@ -168,34 +173,34 @@ def create_table(rows):
                 SubElement(rPr, f'{{{WORD_NS}}}b')
             t = SubElement(r, f'{{{WORD_NS}}}t')
             t.text = cell_text
-    
+
     return tbl
 
 
 def main():
     output_path = r'c:\Users\U15405\OneDrive - Kimberly-Clark\Desktop\Code\Python\Markify\samples\Markify_Demo.docx'
-    
+
     # Create document content
     doc = Element(f'{{{WORD_NS}}}document')
     body = SubElement(doc, f'{{{WORD_NS}}}body')
-    
+
     # Title
     body.append(create_paragraph('Markify Demo Document', 'Heading1'))
     body.append(create_paragraph(''))
     body.append(create_paragraph('This document showcases Markify\'s conversion capabilities.'))
     body.append(create_paragraph(''))
-    
+
     # Section 1: Headers
     body.append(create_paragraph('1. Header Support', 'Heading1'))
     body.append(create_paragraph('1.1 Sub-header (Level 2)', 'Heading2'))
     body.append(create_paragraph('Markify detects Word heading styles and converts them to Markdown headers.'))
     body.append(create_paragraph(''))
-    
+
     # Section 2: Formatting
     body.append(create_paragraph('2. Formatting & Links', 'Heading1'))
     body.append(create_paragraph('Text can be bold or italic. Visit https://github.com for more info.'))
     body.append(create_paragraph(''))
-    
+
     # Section 3: Table
     body.append(create_paragraph('3. Sample Table', 'Heading1'))
     body.append(create_paragraph(''))
@@ -206,7 +211,7 @@ def main():
         ['003', 'Carol', 'Designer']
     ]))
     body.append(create_paragraph(''))
-    
+
     # Section 4: Power Query
     body.append(create_paragraph('4. Power Query (M)', 'Heading1'))
     body.append(create_paragraph(''))
@@ -216,13 +221,13 @@ def main():
     body.append(create_paragraph('in', 'Code', font='Consolas'))
     body.append(create_paragraph('    Output', 'Code', font='Consolas'))
     body.append(create_paragraph(''))
-    
+
     # Section 5: DAX
     body.append(create_paragraph('5. DAX Example', 'Heading1'))
     body.append(create_paragraph(''))
     body.append(create_paragraph('Revenue := SUMX(Sales, Sales[Qty] * Sales[Price])', 'Code', font='Consolas'))
     body.append(create_paragraph(''))
-    
+
     # Section 6: Python
     body.append(create_paragraph('6. Python Example', 'Heading1'))
     body.append(create_paragraph(''))
@@ -230,7 +235,7 @@ def main():
     body.append(create_paragraph('', 'Code', font='Consolas'))
     body.append(create_paragraph('def load_data(path):', 'Code', font='Consolas'))
     body.append(create_paragraph('    return pd.read_csv(path)', 'Code', font='Consolas'))
-    
+
     # Section properties
     sectPr = SubElement(body, f'{{{WORD_NS}}}sectPr')
     pgSz = SubElement(sectPr, f'{{{WORD_NS}}}pgSz')
@@ -241,11 +246,11 @@ def main():
     pgMar.set(f'{{{WORD_NS}}}right', '1440')
     pgMar.set(f'{{{WORD_NS}}}bottom', '1440')
     pgMar.set(f'{{{WORD_NS}}}left', '1440')
-    
+
     # Build document XML
     xml_content = tostring(doc, encoding='unicode')
     doc_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' + xml_content
-    
+
     # Create the DOCX file
     with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as docx:
         docx.writestr('[Content_Types].xml', CONTENT_TYPES_XML)
@@ -253,8 +258,8 @@ def main():
         docx.writestr('word/_rels/document.xml.rels', DOC_RELS_XML)
         docx.writestr('word/styles.xml', STYLES_XML)
         docx.writestr('word/document.xml', doc_xml.encode('utf-8'))
-    
-    print(f'Created Markify_Demo.docx with proper formatting at:')
+
+    print('Created Markify_Demo.docx with proper formatting at:')
     print(f'  {output_path}')
     print()
     print('Contents:')

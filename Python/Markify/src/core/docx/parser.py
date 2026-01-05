@@ -6,8 +6,7 @@ from __future__ import annotations
 
 import re
 import xml.etree.ElementTree as ET  # nosec B405
-from typing import Callable, Dict, Optional
-
+from collections.abc import Callable
 
 # XML Namespaces for Word documents
 NS = {
@@ -29,32 +28,32 @@ HEADER_EMOJIS = ['🔐', '✅', '🔄', '🔑', '🧭', '📐', '📚']
 def get_paragraph_text(
     para: ET.Element,
     include_formatting: bool = False,
-    hyperlink_map: Optional[Dict[str, str]] = None,
-    image_handler: Optional[Callable[[str], Optional[str]]] = None
+    hyperlink_map: dict[str, str] | None = None,
+    image_handler: Callable[[str], str | None] | None = None
 ) -> str:
     """Extract text from a paragraph, optionally with Markdown formatting and hyperlinks."""
     if hyperlink_map is None:
         hyperlink_map = {}
-    
+
     text = ""
-    
+
     # Process all direct children of paragraph to handle both runs and hyperlinks
     for child in para:
         tag = child.tag.replace('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}', 'w:')
-        
+
         if tag == 'w:hyperlink':
             # Check for internal anchor (cross-reference) first
             anchor = child.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}anchor', '')
-            
+
             # Extract hyperlink URL from r:id attribute (for external links)
             r_id = child.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id', '')
             url = hyperlink_map.get(r_id, '')
-            
+
             # Get the text inside the hyperlink
             link_text = ""
             for run in child.findall('.//w:r', NS):
                 link_text += _extract_run_text(run, image_handler=image_handler)
-            
+
             # Format as Markdown link
             if link_text.strip():
                 if anchor:
@@ -65,18 +64,18 @@ def get_paragraph_text(
                     text += f"[{link_text.strip()}]({url})"
                 else:
                     text += link_text  # No URL or anchor found, just use text
-                
+
         elif tag == 'w:r':
             run_text = _extract_run_text(child, include_formatting, image_handler=image_handler)
             text += run_text
-    
+
     return text
 
 
 def _extract_run_text(
     run: ET.Element,
     include_formatting: bool = False,
-    image_handler: Optional[Callable[[str], Optional[str]]] = None
+    image_handler: Callable[[str], str | None] | None = None
 ) -> str:
     """Extract text from a single run element with optional formatting."""
     is_bold = False
@@ -85,7 +84,7 @@ def _extract_run_text(
     if rPr is not None:
         is_bold = rPr.find('w:b', NS) is not None
         is_italic = rPr.find('w:i', NS) is not None
-    
+
     run_text = ""
     for child in run:
         tag = child.tag.replace('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}', 'w:')
@@ -106,14 +105,14 @@ def _extract_run_text(
                     img_md = image_handler(embed_id)
                     if img_md:
                         run_text += f"\n{img_md}\n"
-    
+
     # Apply formatting if requested and there's text
     if include_formatting and run_text.strip():
         if is_bold:
             run_text = f"**{run_text}**"
         if is_italic:
             run_text = f"*{run_text}*"
-    
+
     return run_text
 
 
@@ -154,7 +153,7 @@ def is_list_item(para: ET.Element) -> bool:
     return False
 
 
-def get_list_type(para: ET.Element) -> Optional[str]:
+def get_list_type(para: ET.Element) -> str | None:
     """Return 'bullet', 'number', or None based on paragraph list style."""
     pPr = para.find('w:pPr', NS)
     if pPr is not None:
@@ -183,7 +182,7 @@ def get_list_indent_level(para: ET.Element) -> int:
             if ilvl is not None:
                 level = ilvl.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val', '0')
                 return int(level)
-        
+
         # Fallback: check style name for level number (e.g., "List Bullet 2" -> level 1)
         pStyle = pPr.find('w:pStyle', NS)
         if pStyle is not None:
@@ -203,7 +202,7 @@ def get_list_indent_level(para: ET.Element) -> int:
 def detect_header_level(text: str) -> int:
     """Detect header level based on emoji patterns and content."""
     text_stripped = text.strip()
-    
+
     # Check for main header emoji patterns
     for emoji in HEADER_EMOJIS:
         if text_stripped.startswith(emoji):
@@ -212,11 +211,11 @@ def detect_header_level(text: str) -> int:
             if re.match(r'^\d+\.', rest):
                 return 2  # Sub-section
             return 1  # Main section
-    
+
     # Check for numbered headers like "1. Create & Store..."
     if re.match(r'^\d+\.\s+[A-Z]', text_stripped):
         return 3
-    
+
     return 0  # Not a header
 
 
@@ -224,7 +223,7 @@ def get_heading_style_level(para: ET.Element) -> int:
     """Detect heading level from Word styles using configurable mappings."""
     # Import here to avoid circular imports
     from config import get_heading_level_for_style
-    
+
     style_name = get_paragraph_style(para)
     if style_name:
         return get_heading_level_for_style(style_name)

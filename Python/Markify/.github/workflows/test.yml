@@ -27,7 +27,7 @@ jobs:
       run: ruff check --output-format=github .
       
     - name: Security check with Bandit
-      run: bandit -r . -x ./dist,./build
+      run: bandit -r . -x ./dist,./build,./tests
 
   functional-tests:
     name: Functional Tests (Windows)

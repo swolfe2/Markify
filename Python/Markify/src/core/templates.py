@@ -8,8 +8,7 @@ from __future__ import annotations
 import os
 import re
 from datetime import datetime
-from typing import Any, Dict, Optional
-
+from typing import Any
 
 # Default template that wraps converted content
 DEFAULT_TEMPLATE = """{{content}}"""
@@ -25,10 +24,10 @@ source: "{{filename}}"
 """
 
 
-def get_available_variables() -> Dict[str, str]:
+def get_available_variables() -> dict[str, str]:
     """
     Get a dictionary of available template variables and their descriptions.
-    
+
     Returns:
         Dict mapping variable names to descriptions
     """
@@ -48,27 +47,27 @@ def get_available_variables() -> Dict[str, str]:
 
 
 def build_context(
-    filename: Optional[str] = None,
-    title: Optional[str] = None,
+    filename: str | None = None,
+    title: str | None = None,
     content: str = "",
-    author: Optional[str] = None,
-    custom_vars: Optional[Dict[str, Any]] = None
-) -> Dict[str, str]:
+    author: str | None = None,
+    custom_vars: dict[str, Any] | None = None
+) -> dict[str, str]:
     """
     Build a template context dictionary with all available variables.
-    
+
     Args:
         filename: Original filename (with or without path)
         title: Document title (auto-derived from filename if not provided)
         content: The markdown content
         author: Author name
         custom_vars: Additional custom variables
-    
+
     Returns:
         Dictionary with all template variables populated
     """
     now = datetime.now()
-    
+
     # Extract filename parts
     if filename:
         basename = os.path.basename(filename)
@@ -76,11 +75,11 @@ def build_context(
     else:
         basename = ""
         name_no_ext = ""
-    
+
     # Auto-derive title from filename if not provided
     if title is None:
         title = name_no_ext.replace("_", " ").replace("-", " ").title()
-    
+
     context = {
         "{{filename}}": name_no_ext,
         "{{filename_ext}}": basename,
@@ -94,7 +93,7 @@ def build_context(
         "{{author}}": author or "",
         "{{content}}": content,
     }
-    
+
     # Add custom variables
     if custom_vars:
         for key, value in custom_vars.items():
@@ -102,45 +101,45 @@ def build_context(
             if not key.startswith("{{"):
                 key = "{{" + key + "}}"
             context[key] = str(value)
-    
+
     return context
 
 
 def apply_template(
     template: str,
-    context: Dict[str, str]
+    context: dict[str, str]
 ) -> str:
     """
     Apply a template by substituting variables with context values.
-    
+
     Args:
         template: Template string with {{variable}} placeholders
         context: Dictionary mapping {{variable}} to values
-    
+
     Returns:
         Processed string with variables substituted
     """
     result = template
-    
+
     for var, value in context.items():
         result = result.replace(var, value)
-    
+
     return result
 
 
 def process_with_template(
     content: str,
-    template: Optional[str] = None,
-    filename: Optional[str] = None,
-    title: Optional[str] = None,
-    author: Optional[str] = None,
-    custom_vars: Optional[Dict[str, Any]] = None
+    template: str | None = None,
+    filename: str | None = None,
+    title: str | None = None,
+    author: str | None = None,
+    custom_vars: dict[str, Any] | None = None
 ) -> str:
     """
     Process content through a template with automatic context building.
-    
+
     This is the main entry point for template processing.
-    
+
     Args:
         content: The markdown content to wrap
         template: Template string (uses DEFAULT_TEMPLATE if not provided)
@@ -148,13 +147,13 @@ def process_with_template(
         title: Document title (auto-derived if not provided)
         author: Author name
         custom_vars: Additional custom variables
-    
+
     Returns:
         Processed content with template applied
     """
     if template is None:
         template = DEFAULT_TEMPLATE
-    
+
     context = build_context(
         filename=filename,
         title=title,
@@ -162,25 +161,25 @@ def process_with_template(
         author=author,
         custom_vars=custom_vars
     )
-    
+
     return apply_template(template, context)
 
 
-def load_template(path: str) -> Optional[str]:
+def load_template(path: str) -> str | None:
     """
     Load a template from a file.
-    
+
     Args:
         path: Path to the template file
-    
+
     Returns:
         Template string, or None if file doesn't exist
     """
     if not os.path.exists(path):
         return None
-    
+
     try:
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, encoding='utf-8') as f:
             return f.read()
     except Exception:
         return None
@@ -189,11 +188,11 @@ def load_template(path: str) -> Optional[str]:
 def save_template(path: str, template: str) -> bool:
     """
     Save a template to a file.
-    
+
     Args:
         path: Path where to save the template
         template: Template content
-    
+
     Returns:
         True if successful, False otherwise
     """
@@ -220,10 +219,10 @@ def get_frontmatter_template() -> str:
 def extract_variables(template: str) -> list:
     """
     Extract all variable names from a template.
-    
+
     Args:
         template: Template string
-    
+
     Returns:
         List of variable names (without {{ }})
     """

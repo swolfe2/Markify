@@ -6,14 +6,14 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Dict, List, Any
+from typing import Any
 
 from logging_config import get_logger
 
 logger = get_logger("config")
 
 # Default patterns - these match current hardcoded values in detectors.py
-DEFAULT_PATTERNS: Dict[str, List[str]] = {
+DEFAULT_PATTERNS: dict[str, list[str]] = {
     "dax_keywords": [
         "EVALUATE", "DEFINE", "MEASURE", "VAR", "RETURN",
         "CALCULATE", "CALCULATETABLE", "FILTER", "ALL", "ALLEXCEPT",
@@ -64,7 +64,7 @@ DEFAULT_PATTERNS: Dict[str, List[str]] = {
 }
 
 # Default Word style to Markdown element mappings
-DEFAULT_STYLE_MAPPINGS: Dict[str, Any] = {
+DEFAULT_STYLE_MAPPINGS: dict[str, Any] = {
     # Map Word heading styles to Markdown heading levels
     "heading_styles": {
         "Title": 1,
@@ -89,13 +89,13 @@ def get_config_path() -> str:
     return os.path.join(config_dir, "detection_patterns.json")
 
 
-def load_patterns() -> Dict[str, List[str]]:
+def load_patterns() -> dict[str, list[str]]:
     """Load detection patterns from config file, or return defaults if not found."""
     config_path = get_config_path()
-    
+
     if os.path.exists(config_path):
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 patterns = json.load(f)
                 logger.info(f"Loaded patterns from {config_path}")
                 # Merge with defaults for any missing keys
@@ -103,30 +103,30 @@ def load_patterns() -> Dict[str, List[str]]:
                     if key not in patterns:
                         patterns[key] = DEFAULT_PATTERNS[key]
                 return patterns
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.warning(f"Failed to load patterns: {e}, using defaults")
             return DEFAULT_PATTERNS.copy()
-    
+
     return DEFAULT_PATTERNS.copy()
 
 
-def save_patterns(patterns: Dict[str, List[str]]) -> bool:
+def save_patterns(patterns: dict[str, list[str]]) -> bool:
     """Save detection patterns to config file."""
     config_path = get_config_path()
     config_dir = os.path.dirname(config_path)
-    
+
     try:
         os.makedirs(config_dir, exist_ok=True)
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(patterns, f, indent=2)
         logger.info(f"Saved patterns to {config_path}")
         return True
-    except IOError as e:
+    except OSError as e:
         logger.error(f"Failed to save patterns: {e}")
         return False
 
 
-def reset_to_defaults() -> Dict[str, List[str]]:
+def reset_to_defaults() -> dict[str, list[str]]:
     """Reset patterns to defaults and save."""
     patterns = DEFAULT_PATTERNS.copy()
     save_patterns(patterns)
@@ -142,10 +142,10 @@ def ensure_config_exists() -> str:
 
 
 # Global patterns cache
-_patterns_cache: Dict[str, List[str]] = {}
+_patterns_cache: dict[str, list[str]] = {}
 
 
-def get_patterns() -> Dict[str, List[str]]:
+def get_patterns() -> dict[str, list[str]]:
     """Get cached patterns, loading from file if needed."""
     global _patterns_cache
     if not _patterns_cache:
@@ -153,7 +153,7 @@ def get_patterns() -> Dict[str, List[str]]:
     return _patterns_cache
 
 
-def reload_patterns() -> Dict[str, List[str]]:
+def reload_patterns() -> dict[str, list[str]]:
     """Force reload patterns from file."""
     global _patterns_cache
     _patterns_cache = load_patterns()
@@ -171,13 +171,13 @@ def get_style_config_path() -> str:
     return os.path.join(config_dir, "style_mappings.json")
 
 
-def load_style_mappings() -> Dict[str, Any]:
+def load_style_mappings() -> dict[str, Any]:
     """Load style mappings from config file, or return defaults."""
     config_path = get_style_config_path()
-    
+
     if os.path.exists(config_path):
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 mappings = json.load(f)
                 logger.info(f"Loaded style mappings from {config_path}")
                 # Merge with defaults for any missing keys
@@ -185,34 +185,34 @@ def load_style_mappings() -> Dict[str, Any]:
                     if key not in mappings:
                         mappings[key] = DEFAULT_STYLE_MAPPINGS[key]
                 return mappings
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.warning(f"Failed to load style mappings: {e}, using defaults")
             return DEFAULT_STYLE_MAPPINGS.copy()
-    
+
     return DEFAULT_STYLE_MAPPINGS.copy()
 
 
-def save_style_mappings(mappings: Dict[str, Any]) -> bool:
+def save_style_mappings(mappings: dict[str, Any]) -> bool:
     """Save style mappings to config file."""
     config_path = get_style_config_path()
     config_dir = os.path.dirname(config_path)
-    
+
     try:
         os.makedirs(config_dir, exist_ok=True)
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(mappings, f, indent=2)
         logger.info(f"Saved style mappings to {config_path}")
         return True
-    except IOError as e:
+    except OSError as e:
         logger.error(f"Failed to save style mappings: {e}")
         return False
 
 
 # Global style mappings cache
-_style_mappings_cache: Dict[str, Any] = {}
+_style_mappings_cache: dict[str, Any] = {}
 
 
-def get_style_mappings() -> Dict[str, Any]:
+def get_style_mappings() -> dict[str, Any]:
     """Get cached style mappings, loading from file if needed."""
     global _style_mappings_cache
     if not _style_mappings_cache:

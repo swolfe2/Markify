@@ -1,20 +1,16 @@
-PBIX Purge Run: 2025-12-12T10:00:07
+PBIX Purge Run: 2026-01-02T15:09:09
 Target folder: C:\Users\U15405\OneDrive - Kimberly-Clark\Downloads
 Mode: SAFE DELETE (Recycle Bin)
 
-Total .pbix files deleted: 11
+Total .pbix files deleted: 10
 Deleted files:
-- All Outlet Central Export Report.pbix
-- CRISP Dashboard - Copy (1).pbix
-- CRISP Dashboard - Copy.pbix
-- Global Email Marketing Report.pbix
-- GR&E Analytical Sciences - Managers Viewer.pbix
-- OSM Carrier Latest.pbix
+- Acompanhamento JBP.pbix
+- Adhoc Version - Category Walmart Selfservice Detail Example.pbix
+- Adhoc Version - Category Walmart Selfservice Detail.pbix
+- MIA-01-SALES_TRACKING.pbix
+- MIA-10-SOCIO.pbix
+- PBI Pro License Analysis.pbix
 - PBI Usage Report.pbix
-- PBI Workspace AD Group.pbix
 - Power BI Scheduled Refresh Analysis.pbix
-- Reconciliation GMR Anaplan HFM.pbix
-- Tracking_LATAM.pbix
-
-Errors:
-- Error deleting Adhoc Version - Category Walmart Selfservice Detail.pbix: [WinError -2144927705] OLE error 0x80270027: 'C:\\Users\\U15405\\OneDrive - Kimberly-Clark\\Downloads\\Adhoc Version - Category Walmart Selfservice Detail.pbix'
+- Power BI Semantic Models Audit Report.pbix
+- Radar Sell Out.pbix

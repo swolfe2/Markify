@@ -4,12 +4,9 @@ Industry-standard color palettes for dark/light modes.
 """
 from __future__ import annotations
 
-from typing import Dict, List
-
-
 # Theme color definitions
 # Each theme must define: bg, fg, accent, accent_hover, secondary_bg, error, success, warning
-THEMES: Dict[str, Dict[str, str]] = {
+THEMES: dict[str, dict[str, str]] = {
     "VS Code Dark": {
         "bg": "#1e1e1e",
         "fg": "#d4d4d4",
@@ -107,23 +104,23 @@ THEMES: Dict[str, Dict[str, str]] = {
 DEFAULT_THEME = "VS Code Dark"
 
 
-def get_theme(name: str) -> Dict[str, str]:
+def get_theme(name: str) -> dict[str, str]:
     """
     Get a theme by name.
-    
+
     Args:
         name: Theme name
-    
+
     Returns:
         Theme color dictionary, or default theme if not found
     """
     return THEMES.get(name, THEMES[DEFAULT_THEME])
 
 
-def get_theme_names() -> List[str]:
+def get_theme_names() -> list[str]:
     """
     Get list of available theme names.
-    
+
     Returns:
         List of theme names in display order
     """

@@ -14,7 +14,7 @@ We take security seriously. If you discover a security vulnerability in Markify,
 ### How to Report
 
 1. **Do NOT** open a public issue for security vulnerabilities
-2. Email the maintainer directly at: **steve.wolfe@kcc.com**
+2. Email the maintainer directly at: **swolfe2@gmail.com**
 3. Include:
    - Description of the vulnerability
    - Steps to reproduce

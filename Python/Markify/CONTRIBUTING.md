@@ -9,7 +9,7 @@ Thank you for your interest in contributing! This document provides guidelines f
 1. **Fork** the repository
 2. **Clone** your fork locally:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/code-examples.git
+   git clone https://github.com/YOUR_USERNAME/Markify.git
    ```
 3. **Create a branch** for your feature or fix:
    ```bash
@@ -117,4 +117,4 @@ When reporting bugs, please include:
 
 ## Questions?
 
-Contact: steve.wolfe@kcc.com
+Contact: swolfe2@gmail.com

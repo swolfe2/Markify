@@ -5,9 +5,8 @@ Zero dependencies - uses only Python standard library.
 from __future__ import annotations
 
 import ctypes
-from ctypes import wintypes
-from typing import Optional
 import re
+from ctypes import wintypes
 
 from logging_config import get_logger
 
@@ -59,46 +58,46 @@ def _get_cf_html() -> int:
     return CF_HTML
 
 
-def get_clipboard_html() -> Optional[str]:
+def get_clipboard_html() -> str | None:
     """
     Get HTML content from Windows clipboard.
-    
+
     Returns:
         HTML string if available, None otherwise.
     """
     cf_html = _get_cf_html()
-    
+
     if not OpenClipboard(None):
         logger.warning("Could not open clipboard")
         return None
-    
+
     try:
         handle = GetClipboardData(cf_html)
         if not handle:
             return None
-        
+
         ptr = GlobalLock(handle)
         if not ptr:
             return None
-        
+
         try:
             size = GlobalSize(handle)
             # Read raw bytes
             raw_data = ctypes.string_at(ptr, size)
-            
+
             # CF_HTML is UTF-8 encoded with a header
             try:
                 text = raw_data.decode('utf-8', errors='ignore')
             except Exception:
                 text = raw_data.decode('latin-1', errors='ignore')
-            
+
             # Extract just the HTML fragment
             html = _extract_html_fragment(text)
             return html
-            
+
         finally:
             GlobalUnlock(handle)
-            
+
     finally:
         CloseClipboard()
 
@@ -106,62 +105,62 @@ def get_clipboard_html() -> Optional[str]:
 def _extract_html_fragment(cf_html_data: str) -> str:
     """
     Extract the HTML fragment from CF_HTML format.
-    
+
     CF_HTML format includes a header like:
     Version:0.9
     StartHTML:00000097
     EndHTML:00000170
     StartFragment:00000131
     EndFragment:00000144
-    
+
     We want the content between StartFragment and EndFragment.
     """
     # Try to find fragment markers
     start_frag_match = re.search(r'StartFragment:(\d+)', cf_html_data)
     end_frag_match = re.search(r'EndFragment:(\d+)', cf_html_data)
-    
+
     if start_frag_match and end_frag_match:
         start = int(start_frag_match.group(1))
         end = int(end_frag_match.group(1))
-        
+
         # Get the raw bytes version to slice correctly
         raw_bytes = cf_html_data.encode('utf-8', errors='ignore')
         if start < len(raw_bytes) and end <= len(raw_bytes):
             fragment = raw_bytes[start:end].decode('utf-8', errors='ignore')
             return fragment
-    
+
     # Fallback: try to find HTML content between markers
     start_match = re.search(r'<!--StartFragment-->', cf_html_data)
     end_match = re.search(r'<!--EndFragment-->', cf_html_data)
-    
+
     if start_match and end_match:
         start = start_match.end()
         end = end_match.start()
         return cf_html_data[start:end]
-    
+
     # Last resort: return everything after the header
     html_start = cf_html_data.find('<html')
     if html_start == -1:
         html_start = cf_html_data.find('<HTML')
     if html_start == -1:
         html_start = cf_html_data.find('<')
-    
+
     if html_start != -1:
         return cf_html_data[html_start:]
-    
+
     return cf_html_data
 
 
-def get_clipboard_text() -> Optional[str]:
+def get_clipboard_text() -> str | None:
     """
     Get plain text from Windows clipboard.
-    
+
     Returns:
         Text string if available, None otherwise.
     """
     if not OpenClipboard(None):
         return None
-    
+
     try:
         # Try Unicode first
         handle = GetClipboardData(CF_UNICODETEXT)
@@ -174,7 +173,7 @@ def get_clipboard_text() -> Optional[str]:
                     return text
                 finally:
                     GlobalUnlock(handle)
-        
+
         # Fall back to ANSI
         handle = GetClipboardData(CF_TEXT)
         if handle:
@@ -185,8 +184,8 @@ def get_clipboard_text() -> Optional[str]:
                     return text
                 finally:
                     GlobalUnlock(handle)
-        
+
         return None
-        
+
     finally:
         CloseClipboard()

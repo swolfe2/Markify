@@ -52,3 +52,7 @@ desktop.ini
 # Distribution files
 *.tar.gz
 *.zip
+
+# Security scan results
+bandit*.csv
+*bandit*.csv

@@ -24,7 +24,9 @@ try:
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
         "com.markify.converter"
     )
-except Exception:
+except (
+    Exception
+):  # nosec B110 - Safe: Windows-specific feature, gracefully degrade if not available
     pass  # Not on Windows or failed - ignore
 
 # Initialize logging
@@ -38,13 +40,13 @@ def resource_path(relative_path: str) -> str:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = sys._MEIPASS
     except Exception:
-        # In dev mode, we are now in src/, so we might need to look up one level
-        # if the resource is in the root (like README.md)
-        base_path = os.path.dirname(os.path.abspath(__file__))
+        # In dev mode, we are in src/, so look up one level to project root
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        base_path = os.path.dirname(script_dir)  # Go from src/ to project root
 
     path = os.path.join(base_path, relative_path)
     if not os.path.exists(path):
-        # Try parent directory (for README in root while script is in src)
+        # Try parent directory as fallback
         parent_path = os.path.join(os.path.dirname(base_path), relative_path)
         if os.path.exists(parent_path):
             return parent_path
@@ -58,7 +60,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, resource_path("."))
 from markify_core import get_docx_content  # noqa: E402
 from markify_prefs import Preferences  # noqa: E402
-from xlsx_core import get_xlsx_content, get_xlsx_sheet_names  # noqa: E402
+from xlsx_core import get_xlsx_content  # noqa: E402
 
 # Import Mermaid utilities for adding visualization links
 try:
@@ -89,26 +91,28 @@ try:
     from core.toc_generator import insert_toc
 except ImportError:
     insert_toc = None
-try:
 
+# Error classification for user-friendly messages
+from core.error_types import classify_docx_error, classify_xlsx_error  # noqa: E402
+from themes import get_default_theme, get_theme, get_theme_names  # noqa: E402
+
+try:
     import win_dnd  # noqa: E402
 except ImportError:
     win_dnd = None  # Should not happen in dev, but safety for build
-
-from themes import get_default_theme, get_theme, get_theme_names
-from ui.clipboard_mode import show_clipboard_mode
-from ui.components.markdown_viewer import MarkdownViewer
-from ui.dialogs.diff_viewer import show_diff_viewer
-from ui.dialogs.error import show_error_dialog
-from ui.dialogs.options import OptionsDialog
-from ui.dialogs.preview import show_preview_dialog
-from ui.dialogs.shortcuts_dialog import show_shortcuts_dialog
-from ui.dialogs.success import show_success_dialog
-from ui.dialogs.watch import show_watch_mode
-from ui.styles import configure_styles, update_widget_tree
-
-# Error classification for user-friendly messages
-from core.error_types import classify_docx_error, classify_xlsx_error
+from ui.app.components.action_buttons import create_action_buttons  # noqa: E402
+from ui.app.components.header import create_header  # noqa: E402
+from ui.app.components.mode_buttons import create_mode_buttons  # noqa: E402
+from ui.app.components.recent_files import refresh_recent_files  # noqa: E402
+from ui.clipboard_mode import show_clipboard_mode  # noqa: E402
+from ui.components.markdown_viewer import MarkdownViewer  # noqa: E402
+from ui.dialogs.diff_viewer import show_diff_viewer  # noqa: E402
+from ui.dialogs.error import show_error_dialog  # noqa: E402
+from ui.dialogs.options import OptionsDialog  # noqa: E402
+from ui.dialogs.preview import show_preview_dialog  # noqa: E402
+from ui.dialogs.shortcuts_dialog import show_shortcuts_dialog  # noqa: E402
+from ui.dialogs.success import show_success_dialog  # noqa: E402
+from ui.styles import configure_styles, update_widget_tree  # noqa: E402
 
 # Theme colors will be loaded dynamically based on user preference
 # These are module-level defaults that get updated when the app loads
@@ -139,16 +143,19 @@ class ConverterApp:
         # Set App Icon (load .ico from resources folder for Windows taskbar)
         self.icon_path = None
         try:
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            icon_path = os.path.join(
-                os.path.dirname(script_dir), "resources", "markify_icon.ico"
-            )
+            # Use resource_path to handle both dev and PyInstaller modes
+            icon_path = resource_path("resources/markify_icon.ico")
 
             if os.path.exists(icon_path):
                 self.icon_path = icon_path
+                # Set icon for window and taskbar (Windows uses .ico files)
                 self.root.iconbitmap(icon_path)
-        except Exception:  # nosec B110
-            pass  # Fallback to default if something fails
+                logger.debug(f"App icon loaded from: {icon_path}")
+            else:
+                logger.warning(f"Icon file not found at: {icon_path}")
+        except Exception as e:  # nosec B110
+            logger.warning(f"Failed to load icon: {e}")
+            # Fallback to default if something fails
 
         # Keyboard Bindings
         self.root.bind("<F1>", lambda e: self.open_shortcuts())
@@ -164,121 +171,17 @@ class ConverterApp:
         self.main_frame = ttk.Frame(root, padding="40")
         self.main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Header Row: Icon + Title + Version side by side
-        header_frame = tk.Frame(self.main_frame, bg=c["bg"])
-        header_frame.pack(pady=(0, 5))
+        # Header component (icon, title, version, links)
+        create_header(self.main_frame, self.colors, self.open_changelog)
 
-        # App Icon (PNG) - shown to left of title
-        try:
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            png_path = os.path.join(
-                os.path.dirname(script_dir), "resources", "markify_icon.png"
-            )
-            if os.path.exists(png_path):
-                self.app_icon_image = tk.PhotoImage(file=png_path)
-                # Subsample to make it ~40px (smaller for inline with title)
-                self.app_icon_image = self.app_icon_image.subsample(3, 3)
-                icon_label = tk.Label(header_frame, image=self.app_icon_image, bg=c["bg"])
-                icon_label.pack(side=tk.LEFT, padx=(0, 10))
-        except Exception:
-            pass  # If icon fails, just skip it
-
-        # Title (to right of icon)
-        title_label = ttk.Label(header_frame, text="Markify", style="Title.TLabel")
-        title_label.pack(side=tk.LEFT)
-
-        # Version (to right of title)
-        ver_label = ttk.Label(header_frame, text="v1.0", style="Sub.TLabel")
-        ver_label.pack(side=tk.LEFT, padx=(10, 0))
-
-        # GitHub Link
-        github_link = tk.Label(
+        # Action buttons component (Convert, Options, Help)
+        self.convert_btn, self.options_btn, self.help_btn = create_action_buttons(
             self.main_frame,
-            text="github.com/swolfe2/code-examples",
-            bg=self.colors["bg"],
-            fg=self.colors["accent"],
-            font=("Segoe UI", 9, "underline"),
-            cursor="hand2",
+            self.colors,
+            self.select_file,
+            self.toggle_options,
+            self.open_help,
         )
-        github_link.pack(pady=(0, 5))
-        github_link.bind(
-            "<Button-1>",
-            lambda e: subprocess.Popen(
-                ["start", "https://github.com/swolfe2/code-examples"], shell=True
-            ),
-        )  # nosec B602 B607
-
-        # What's New link (clickable text)
-        whatsnew_link = tk.Label(
-            self.main_frame,
-            text="📋 What's New in v1.0",
-            bg=self.colors["bg"],
-            fg=self.colors["muted"],
-            font=("Segoe UI", 9, "underline"),
-            cursor="hand2",
-        )
-        whatsnew_link.pack(pady=(0, 15))
-        whatsnew_link.bind("<Button-1>", lambda e: self.open_changelog())
-
-        # === ACTION ROW: Main Button (left) + Options/Help (right) ===
-        action_row = tk.Frame(self.main_frame, bg=c["bg"])
-        action_row.pack(fill=tk.X, pady=(0, 10))
-        action_row.columnconfigure(0, weight=1)  # Main button expands
-        action_row.columnconfigure(1, weight=0)  # Buttons fixed width
-        action_row.rowconfigure(0, weight=1)
-
-        # Main Convert Button (left, takes most space)
-        self.convert_btn = tk.Button(
-            action_row,
-            text="📂  SELECT FILE TO CONVERT",
-            font=("Segoe UI", 12, "bold"),
-            bg=self.colors["accent"],
-            fg=self.colors.get("accent_fg", "#ffffff"),
-            activebackground=self.colors["accent_hover"],
-            activeforeground=self.colors.get("accent_fg", "#ffffff"),
-            relief=tk.FLAT,
-            cursor="hand2",
-            command=self.select_file,
-            pady=10,
-        )
-        self.convert_btn.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
-
-        # Buttons Frame (right side, stacked vertically using grid for equal sizing)
-        btn_frame = tk.Frame(action_row, bg=c["bg"])
-        btn_frame.grid(row=0, column=1, sticky="nsew")
-        btn_frame.rowconfigure(0, weight=1)
-        btn_frame.rowconfigure(1, weight=1)
-        btn_frame.columnconfigure(0, weight=1)
-
-        self.options_btn = tk.Button(
-            btn_frame,
-            text="⚙️ Options",
-            font=("Segoe UI", 9),
-            bg=c["secondary_bg"],
-            fg=c["fg"],
-            activebackground=c["border"],
-            activeforeground=c["fg"],
-            relief=tk.FLAT,
-            cursor="hand2",
-            command=self.toggle_options,
-            width=10,
-        )
-        self.options_btn.grid(row=0, column=0, sticky="nsew", pady=(0, 5))
-
-        self.help_btn = tk.Button(
-            btn_frame,
-            text="❓ Help",
-            font=("Segoe UI", 9),
-            bg=c["secondary_bg"],
-            fg=c["fg"],
-            activebackground=c["border"],
-            activeforeground=c["fg"],
-            relief=tk.FLAT,
-            cursor="hand2",
-            command=self.open_help,
-            width=10,
-        )
-        self.help_btn.grid(row=1, column=0, sticky="nsew", pady=(5, 0))
 
         # Drag-drop hint
         hint_label = ttk.Label(
@@ -306,125 +209,19 @@ class ConverterApp:
             side=tk.LEFT, fill=tk.X, expand=True
         )
 
-        # === MODE BUTTONS (GRID LAYOUT - SCALABLE) ===
-        mode_frame = tk.Frame(self.main_frame, bg=c["bg"])
-        mode_frame.pack(fill=tk.X, padx=40, pady=(0, 15))
-        mode_frame.columnconfigure(0, weight=1)
-        mode_frame.columnconfigure(1, weight=1)
-        mode_frame.rowconfigure(0, weight=1)
-        mode_frame.rowconfigure(1, weight=1)
-
-        # Row 0, Col 0: Clipboard Mode
-        clipboard_container = tk.Frame(mode_frame, bg=c["bg"])
-        clipboard_container.grid(
-            row=0, column=0, sticky="nsew", padx=(0, 5), pady=(0, 10)
+        # Mode buttons component (Clipboard, Watch, MD→DOCX, Diff)
+        self.clipboard_btn, self.watch_btn, self.reverse_btn, self.diff_btn = (
+            create_mode_buttons(
+                self.main_frame,
+                self.colors,
+                self.open_clipboard_mode,
+                self.open_watch_mode,
+                self.convert_md_to_docx,
+                self.open_diff_viewer,
+            )
         )
 
-        self.clipboard_btn = tk.Button(
-            clipboard_container,
-            text="📋 CLIPBOARD",
-            font=("Segoe UI", 10, "bold"),
-            bg=c["secondary_bg"],
-            fg=c["fg"],
-            activebackground=c["border"],
-            activeforeground=c["fg"],
-            relief=tk.FLAT,
-            cursor="hand2",
-            command=self.open_clipboard_mode,
-            pady=8,
-        )
-        self.clipboard_btn.pack(fill=tk.X)
-
-        tk.Label(
-            clipboard_container,
-            text="Paste text → Markdown",
-            bg=c["bg"],
-            fg=c.get("fg_secondary", c["fg"]),
-            font=("Segoe UI", 8),
-        ).pack(pady=(3, 0))
-
-        # Row 0, Col 1: Watch Mode
-        watch_container = tk.Frame(mode_frame, bg=c["bg"])
-        watch_container.grid(row=0, column=1, sticky="nsew", padx=(5, 0), pady=(0, 10))
-
-        self.watch_btn = tk.Button(
-            watch_container,
-            text="👁 WATCH MODE",
-            font=("Segoe UI", 10, "bold"),
-            bg=c["secondary_bg"],
-            fg=c["fg"],
-            activebackground=c["border"],
-            activeforeground=c["fg"],
-            relief=tk.FLAT,
-            cursor="hand2",
-            command=self.open_watch_mode,
-            pady=8,
-        )
-        self.watch_btn.pack(fill=tk.X)
-
-        tk.Label(
-            watch_container,
-            text="Auto-convert folder",
-            bg=c["bg"],
-            fg=c.get("fg_secondary", c["fg"]),
-            font=("Segoe UI", 8),
-        ).pack(pady=(3, 0))
-
-        # Row 1, Col 0: MD → DOCX
-        reverse_container = tk.Frame(mode_frame, bg=c["bg"])
-        reverse_container.grid(row=1, column=0, sticky="nsew", padx=(0, 5))
-
-        self.reverse_btn = tk.Button(
-            reverse_container,
-            text="📝 MD → DOCX",
-            font=("Segoe UI", 10, "bold"),
-            bg=c["secondary_bg"],
-            fg=c["fg"],
-            activebackground=c["border"],
-            activeforeground=c["fg"],
-            relief=tk.FLAT,
-            cursor="hand2",
-            command=self.convert_md_to_docx,
-            pady=8,
-        )
-        self.reverse_btn.pack(fill=tk.X)
-
-        tk.Label(
-            reverse_container,
-            text="Markdown → Word",
-            bg=c["bg"],
-            fg=c.get("fg_secondary", c["fg"]),
-            font=("Segoe UI", 8),
-        ).pack(pady=(3, 0))
-
-        # Row 1, Col 1: Diff View
-        diff_container = tk.Frame(mode_frame, bg=c["bg"])
-        diff_container.grid(row=1, column=1, sticky="nsew", padx=(5, 0))
-
-        self.diff_btn = tk.Button(
-            diff_container,
-            text="🔍 DIFF VIEW",
-            font=("Segoe UI", 10, "bold"),
-            bg=c["secondary_bg"],
-            fg=c["fg"],
-            activebackground=c["border"],
-            activeforeground=c["fg"],
-            relief=tk.FLAT,
-            cursor="hand2",
-            command=self.open_diff_viewer,
-            pady=8,
-        )
-        self.diff_btn.pack(fill=tk.X)
-
-        tk.Label(
-            diff_container,
-            text="Compare files",
-            bg=c["bg"],
-            fg=c.get("fg_secondary", c["fg"]),
-            font=("Segoe UI", 8),
-        ).pack(pady=(3, 0))
-
-        # === RECENT FILES SECTION ===
+        # Recent files section
         self.recent_frame = tk.Frame(self.main_frame, bg=c["bg"])
         self.recent_frame.pack(fill=tk.X, pady=(0, 10))
         self.refresh_recents()
@@ -506,152 +303,9 @@ class ConverterApp:
                 logger.warning(f"Failed to initialize Drag & Drop: {e}")
 
     def refresh_recents(self):
-        """Refresh the Recent Files list UI as a table."""
-        from datetime import datetime
-
-        # Clear existing
-        try:
-            for widget in self.recent_frame.winfo_children():
-                widget.destroy()
-        except AttributeError:
-            return
-
+        """Refresh the Recent Files list UI using component."""
         recents = self.prefs.get("recent_files", [])
-        if not recents:
-            return
-
-        # Handle old format (list of strings) - skip
-        if recents and isinstance(recents[0], str):
-            return
-
-        c = self.colors
-
-        # Filter to valid entries with existing files
-        valid_recents = []
-        for r in recents:
-            if (
-                isinstance(r, dict)
-                and r.get("source")
-                and os.path.exists(r.get("source", ""))
-            ):
-                valid_recents.append(r)
-
-        if not valid_recents:
-            return
-
-        # Header
-        tk.Label(
-            self.recent_frame,
-            text="Recent Conversions:",
-            bg=c["bg"],
-            fg=c["muted"],
-            font=("Segoe UI", 9, "bold"),
-        ).pack(anchor=tk.W, pady=(0, 5))
-
-        # Table frame
-        table = tk.Frame(self.recent_frame, bg=c["bg"])
-        table.pack(fill=tk.X)
-
-        # Column headers
-        tk.Label(
-            table,
-            text="Date",
-            bg=c["bg"],
-            fg=c["muted"],
-            font=("Segoe UI", 8),
-            width=10,
-            anchor=tk.W,
-        ).grid(row=0, column=0, sticky="w")
-        tk.Label(
-            table,
-            text="Source",
-            bg=c["bg"],
-            fg=c["muted"],
-            font=("Segoe UI", 8),
-            anchor=tk.W,
-        ).grid(row=0, column=1, sticky="w", padx=(5, 0))
-        tk.Label(
-            table,
-            text="Output",
-            bg=c["bg"],
-            fg=c["muted"],
-            font=("Segoe UI", 8),
-            anchor=tk.W,
-        ).grid(row=0, column=2, sticky="w", padx=(5, 0))
-
-        for i, entry in enumerate(valid_recents[:5], start=1):
-            # Parse date
-            try:
-                dt = datetime.fromisoformat(entry.get("timestamp", ""))
-                date_str = dt.strftime("%m/%d/%Y")
-            except:
-                date_str = "Unknown"
-
-            source_path = entry.get("source", "")
-            output_path = entry.get("output", "")
-
-            # Date label
-            tk.Label(
-                table,
-                text=date_str,
-                bg=c["bg"],
-                fg=c["fg"],
-                font=("Segoe UI", 8),
-                anchor=tk.W,
-            ).grid(row=i, column=0, sticky="w")
-
-            # Source link (opens folder in explorer)
-            source_name = (
-                os.path.basename(source_path)[:40] + "..."
-                if len(os.path.basename(source_path)) > 40
-                else os.path.basename(source_path)
-            )
-            src_lbl = tk.Label(
-                table,
-                text=source_name,
-                bg=c["bg"],
-                fg=c["accent"],
-                cursor="hand2",
-                font=("Segoe UI", 8, "underline"),
-                anchor=tk.W,
-            )
-            src_lbl.grid(row=i, column=1, sticky="w", padx=(5, 0))
-            src_folder = os.path.dirname(source_path)
-            src_lbl.bind(
-                "<Button-1>", lambda e, f=src_folder: subprocess.Popen(["explorer", f])
-            )  # nosec B602 B607
-
-            # Output link (opens folder in explorer)
-            if output_path and os.path.exists(output_path):
-                out_name = (
-                    os.path.basename(output_path)[:40] + "..."
-                    if len(os.path.basename(output_path)) > 40
-                    else os.path.basename(output_path)
-                )
-                out_lbl = tk.Label(
-                    table,
-                    text=out_name,
-                    bg=c["bg"],
-                    fg=c["accent"],
-                    cursor="hand2",
-                    font=("Segoe UI", 8, "underline"),
-                    anchor=tk.W,
-                )
-                out_lbl.grid(row=i, column=2, sticky="w", padx=(5, 0))
-                out_folder = os.path.dirname(output_path)
-                out_lbl.bind(
-                    "<Button-1>",
-                    lambda e, f=out_folder: subprocess.Popen(["explorer", f]),
-                )  # nosec B602 B607
-            else:
-                tk.Label(
-                    table,
-                    text="-",
-                    bg=c["bg"],
-                    fg=c["muted"],
-                    font=("Segoe UI", 8),
-                    anchor=tk.W,
-                ).grid(row=i, column=2, sticky="w", padx=(5, 0))
+        refresh_recent_files(self.recent_frame, self.colors, recents)
 
     def on_pref_change(self, *args):
         """Save preferences when variables change."""
@@ -684,7 +338,9 @@ class ConverterApp:
             "theme_names": get_theme_names(),
             "on_browse": self.browse_output_folder,
         }
-        self.options_dialog = OptionsDialog(self.root, self.colors, config, icon_path=self.icon_path)
+        self.options_dialog = OptionsDialog(
+            self.root, self.colors, config, icon_path=self.icon_path
+        )
 
     def on_output_mode_change(self, *args):
         mode = self.output_mode_var.get()
@@ -761,7 +417,7 @@ class ConverterApp:
             if dropped_folders:
                 messagebox.showinfo(
                     "No Files Found",
-                    f"No .docx or .xlsx files found in the dropped folder(s).",
+                    "No .docx or .xlsx files found in the dropped folder(s).",
                 )
             else:
                 messagebox.showwarning(
@@ -788,7 +444,9 @@ class ConverterApp:
     def open_help(self):
         readme_path = resource_path("README.md")
         if os.path.exists(readme_path):
-            MarkdownViewer(self.root, readme_path, self.colors, icon_path=self.icon_path)
+            MarkdownViewer(
+                self.root, readme_path, self.colors, icon_path=self.icon_path
+            )
         else:
             messagebox.showwarning("Help", f"README.md not found at {readme_path}")
 
@@ -796,9 +454,13 @@ class ConverterApp:
         """Open the Changelog viewer."""
         changelog_path = resource_path("CHANGELOG.md")
         if os.path.exists(changelog_path):
-            MarkdownViewer(self.root, changelog_path, self.colors, icon_path=self.icon_path)
+            MarkdownViewer(
+                self.root, changelog_path, self.colors, icon_path=self.icon_path
+            )
         else:
-            messagebox.showwarning("Changelog", f"CHANGELOG.md not found at {changelog_path}")
+            messagebox.showwarning(
+                "Changelog", f"CHANGELOG.md not found at {changelog_path}"
+            )
 
     def open_shortcuts(self):
         """Open the Keyboard Shortcuts dialog."""
@@ -807,7 +469,11 @@ class ConverterApp:
     def open_clipboard_mode(self):
         """Open the Clipboard Mode dialog."""
         show_clipboard_mode(
-            self.root, self.colors, self.prefs, on_close=self.refresh_recents, icon_path=self.icon_path
+            self.root,
+            self.colors,
+            self.prefs,
+            on_close=self.refresh_recents,
+            icon_path=self.icon_path,
         )
 
     def open_watch_mode(self):
@@ -815,7 +481,11 @@ class ConverterApp:
         from ui.dialogs.watch import WatchModeDialog
 
         WatchModeDialog(
-            self.root, self.colors, self.prefs, on_close=self.refresh_recents, icon_path=self.icon_path
+            self.root,
+            self.colors,
+            self.prefs,
+            on_close=self.refresh_recents,
+            icon_path=self.icon_path,
         )
 
     def convert_md_to_docx(self):
@@ -897,7 +567,6 @@ class ConverterApp:
             return
 
         success_count = 0
-        last_output_file = None
 
         # Setup Progress Bar
         self.progress.pack(fill=tk.X, pady=(20, 0))
@@ -927,12 +596,12 @@ class ConverterApp:
                     try:
                         with open(path, "w", encoding="utf-8") as f:
                             f.write(content)
-                        last_output_file = path
                         self.prefs.add_recent_file(source_path, path)
-                    except Exception:
+                    except (
+                        Exception
+                    ):  # nosec B110 - Safe: recent files tracking is optional
                         pass
                 else:
-                    last_output_file = output_file
                     self.prefs.add_recent_file(source_path, output_file)
 
             self.progress["value"] = i
@@ -1191,7 +860,7 @@ class ConverterApp:
                             self.root,
                             self.colors,
                             title="Save Error",
-                            message=f"Failed to save file",
+                            message="Failed to save file",
                             details=str(e),
                         )
                 else:
@@ -1256,7 +925,7 @@ class ConverterApp:
                 if os.path.exists(temp_file):
                     try:
                         os.remove(temp_file)
-                    except:
+                    except Exception:
                         pass  # nosec
 
             if markdown_lines:
@@ -1313,12 +982,12 @@ class ConverterApp:
     def _run_cmd(self, cmd):
         # Use Popen with DETACHED_PROCESS to fully separate subprocess lifecycle
         try:
-            subprocess.Popen(
+            subprocess.Popen(  # nosec B602 B603 - Safe: user-initiated command execution, detached process
                 cmd,
                 shell=True,
                 creationflags=subprocess.DETACHED_PROCESS
                 | subprocess.CREATE_NEW_PROCESS_GROUP,
-            )  # nosec B602
+            )
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open application:\n{str(e)}")
 

@@ -6,8 +6,6 @@ from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Dict
-
 
 # Define all keyboard shortcuts
 SHORTCUTS = {
@@ -48,23 +46,23 @@ class ShortcutsDialog:
     """
     Dialog showing all available keyboard shortcuts.
     """
-    
-    def __init__(self, parent: tk.Tk, colors: Dict[str, str], icon_path: str = None):
+
+    def __init__(self, parent: tk.Tk, colors: dict[str, str], icon_path: str = None):
         self.parent = parent
         self.colors = colors
-        
+
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Keyboard Shortcuts")
         self.dialog.configure(bg=colors["bg"])
         self.dialog.resizable(True, True)
-        
+
         # Set icon if provided
         if icon_path:
             try:
                 self.dialog.iconbitmap(icon_path)
-            except Exception:
+            except Exception:  # nosec B110 - Safe: icon loading is optional, gracefully degrade
                 pass
-        
+
         # Size and position
         w, h = 500, 450
         parent.update_idletasks()
@@ -75,75 +73,75 @@ class ShortcutsDialog:
         x = px + (pw // 2) - (w // 2)
         y = py + (ph // 2) - (h // 2)
         self.dialog.geometry(f"{w}x{h}+{x}+{y}")
-        
+
         # Make modal
         self.dialog.transient(parent)
         self.dialog.grab_set()
-        
+
         self._build_ui()
-        
+
         # Bind Escape to close
         self.dialog.bind("<Escape>", lambda e: self.dialog.destroy())
-    
+
     def _build_ui(self):
         """Build the dialog UI."""
         c = self.colors
-        
+
         # Main frame with padding
         main = tk.Frame(self.dialog, bg=c["bg"], padx=20, pady=15)
         main.pack(fill=tk.BOTH, expand=True)
-        
+
         # Header
         tk.Label(main, text="⌨️ Keyboard Shortcuts", bg=c["bg"], fg=c["fg"],
                  font=("Segoe UI", 14, "bold")).pack(anchor=tk.W, pady=(0, 10))
-        
+
         # Scrollable frame
         canvas = tk.Canvas(main, bg=c["bg"], highlightthickness=0)
         scrollbar = ttk.Scrollbar(main, orient="vertical", command=canvas.yview)
         scrollable_frame = tk.Frame(canvas, bg=c["bg"])
-        
+
         scrollable_frame.bind(
             "<Configure>",
             lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
-        
+
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
-        
+
         # Build shortcuts by category
         for category, shortcuts in SHORTCUTS.items():
             # Category header
             cat_frame = tk.Frame(scrollable_frame, bg=c["bg"])
             cat_frame.pack(fill=tk.X, pady=(10, 5))
-            
+
             tk.Label(cat_frame, text=category, bg=c["bg"], fg=c["accent"],
                      font=("Segoe UI", 11, "bold")).pack(anchor=tk.W)
-            
+
             # Shortcuts table
             for shortcut, description in shortcuts:
                 row = tk.Frame(scrollable_frame, bg=c["bg"])
                 row.pack(fill=tk.X, pady=2)
-                
+
                 # Shortcut key (fixed width)
-                key_label = tk.Label(row, text=shortcut, bg=c["secondary_bg"], 
+                key_label = tk.Label(row, text=shortcut, bg=c["secondary_bg"],
                                      fg=c["fg"], font=("Consolas", 10),
                                      width=16, anchor=tk.W, padx=8, pady=2)
                 key_label.pack(side=tk.LEFT)
-                
+
                 # Description
-                desc_label = tk.Label(row, text=description, bg=c["bg"], 
+                desc_label = tk.Label(row, text=description, bg=c["bg"],
                                       fg=c["muted"], font=("Segoe UI", 10),
                                       anchor=tk.W, padx=10)
                 desc_label.pack(side=tk.LEFT, fill=tk.X)
-        
+
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
+
         # Enable mouse wheel scrolling
         def _on_mousewheel(event):
             canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
         canvas.bind_all("<MouseWheel>", _on_mousewheel)
-        
+
         # Close button
         close_btn = tk.Button(
             main, text="Close", font=("Segoe UI", 10),
@@ -154,15 +152,15 @@ class ShortcutsDialog:
             width=12, pady=6
         )
         close_btn.pack(pady=(15, 0))
-        
+
         # Unbind mousewheel when dialog closes
         def on_close():
             canvas.unbind_all("<MouseWheel>")
             self.dialog.destroy()
-        
+
         self.dialog.protocol("WM_DELETE_WINDOW", on_close)
 
 
-def show_shortcuts_dialog(parent: tk.Tk, colors: Dict[str, str], icon_path: str = None):
+def show_shortcuts_dialog(parent: tk.Tk, colors: dict[str, str], icon_path: str = None):
     """Show the keyboard shortcuts dialog."""
     ShortcutsDialog(parent, colors, icon_path=icon_path)

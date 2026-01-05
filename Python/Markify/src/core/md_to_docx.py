@@ -8,9 +8,9 @@ from __future__ import annotations
 import os
 import re
 import zipfile
-from typing import List, Tuple, Optional
-from xml.sax.saxutils import escape as xml_escape
-
+from xml.sax.saxutils import (
+    escape as xml_escape,  # nosec B406 - Safe: only used for escaping user's own content, not parsing untrusted XML
+)
 
 # DOCX is a ZIP archive with specific structure
 # We need: [Content_Types].xml, _rels/.rels, word/document.xml, word/_rels/document.xml.rels
@@ -109,7 +109,7 @@ class Paragraph(Block):
 
 
 class CodeBlock(Block):
-    def __init__(self, code: str, language: Optional[str] = None):
+    def __init__(self, code: str, language: str | None = None):
         self.code = code
         self.language = language
 
@@ -122,40 +122,40 @@ class ListItem(Block):
 
 class Table(Block):
     """Markdown table with rows of cells."""
-    def __init__(self, rows: List[List[str]]):
+    def __init__(self, rows: list[list[str]]):
         self.rows = rows  # List of rows, each row is list of cell strings
 
 
-def parse_markdown(content: str) -> List[Block]:
+def parse_markdown(content: str) -> list[Block]:
     """
     Parse markdown content into a list of blocks.
-    
+
     Args:
         content: Markdown text
-    
+
     Returns:
         List of Block objects (Heading, Paragraph, CodeBlock, ListItem)
     """
-    blocks: List[Block] = []
+    blocks: list[Block] = []
     lines = content.split('\n')
     i = 0
-    
+
     # Skip front matter if present
     if lines and lines[0].strip() == '---':
         i = 1
         while i < len(lines) and lines[i].strip() != '---':
             i += 1
         i += 1  # Skip closing ---
-    
+
     while i < len(lines):
         line = lines[i]
         stripped = line.strip()
-        
+
         # Empty line
         if not stripped:
             i += 1
             continue
-        
+
         # Heading
         heading_match = re.match(r'^(#{1,6})\s+(.+)$', stripped)
         if heading_match:
@@ -164,7 +164,7 @@ def parse_markdown(content: str) -> List[Block]:
             blocks.append(Heading(level, text))
             i += 1
             continue
-        
+
         # Code block
         if stripped.startswith('```'):
             language = stripped[3:].strip() or None
@@ -176,7 +176,7 @@ def parse_markdown(content: str) -> List[Block]:
             i += 1  # Skip closing ```
             blocks.append(CodeBlock('\n'.join(code_lines), language))
             continue
-        
+
         # List item (bullet)
         list_match = re.match(r'^(\s*)([-*+])\s+(.+)$', line)
         if list_match:
@@ -185,13 +185,13 @@ def parse_markdown(content: str) -> List[Block]:
             blocks.append(ListItem(text, indent))
             i += 1
             continue
-        
+
         # Table (lines with | characters)
         if '|' in stripped and stripped.startswith('|'):
             table_rows = []
             while i < len(lines):
                 tline = lines[i].strip()
-                if not tline or not '|' in tline:
+                if not tline or '|' not in tline:
                     break
                 # Skip separator row (|---|---|)
                 if re.match(r'^\|[\s\-:|]+\|$', tline):
@@ -210,7 +210,7 @@ def parse_markdown(content: str) -> List[Block]:
             if table_rows:
                 blocks.append(Table(table_rows))
             continue
-        
+
         # Regular paragraph - collect consecutive lines
         para_lines = [stripped]
         i += 1
@@ -224,7 +224,7 @@ def parse_markdown(content: str) -> List[Block]:
                 break
             para_lines.append(next_line)
             i += 1
-        
+
         # Join paragraph lines, preserving Markdown hard breaks
         # Hard break: trailing double-space or backslash
         processed_lines = []
@@ -237,11 +237,11 @@ def parse_markdown(content: str) -> List[Block]:
                 processed_lines.append(line[:-1] + '\n')
             else:
                 processed_lines.append(line)
-        
+
         # Join with space, but hard breaks already have \n embedded
         final_text = ' '.join(processed_lines)
         blocks.append(Paragraph(final_text))
-    
+
     return blocks
 
 
@@ -252,26 +252,26 @@ def parse_markdown(content: str) -> List[Block]:
 def _process_inline_formatting(text: str) -> str:
     """
     Convert inline markdown formatting to Word XML runs.
-    
+
     Handles: **bold**, *italic*, `code`, [links](url), line breaks
     """
     result = []
     i = 0
-    
+
     while i < len(text):
         # Line break (Markdown hard break or embedded newline)
         if text[i] == '\n':
             result.append('<w:r><w:br/></w:r>')
             i += 1
             continue
-        
+
         # Handle Markdown hard line break (two trailing spaces before newline)
         # This is already handled above when we see \n, but we need to strip trailing spaces
         if i + 2 < len(text) and text[i:i+2] == '  ' and (i + 2 >= len(text) or text[i+2] == '\n'):
             # Skip the trailing spaces, the \n will be converted to <w:br/>
             i += 2
             continue
-            
+
         # Bold (**text**)
         bold_match = re.match(r'\*\*(.+?)\*\*', text[i:])
         if bold_match:
@@ -279,7 +279,7 @@ def _process_inline_formatting(text: str) -> str:
             result.append(f'<w:r><w:rPr><w:b/></w:rPr><w:t>{content}</w:t></w:r>')
             i += len(bold_match.group(0))
             continue
-        
+
         # Italic (*text*)
         italic_match = re.match(r'\*(.+?)\*', text[i:])
         if italic_match:
@@ -287,7 +287,7 @@ def _process_inline_formatting(text: str) -> str:
             result.append(f'<w:r><w:rPr><w:i/></w:rPr><w:t>{content}</w:t></w:r>')
             i += len(italic_match.group(0))
             continue
-        
+
         # Inline code (`code`)
         code_match = re.match(r'`([^`]+)`', text[i:])
         if code_match:
@@ -295,7 +295,7 @@ def _process_inline_formatting(text: str) -> str:
             result.append(f'<w:r><w:rPr><w:rFonts w:ascii="Consolas" w:hAnsi="Consolas"/><w:shd w:val="clear" w:fill="F5F5F5"/></w:rPr><w:t>{content}</w:t></w:r>')
             i += len(code_match.group(0))
             continue
-        
+
         # Link [text](url) - just show as underlined text
         link_match = re.match(r'\[([^\]]+)\]\([^)]+\)', text[i:])
         if link_match:
@@ -303,14 +303,14 @@ def _process_inline_formatting(text: str) -> str:
             result.append(f'<w:r><w:rPr><w:u w:val="single"/><w:color w:val="0563C1"/></w:rPr><w:t>{content}</w:t></w:r>')
             i += len(link_match.group(0))
             continue
-        
+
         # Regular text - collect until next special char
         plain_end = i
         while plain_end < len(text):
             if text[plain_end] in '*`[':
                 break
             plain_end += 1
-        
+
         if plain_end > i:
             content = xml_escape(text[i:plain_end])
             # Preserve spaces
@@ -321,7 +321,7 @@ def _process_inline_formatting(text: str) -> str:
             content = xml_escape(text[i])
             result.append(f'<w:r><w:t>{content}</w:t></w:r>')
             i += 1
-    
+
     return ''.join(result)
 
 
@@ -366,7 +366,7 @@ def _list_item_to_xml(item: ListItem) -> str:
 def _table_to_xml(table: Table) -> str:
     """Convert a Table block to Word XML with proper table structure."""
     xml_parts = []
-    
+
     # Table start with borders
     xml_parts.append('<w:tbl>')
     xml_parts.append('<w:tblPr>')
@@ -376,7 +376,7 @@ def _table_to_xml(table: Table) -> str:
         xml_parts.append(f'<w:{border} w:val="single" w:sz="4" w:space="0" w:color="auto"/>')
     xml_parts.append('</w:tblBorders>')
     xml_parts.append('</w:tblPr>')
-    
+
     # Table grid
     if table.rows:
         num_cols = len(table.rows[0])
@@ -384,7 +384,7 @@ def _table_to_xml(table: Table) -> str:
         for _ in range(num_cols):
             xml_parts.append('<w:gridCol/>')
         xml_parts.append('</w:tblGrid>')
-    
+
     # Table rows
     for row_idx, row in enumerate(table.rows):
         xml_parts.append('<w:tr>')
@@ -401,23 +401,23 @@ def _table_to_xml(table: Table) -> str:
                 xml_parts.append(f'<w:p><w:r><w:t>{escaped}</w:t></w:r></w:p>')
             xml_parts.append('</w:tc>')
         xml_parts.append('</w:tr>')
-    
+
     xml_parts.append('</w:tbl>')
     return ''.join(xml_parts)
 
 
-def generate_document_xml(blocks: List[Block]) -> str:
+def generate_document_xml(blocks: list[Block]) -> str:
     """
     Generate Word document.xml content from parsed blocks.
-    
+
     Args:
         blocks: List of Block objects from parse_markdown()
-    
+
     Returns:
         Complete document.xml content
     """
     body_parts = []
-    
+
     for block in blocks:
         if isinstance(block, Heading):
             body_parts.append(_heading_to_xml(block))
@@ -429,7 +429,7 @@ def generate_document_xml(blocks: List[Block]) -> str:
             body_parts.append(_list_item_to_xml(block))
         elif isinstance(block, Table):
             body_parts.append(_table_to_xml(block))
-    
+
     return DOCUMENT_XML_HEADER + '\n'.join(body_parts) + DOCUMENT_XML_FOOTER
 
 
@@ -440,21 +440,21 @@ def generate_document_xml(blocks: List[Block]) -> str:
 def create_docx(markdown_content: str, output_path: str) -> bool:
     """
     Create a DOCX file from markdown content.
-    
+
     Args:
         markdown_content: The markdown text to convert
         output_path: Path where the DOCX file will be saved
-    
+
     Returns:
         True if successful, False otherwise
     """
     try:
         # Parse markdown
         blocks = parse_markdown(markdown_content)
-        
+
         # Generate document XML
         document_xml = generate_document_xml(blocks)
-        
+
         # Create DOCX (ZIP file)
         with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as docx:
             docx.writestr('[Content_Types].xml', CONTENT_TYPES_XML)
@@ -462,37 +462,37 @@ def create_docx(markdown_content: str, output_path: str) -> bool:
             docx.writestr('word/_rels/document.xml.rels', DOCUMENT_RELS_XML)
             docx.writestr('word/styles.xml', STYLES_XML)
             docx.writestr('word/document.xml', document_xml)
-        
+
         return True
     except Exception:
         return False
 
 
-def convert_md_file(md_path: str, output_path: Optional[str] = None) -> Tuple[bool, str]:
+def convert_md_file(md_path: str, output_path: str | None = None) -> tuple[bool, str]:
     """
     Convert a markdown file to DOCX.
-    
+
     Args:
         md_path: Path to the input .md file
         output_path: Optional output path. If not provided, uses same
                     location with .docx extension.
-    
+
     Returns:
         Tuple of (success, output_path or error message)
     """
     if not os.path.exists(md_path):
         return False, f"File not found: {md_path}"
-    
+
     try:
-        with open(md_path, 'r', encoding='utf-8') as f:
+        with open(md_path, encoding='utf-8') as f:
             content = f.read()
     except Exception as e:
         return False, f"Error reading file: {e}"
-    
+
     if output_path is None:
         base = os.path.splitext(md_path)[0]
         output_path = f"{base}.docx"
-    
+
     if create_docx(content, output_path):
         return True, output_path
     else:
