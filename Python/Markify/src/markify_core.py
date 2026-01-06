@@ -50,7 +50,7 @@ from core.docx.parser import (  # noqa: E402
 )
 
 
-def parse_table(tbl: ET.Element, format_dax_code: bool = False, format_pq_code: bool = False) -> str:
+def parse_table(tbl: ET.Element, format_dax_code: bool = False, format_pq_code: bool = False, hyperlink_map: dict[str, str] | None = None) -> str:
     """Parse a Word table. If it looks like a code block, return fenced code. Else return Markdown table."""
     rows = []
     full_text_lines = []
@@ -58,20 +58,131 @@ def parse_table(tbl: ET.Element, format_dax_code: bool = False, format_pq_code: 
     for tr in tbl.findall('.//w:tr', ns):
         cells = []
         for tc in tr.findall('.//w:tc', ns):
-            cell_text_parts = []
+            # Extract all raw and formatted lines from all paragraphs in the cell
+            all_lines_raw = []
+            all_lines_fmt = []
             for p in tc.findall('.//w:p', ns):
-                p_text = get_paragraph_text(p)
-                cell_text_parts.append(p_text)
-                full_text_lines.append(p_text) # Keep raw lines for code detection
+                raw_p = get_paragraph_text(p)
+                fmt_p = get_paragraph_text(p, include_formatting=True, hyperlink_map=hyperlink_map)
+
+                # Split by \n to handle soft breaks (w:br, w:cr)
+                r_parts = raw_p.split('\n')
+                f_parts = fmt_p.split('\n')
+
+                if len(r_parts) == len(f_parts):
+                    all_lines_raw.extend(r_parts)
+                    all_lines_fmt.extend(f_parts)
+                else:
+                    # Fallback if desynced (rare, e.g. images)
+                    all_lines_raw.append(raw_p)
+                    all_lines_fmt.append(fmt_p)
+
+                full_text_lines.append(raw_p) # Keep for table-wide code detection
+
+            # Now process lines and group consecutive code lines
+            cell_text_parts = []
+            idx = 0
+            while idx < len(all_lines_raw):
+                line_raw = all_lines_raw[idx]
+                line_fmt = all_lines_fmt[idx]
+                text_stripped = line_raw.strip()
+
+                # Detection patterns for code lines
+                is_code = False
+                if text_stripped in ['let', 'in', 'Source']:
+                    is_code = True
+                elif line_raw.startswith('    ') and text_stripped:
+                    is_code = True
+                elif re.match(r'^(_\w+|#"[^"]+"|[A-Z][a-zA-Z0-9]*)\s*=\s*', text_stripped):
+                    is_code = True
+                elif re.search(r'[A-Z][a-zA-Z0-9]+\.[A-Z][a-zA-Z0-9]+\(', text_stripped):
+                    is_code = True
+
+                if is_code:
+                    # Collect consecutive code lines
+                    code_group = []
+                    while idx < len(all_lines_raw):
+                        l_raw = all_lines_raw[idx]
+                        t_strip = l_raw.strip()
+
+                        # Continue if it's a code-like line OR a blank line between code
+                        is_l_code = False
+                        if t_strip in ['let', 'in', 'Source'] or l_raw.startswith('    '):
+                            is_l_code = True
+                        elif re.match(r'^(_\w+|#"[^"]+"|[A-Z][a-zA-Z0-9]*)\s*=\s*', t_strip):
+                            is_l_code = True
+                        elif re.search(r'[A-Z][a-zA-Z0-9]+\.[A-Z][a-zA-Z0-9]+\(', t_strip):
+                            is_l_code = True
+
+                        if is_l_code or (not t_strip and code_group):
+                            code_group.append(l_raw)
+                            idx += 1
+                        else:
+                            break
+
+                    code_content = "\n".join(code_group)
+                    lang = detect_code_language(code_content)
+
+                    # Apply code formatters if enabled
+                    if lang == 'powerquery' and format_pq_code and format_pq:
+                        formatted = format_pq(code_content)
+                        if formatted:
+                            code_content = formatted
+                    elif lang == 'dax' and format_dax_code and format_dax:
+                        formatted = format_dax(code_content)
+                        if formatted:
+                            code_content = formatted
+
+                    # Wrap each line in backticks separately to allow <br> line breaks between them
+                    # This prevents <br> from being treated as literal text inside backticks
+                    code_lines = code_content.split('\n')
+                    wrapped_lines = []
+                    for line in code_lines:
+                        line_clean = line.replace('`', "'")
+                        # Preserve indentation but wrap in backticks
+                        if line_clean.strip():
+                            wrapped_lines.append(f"`{line_clean}`")
+                        else:
+                            wrapped_lines.append("") # Just a break for empty lines
+
+                    cell_text_parts.append("<br>".join(wrapped_lines))
+                else:
+                    # Regular text line
+                    cell_text_parts.append(line_fmt)
+                    idx += 1
 
             # For table cell, join with <br> if multiline to keep valid MD table
-            cells.append("<br>".join(cell_text_parts).strip())
+            # Also replace any embedded newlines (from w:br, w:cr) with <br> tags
+            cell_content = "<br>".join(cell_text_parts).strip()
+            cell_content = cell_content.replace("\n", "<br>")
+            # Escape pipes to avoid breaking Markdown table structure
+            cell_content = cell_content.replace("|", "&#124;")
+            cells.append(cell_content)
         rows.append(cells)
 
     if not rows:
         return ""
 
-    # Check if this table is actually a code block container
+    # Check table structure first - multi-column tables are almost always real tables
+    # Only apply code detection heuristics to single-column tables
+    max_cols = max(len(row) for row in rows)
+    has_multiple_columns = max_cols > 1
+
+    # If table has proper multi-column structure, build markdown table directly
+    if has_multiple_columns:
+        lines = []
+        header = rows[0] if rows else []
+        while len(header) < max_cols:
+            header.append("")
+        lines.append("| " + " | ".join(header) + " |")
+        lines.append("| " + " | ".join(["---"] * max_cols) + " |")
+        for row in rows[1:]:
+            while len(row) < max_cols:
+                row.append("")
+            lines.append("| " + " | ".join(row) + " |")
+        return "\n".join(lines)
+
+    # For single-column tables, check if this table is actually a code block container
     # Join all lines to check patterns
     all_text = "\n".join(full_text_lines).strip()
 
@@ -102,6 +213,7 @@ def parse_table(tbl: ET.Element, format_dax_code: bool = False, format_pq_code: 
         numbered_count = sum(1 for i, line in enumerate(lines) if re.match(rf'^{i+1}\s+', line))
         if numbered_count >= len(lines) * 0.6:  # 60% must be sequential
             is_code = True
+
 
     if is_code:
         # Detect the code language for syntax highlighting
@@ -332,7 +444,7 @@ def get_docx_content(
         elem = elements[i]
 
         if elem['type'] == 'table':
-            table_md = parse_table(elem['element'], format_dax_code=format_dax_code, format_pq_code=format_pq_code)
+            table_md = parse_table(elem['element'], format_dax_code=format_dax_code, format_pq_code=format_pq_code, hyperlink_map=rels_map)
 
             if table_md:
                 lines.append(table_md)

@@ -56,14 +56,21 @@ def get_paragraph_text(
 
             # Format as Markdown link
             if link_text.strip():
-                if anchor:
-                    # Internal cross-reference - link to anchor
-                    text += f"[{link_text.strip()}](#{anchor})"
+                # Clean and validate anchor (skip if it's too long or has line breaks, likely garbage metadata)
+                is_valid_anchor = anchor and len(anchor) < 100 and '\n' not in anchor and '#(lf)' not in anchor
+
+                if url and is_valid_anchor:
+                    # External link with anchor: [text](url#anchor)
+                    text += f"[{link_text.strip()}]({url}#{anchor})"
                 elif url:
-                    # External hyperlink
+                    # Pure external link
                     text += f"[{link_text.strip()}]({url})"
+                elif is_valid_anchor:
+                    # Pure internal anchor (cross-reference)
+                    text += f"[{link_text.strip()}](#{anchor})"
                 else:
-                    text += link_text  # No URL or anchor found, just use text
+                    # No valid URL or anchor - just use the text
+                    text += link_text.strip()
 
         elif tag == 'w:r':
             run_text = _extract_run_text(child, include_formatting, image_handler=image_handler)

@@ -11,9 +11,24 @@ Format based on Keep a Changelog (keepachangelog.com).
 - **[FIXED]** - Bug fix
 - **[REMOVED]** - Removed/deprecated
 
+## [1.1.0] - 2026-01-06
+
+### [NEW]
+- **Advanced Table Cell Code Formatting** - Code lines in table cells are grouped and wrapped in backticks individually, allowing monospace display while preserving line breaks via `<br>`.
+- **Automatic Code Beautification in Tables** - DAX and Power Query snippets within tables are now automatically formatted via integrated APIs (if enabled).
+
+### [CHANGED]
+- **Improved special character handling in tables** - Pipe characters (`|`) are now safely escaped to `&#124;` to prevent breaking Markdown table structures.
+- **Combined Hyperlink Attributes** - Enhanced handling of links that contain both internal anchors and external URLs.
+
+### [FIXED]
+- **Anchor Injection Safety Filter** - Prevention of "mystery code" being injected into Markdown links from corrupted Word metadata in the bookmark field.
+- **Improved Code Detection Heuristics** - Reduced false positives for "code" within table cell prose while ensuring keywords like `let` and `in` are correctly formatted.
+
 ---
 
 ## [1.0.0] - 2026-01-05
+
 
 ### [NEW]
 - **Complete DOCX to Markdown Converter** - Zero dependencies, pure Python stdlib
