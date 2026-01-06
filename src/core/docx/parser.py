@@ -58,7 +58,7 @@ def get_paragraph_text(
             if link_text.strip():
                 # Clean and validate anchor (skip if it's too long or has line breaks, likely garbage metadata)
                 is_valid_anchor = anchor and len(anchor) < 100 and '\n' not in anchor and '#(lf)' not in anchor
-                
+
                 if url and is_valid_anchor:
                     # External link with anchor: [text](url#anchor)
                     text += f"[{link_text.strip()}]({url}#{anchor})"

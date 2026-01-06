@@ -64,11 +64,11 @@ def parse_table(tbl: ET.Element, format_dax_code: bool = False, format_pq_code: 
             for p in tc.findall('.//w:p', ns):
                 raw_p = get_paragraph_text(p)
                 fmt_p = get_paragraph_text(p, include_formatting=True, hyperlink_map=hyperlink_map)
-                
+
                 # Split by \n to handle soft breaks (w:br, w:cr)
                 r_parts = raw_p.split('\n')
                 f_parts = fmt_p.split('\n')
-                
+
                 if len(r_parts) == len(f_parts):
                     all_lines_raw.extend(r_parts)
                     all_lines_fmt.extend(f_parts)
@@ -76,7 +76,7 @@ def parse_table(tbl: ET.Element, format_dax_code: bool = False, format_pq_code: 
                     # Fallback if desynced (rare, e.g. images)
                     all_lines_raw.append(raw_p)
                     all_lines_fmt.append(fmt_p)
-                    
+
                 full_text_lines.append(raw_p) # Keep for table-wide code detection
 
             # Now process lines and group consecutive code lines
@@ -86,7 +86,7 @@ def parse_table(tbl: ET.Element, format_dax_code: bool = False, format_pq_code: 
                 line_raw = all_lines_raw[idx]
                 line_fmt = all_lines_fmt[idx]
                 text_stripped = line_raw.strip()
-                
+
                 # Detection patterns for code lines
                 is_code = False
                 if text_stripped in ['let', 'in', 'Source']:
@@ -97,14 +97,14 @@ def parse_table(tbl: ET.Element, format_dax_code: bool = False, format_pq_code: 
                     is_code = True
                 elif re.search(r'[A-Z][a-zA-Z0-9]+\.[A-Z][a-zA-Z0-9]+\(', text_stripped):
                     is_code = True
-                
+
                 if is_code:
                     # Collect consecutive code lines
                     code_group = []
                     while idx < len(all_lines_raw):
                         l_raw = all_lines_raw[idx]
                         t_strip = l_raw.strip()
-                        
+
                         # Continue if it's a code-like line OR a blank line between code
                         is_l_code = False
                         if t_strip in ['let', 'in', 'Source'] or l_raw.startswith('    '):
@@ -113,16 +113,16 @@ def parse_table(tbl: ET.Element, format_dax_code: bool = False, format_pq_code: 
                             is_l_code = True
                         elif re.search(r'[A-Z][a-zA-Z0-9]+\.[A-Z][a-zA-Z0-9]+\(', t_strip):
                             is_l_code = True
-                        
+
                         if is_l_code or (not t_strip and code_group):
                             code_group.append(l_raw)
                             idx += 1
                         else:
                             break
-                    
+
                     code_content = "\n".join(code_group)
                     lang = detect_code_language(code_content)
-                    
+
                     # Apply code formatters if enabled
                     if lang == 'powerquery' and format_pq_code and format_pq:
                         formatted = format_pq(code_content)
@@ -132,19 +132,19 @@ def parse_table(tbl: ET.Element, format_dax_code: bool = False, format_pq_code: 
                         formatted = format_dax(code_content)
                         if formatted:
                             code_content = formatted
-                    
+
                     # Wrap each line in backticks separately to allow <br> line breaks between them
                     # This prevents <br> from being treated as literal text inside backticks
                     code_lines = code_content.split('\n')
                     wrapped_lines = []
-                    for l in code_lines:
-                        l_clean = l.replace('`', "'")
+                    for line in code_lines:
+                        line_clean = line.replace('`', "'")
                         # Preserve indentation but wrap in backticks
-                        if l_clean.strip():
-                            wrapped_lines.append(f"`{l_clean}`")
+                        if line_clean.strip():
+                            wrapped_lines.append(f"`{line_clean}`")
                         else:
                             wrapped_lines.append("") # Just a break for empty lines
-                    
+
                     cell_text_parts.append("<br>".join(wrapped_lines))
                 else:
                     # Regular text line
