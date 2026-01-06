@@ -32,6 +32,40 @@ Add this to your MCP configuration file:
 
 ---
 
+## K-C Internal References
+
+> [!IMPORTANT]
+> The model review output should help developers verify items from the **K-C Power BI Development Checklist**.
+
+### Reference Documents
+
+| Document | Link | Usage |
+|----------|------|-------|
+| **Power BI Best Practices** | [SharePoint](https://kimberlyclark.sharepoint.com/Sites/H318/SitePages/Power-BI-Best-Practices.aspx) | Data modeling and visualization standards |
+| **Development Checklist** | [development_checklist.md](./development_checklist.md) | Pre-deployment verification checklist |
+| **External Tools Guide** | [SharePoint](https://kimberlyclark.sharepoint.com/Sites/H318/SitePages/Power-BI-External-Tools.aspx) | Tabular Editor, Measure Killer, DAX Studio |
+| **KC UX Templates** | [SharePoint](https://kimberlyclark.sharepoint.com/Sites/H318/SitePages/Power-BI-UX-Templates.aspx) | Brand-compliant report templates |
+
+### Checklist Mapping
+
+The model review output should address these Development Checklist categories:
+
+| Checklist Section | Review Output Section | Key Items to Verify |
+|-------------------|----------------------|---------------------|
+| **Data Model** | Executive Summary, Relationships | Star schema, unidirectional relationships only |
+| **Power Query** | Power Query Improvements | Parameters for connections, no "Any" data types |
+| **Performance** | Action Plan | DAX queries <1000ms, page load <10s, BPA executed |
+| **DAX** | DAX Improvements | DIVIDE(), variables, SELECTEDVALUE(), no nested IF() |
+
+### Performance Thresholds (From Checklist)
+
+| Metric | Target | Source |
+|--------|--------|--------|
+| DAX query execution | <1000ms | Performance #2 |
+| Slowest visual load | <3000ms | Performance #3 |
+| Page load time | <10s | Performance #5 |
+| Query timeout | <180s | Performance #10 |
+
 ## Quick Start Prompts
 
 Copy and customize these prompts to start your analysis:
@@ -91,14 +125,62 @@ Copy and customize these prompts to start your analysis:
 
 ### 5. DAX Best Practices
 
+> [!NOTE]
+> These items are from the **K-C Development Checklist — DAX Best Practices** section.
+
 - [ ] Measures using CALCULATE appropriately
-- [ ] Iterator functions (SUMX, AVERAGEX) on large tables
+- [ ] Iterator functions (SUMX, AVERAGEX) on large tables → convert to SUM + pre-computed columns
 - [ ] Hard-coded values that should be parameters or variables
 - [ ] Redundant or duplicate measures
-- [ ] SELECTEDVALUE vs MAX/MIN for single-value contexts
-- [ ] Proper use of VAR for readability and performance
+- [ ] SELECTEDVALUE vs MAX/MIN for single-value contexts (Checklist #5, #12)
+- [ ] Proper use of VAR for readability and performance (Checklist #1)
 - [ ] Time intelligence patterns using standard date table
-- [ ] Error handling (IFERROR, DIVIDE)
+- [ ] Error handling: Use DIVIDE() instead of `/` (Checklist #3)
+- [ ] IF.EAGER() when repeating measures in IF-ELSE (Checklist #2)
+- [ ] SWITCH() instead of nested IF() statements (Checklist #16)
+- [ ] ISBLANK() instead of `= BLANK()` check (Checklist #10)
+- [ ] KEEPFILTERS() instead of FILTER(T) (Checklist #9)
+- [ ] Avoid FILTER() on full tables; use FILTER(ALL(Column)) (Checklist #8)
+- [ ] Explicit measures only — no implicit aggregations (Checklist #15)
+- [ ] No commented-out DAX code (Checklist #17)
+- [ ] Comments explaining measure intent (Checklist #18)
+- [ ] Proper format strings (thousand separators, not "General") (Checklist #19)
+
+---
+
+## Data Verification Standards
+
+> [!CAUTION]
+> **MCP Server responses may be truncated.** Always verify critical metadata using DAX queries.
+
+### Use DAX Queries for Complete Metadata
+
+The MCP server's `List` operations can truncate large datasets. To ensure you get the **full picture** of the model, use these DAX queries:
+
+| Data Needed | DAX Query |
+|-------------|----------|
+| All tables | `EVALUATE SUMMARIZE(INFO.TABLES(), [Name], [IsHidden])` |
+| Bi-directional relationships | `EVALUATE FILTER(INFO.RELATIONSHIPS(), [CrossFilteringBehavior] = 2)` |
+| Inactive relationships | `EVALUATE FILTER(INFO.RELATIONSHIPS(), [IsActive] = FALSE)` |
+| Relationship summary | `EVALUATE INFO.RELATIONSHIPS()` |
+| Calculated columns | Filter `INFO.COLUMNS()` where `[Expression]` is not blank |
+
+**CrossFilteringBehavior values:**
+- `1` = OneDirection
+- `2` = BothDirections
+
+**Cardinality values:**
+- `1` = One
+- `2` = Many
+
+### When to Use DAX vs MCP Operations
+
+| Scenario | Recommended Approach |
+|----------|---------------------|
+| Quick measure/column inspection | MCP `Get` operation |
+| Full relationship inventory | DAX `INFO.RELATIONSHIPS()` |
+| Counting bi-directional relationships | DAX with `FILTER` |
+| Table/column listing | MCP `List` first, then DAX to verify counts |
 
 ---
 
@@ -158,6 +240,57 @@ The output document **MUST** include:
 5. **Links** to relevant documentation where applicable
 6. **Collapsible sections** using `<details>` for lengthy code samples
 7. **Mermaid diagrams** for relationship visualization
+8. **Developer-ready DAX examples** (see below)
+
+### DAX Code Example Requirements
+
+> [!IMPORTANT]
+> Every DAX optimization recommendation **MUST** include:
+
+For each DAX issue identified, provide:
+
+1. **Current Code** — The exact DAX being used (in collapsible `<details>` section)
+2. **Recommended Replacement** — The optimized DAX to replace it with
+3. **Why This Helps** — Brief explanation of the performance benefit
+4. **Validation Measure** (when applicable) — A temporary measure to verify results match
+
+**Example Format:**
+
+```markdown
+#### [Measure Name] — [Issue Type]
+
+<details>
+<summary>📋 Current Code (SLOW)</summary>
+
+\`\`\`dax
+[Current DAX code here]
+\`\`\`
+
+</details>
+
+**Replace with:**
+
+\`\`\`dax
+[Optimized DAX code here]
+\`\`\`
+
+**Why:** [Explain the performance benefit]
+
+**Validation:**
+\`\`\`dax
+// Temporary measure to verify values match
+Validation Diff = [New Measure] - [Old Measure]
+// Should return 0 for all rows
+\`\`\`
+```
+
+### Testing Instructions
+
+For significant DAX changes (SUMX→SUM, FILTER simplification), include:
+
+1. **DAX Studio query** to test before/after performance
+2. **What to check** in Server Timings (Formula Engine vs Storage Engine)
+3. **Expected improvement** (percentage range)
 
 ---
 
@@ -351,11 +484,24 @@ let
 
 ## Action Plan
 
-| Priority | Action | Owner | Estimated Effort | Impact |
-|----------|--------|-------|------------------|--------|
-| P0 | [Action] | [Developer] | [Hours/Days] | [High/Med/Low] |
-| P1 | [Action] | [Developer] | [Hours/Days] | [High/Med/Low] |
-| P2 | [Action] | [Developer] | [Hours/Days] | [High/Med/Low] |
+> [!IMPORTANT]
+> **Legend:** 🔍 = Query Performance | 🔄 = Refresh Performance | ⚡ = Both
+>
+> Always categorize recommendations by what type of performance they address.
+
+### Query Performance Priority
+
+| Priority | Action | Affects | Owner | Effort | Expected Improvement |
+|----------|--------|---------|-------|--------|---------------------|
+| P0 | [Action targeting query speed] | 🔍 Query | [Developer] | [Hours] | [% faster queries] |
+| P1 | [Action targeting query speed] | 🔍 Query | [Developer] | [Hours] | [% faster queries] |
+
+### Refresh & Model Size
+
+| Priority | Action | Affects | Owner | Effort | Expected Improvement |
+|----------|--------|---------|-------|--------|---------------------|
+| P0 | [Action targeting refresh] | 🔄 Refresh | [Developer] | [Hours] | [% faster refresh] |
+| P1 | [Action targeting both] | ⚡ Both | [Developer] | [Hours] | [Query %, Refresh %] |
 
 ---
 

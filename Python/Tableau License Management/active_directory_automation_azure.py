@@ -98,30 +98,30 @@ def create_dataframe():
     # Get the difference in hours
     time_difference_days = int(divmod(time_difference.total_seconds(), 86400)[0])
 
-    # If it has been more than max_days days since the file was modified, send email and stop process
-    max_days = 3
-    if time_difference_days > max_days:
-        error_message = f"""It has been {time_difference_days} days since the {full_file_path}
-             file was modified, which is more than the {max_days} day limit allowed by the Tableau automation.
-             Please ensure the file is processing correctly for Control-M Job NK123597."""
+    # # If it has been more than max_days days since the file was modified, send email and stop process
+    # max_days = 3
+    # if time_difference_days > max_days:
+    #     error_message = f"""It has been {time_difference_days} days since the {full_file_path}
+    #          file was modified, which is more than the {max_days} day limit allowed by the Tableau automation.
+    #          Please ensure the file is processing correctly for Control-M Job NK123597."""
 
-        to_addresses = "jayagopal.ashok@kcc.com; steve.wolfe@kcc.com; tatch@kcc.com"
-        process_step = "Active Directory Automation - Flat File Modified Failure"
-        send_error_email(
-            error_message=error_message,
-            to=to_addresses,
-            process_step=process_step,
-        )
+    #     to_addresses = "jayagopal.ashok@kcc.com; steve.wolfe@kcc.com; tatch@kcc.com"
+    #     process_step = "Active Directory Automation - Flat File Modified Failure"
+    #     send_error_email(
+    #         error_message=error_message,
+    #         to=to_addresses,
+    #         process_step=process_step,
+    #     )
 
-        # Connect to Azure server
-        conn = azure_database.connect_to_database()
+    #     # Connect to Azure server
+    #     conn = azure_database.connect_to_database()
 
-        query = f"""
-        INSERT INTO [{azure_database.AZURE_DATABASE}].dbo.tblSentEmails(SentOn, EmailType, ToAddresses, Subject, Message)
-        SELECT GETDATE(), '{process_step}', '{str(to_addresses).replace("'", "''")}', 
-        'Tableau License Automation Failure: {process_step}', '{error_message}'
-        """
-        sys.exit()
+    #     query = f"""
+    #     INSERT INTO [{azure_database.AZURE_DATABASE}].dbo.tblSentEmails(SentOn, EmailType, ToAddresses, Subject, Message)
+    #     SELECT GETDATE(), '{process_step}', '{str(to_addresses).replace("'", "''")}',
+    #     'Tableau License Automation Failure: {process_step}', '{error_message}'
+    #     """
+    #     sys.exit()
 
     # Get current file size, and send email if something is wrong
     file_size = os.path.getsize(full_file_path)
