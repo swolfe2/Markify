@@ -24,6 +24,7 @@ class HTMLToMarkdownConverter(HTMLParser):
         self.row_cells: list[str] = []
         self.table_rows: list[list[str]] = []
         self.in_table = False
+        self.in_cell = False  # Track when inside a td/th cell
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]):
         tag = tag.lower()
@@ -39,7 +40,8 @@ class HTMLToMarkdownConverter(HTMLParser):
 
         elif tag == 'p':
             # Only add newline if not at start and previous isn't already newlines
-            if self.output:
+            # Skip if we're inside a table cell - cell content is handled separately
+            if not self.in_cell and self.output:
                 last = self.output[-1]
                 if not last.endswith('\n\n') and not last.endswith('\n'):
                     self.output.append('\n')
@@ -51,15 +53,24 @@ class HTMLToMarkdownConverter(HTMLParser):
                 self.output.append(' ')
 
         elif tag in ('strong', 'b'):
-            self.output.append('**')
+            if self.in_cell:
+                self.cell_buffer.append('**')
+            else:
+                self.output.append('**')
 
         elif tag in ('em', 'i'):
-            self.output.append('*')
+            if self.in_cell:
+                self.cell_buffer.append('*')
+            else:
+                self.output.append('*')
 
         elif tag == 'code':
             self.in_code = True
             if not self.in_pre:
-                self.output.append('`')
+                if self.in_cell:
+                    self.cell_buffer.append('`')
+                else:
+                    self.output.append('`')
 
         elif tag == 'pre':
             self.in_pre = True
@@ -99,6 +110,7 @@ class HTMLToMarkdownConverter(HTMLParser):
 
         elif tag in ('td', 'th'):
             self.cell_buffer = []
+            self.in_cell = True
 
         elif tag == 'hr':
             self.output.append('\n---\n')
@@ -117,19 +129,29 @@ class HTMLToMarkdownConverter(HTMLParser):
 
         elif tag == 'p':
             # End paragraph with newline for separation
-            if self.output and not self.output[-1].endswith('\n'):
+            # Skip if we're inside a table cell - cell content is handled separately
+            if not self.in_cell and self.output and not self.output[-1].endswith('\n'):
                 self.output.append('\n')
 
         elif tag in ('strong', 'b'):
-            self.output.append('**')
+            if self.in_cell:
+                self.cell_buffer.append('**')
+            else:
+                self.output.append('**')
 
         elif tag in ('em', 'i'):
-            self.output.append('*')
+            if self.in_cell:
+                self.cell_buffer.append('*')
+            else:
+                self.output.append('*')
 
         elif tag == 'code':
             self.in_code = False
             if not self.in_pre:
-                self.output.append('`')
+                if self.in_cell:
+                    self.cell_buffer.append('`')
+                else:
+                    self.output.append('`')
 
         elif tag == 'pre':
             self.in_pre = False
@@ -157,6 +179,7 @@ class HTMLToMarkdownConverter(HTMLParser):
             cell_text = ''.join(self.cell_buffer).strip()
             cell_text = cell_text.replace('|', '\\|')  # Escape pipes
             self.row_cells.append(cell_text)
+            self.in_cell = False
 
         elif tag == 'tr':
             if self.row_cells:
@@ -174,7 +197,8 @@ class HTMLToMarkdownConverter(HTMLParser):
             self.link_text.append(data)
             return
 
-        if self.in_table and self.tag_stack and self.tag_stack[-1] in ('td', 'th'):
+        # Check if we're inside a table cell (handles nested tags like <p> inside <td>)
+        if self.in_cell:
             self.cell_buffer.append(data)
             return
 

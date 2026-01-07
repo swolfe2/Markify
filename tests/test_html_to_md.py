@@ -87,6 +87,35 @@ class TestHtmlToMarkdown:
         # Should have separate lines for header, separator, and data
         assert len(lines) >= 3
 
+    def test_table_with_nested_p_tags(self):
+        """Test Word-style tables where cells contain nested <p> tags."""
+        # Word HTML often wraps cell content in <p> tags
+        html = """<table>
+            <tr><td><p>Cell1</p></td><td><p>Cell2</p></td></tr>
+            <tr><td><p>A</p></td><td><p>B</p></td></tr>
+        </table>"""
+        result = html_to_markdown(html)
+        assert "| Cell1 | Cell2 |" in result
+        assert "| A | B |" in result
+        # Make sure content is in the table, not outside
+        lines = [line for line in result.split('\n') if line.strip()]
+        # Should only contain table rows (header, separator, data row)
+        assert all(line.startswith('|') for line in lines)
+
+    def test_table_with_formatted_content(self):
+        """Test tables with bold/italic/code content in cells."""
+        html = """<table>
+            <tr><td><p><b>ID</b></p></td><td><p><em>Name</em></p></td></tr>
+            <tr><td><p>001</p></td><td><p><code>Alice</code></p></td></tr>
+        </table>"""
+        result = html_to_markdown(html)
+        assert "| **ID** |" in result
+        assert "| *Name* |" in result
+        assert "| `Alice` |" in result
+        # Make sure formatting markers are in the table, not before it
+        lines = [line for line in result.split('\n') if line.strip()]
+        assert all(line.startswith('|') for line in lines)
+
     def test_excessive_newlines_cleanup(self):
         """Test that excessive newlines are cleaned up."""
         html = "<p>Para 1</p><p></p><p></p><p>Para 2</p>"

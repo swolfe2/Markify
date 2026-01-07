@@ -11,6 +11,13 @@ Format based on Keep a Changelog (keepachangelog.com).
 - **[FIXED]** - Bug fix
 - **[REMOVED]** - Removed/deprecated
 
+## [1.1.1] - 2026-01-07
+
+### [FIXED]
+- **Clipboard Mode Table Formatting** - Fixed table conversion from Word HTML where content was appearing outside table cells or with extra line breaks. Tables with bold, italic, or code formatting now render correctly.
+
+---
+
 ## [1.1.0] - 2026-01-06
 
 ### [NEW]
