@@ -41,7 +41,7 @@ from urllib3.util.retry import Retry
 # True = Preview only (no changes made)
 #   You should ALWAYS do a preview first to make sure the script is doing what you want!
 # False = Actually update work items
-DRY_RUN = False
+DRY_RUN = True
 
 ORG = "KC-DataAnalytics"
 PROJECT = "Global DV CoE"
