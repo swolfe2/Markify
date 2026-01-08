@@ -6,6 +6,8 @@
 
 This utility converts Microsoft Word documents (`.docx`) to Markdown (`.md`) format with high fidelity, preserving headers, tables, code blocks, and indentation.
 
+📖 **[Read the Full Documentation →](https://github.com/swolfe2/Markify/wiki)**
+
 ### For End Users
 1.  **Option A (Recommended):** Run the **`Markify.bat`** file included in the folder.
     *   *Uses only standard Python libraries.*

@@ -22,5 +22,6 @@
       "envManager": "ms-python.python:system",
       "packageManager": "ms-python.python:pip"
     }
-  ]
+  ],
+  "dotnet.defaultSolution": "disable"
 }
