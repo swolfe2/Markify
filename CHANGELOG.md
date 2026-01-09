@@ -15,7 +15,7 @@ Format based on Keep a Changelog (keepachangelog.com).
 
 ### [NEW]
 - **Word Online Support** - Specialized handling for Word Online content (formatted text, lists, and code) to ensure perfect Markdown conversion.
-- **Clipboard Diagnostics** - New "Enable Diagnostics" checkbox to capture raw HTML for troubleshooting formatting issues.
+- **Clipboard Diagnostics** - New "Diagnostic Mode" checkbox to capture raw HTML for troubleshooting, with a direct link to open the diagnostics folder.
 - **ASCII Tree Detection** - Automatically detects and wraps repo structures (e.g. `|-- Model/`) in code blocks for proper spacing and font.
 - **Smart Indentation** - Improved list indentation detection supporting pixel, point, and em units for complex nested lists.
 
