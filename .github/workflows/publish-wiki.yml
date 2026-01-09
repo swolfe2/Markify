@@ -1,0 +1,51 @@
+name: Publish Wiki
+
+on:
+  push:
+    paths:
+      - 'wiki/**'
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  publish-wiki:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Push to Wiki
+        run: |
+          echo "Configuring git..."
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+          echo "Cloning wiki..."
+          # The .wiki.git URL is standard for GitHub repositories
+          git clone "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.wiki.git" wiki_repo
+          
+          echo "Syncing content..."
+          # Copy contents from 'wiki/' folder to the cloned wiki repo
+          # We use rsync or cp. cp -r is simpler but might miss deletions if we don't clean first.
+          # To handle deletions, we can delete everything in wiki_repo (except .git) and copy over.
+          
+          cd wiki_repo
+          # Delete all files except .git
+          find . -maxdepth 1 ! -name '.git' ! -name '.' -exec rm -rf {} +
+          
+          cd ..
+          cp -a wiki/. wiki_repo/
+          
+          cd wiki_repo
+          git add .
+          
+          if git diff-index --quiet HEAD; then
+            echo "No changes to commit"
+          else
+            git commit -m "Sync wiki from source: ${GITHUB_SHA::7}"
+            git push
+          fi
