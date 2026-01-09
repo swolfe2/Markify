@@ -53,7 +53,7 @@ python src/markify_app.py
 
 ## 📋 Current Version
 
-**v1.1.0** – See [[Changelog|CHANGELOG]] for details.
+**v1.2.0** – See [[Changelog|CHANGELOG]] for details.
 
 ---
 

@@ -549,8 +549,12 @@ def get_docx_content(
 
         # Check for header (style-based first, then text-pattern fallback)
         header_level = elem.get('style_heading_level', 0)
+        
         if header_level == 0:
-            header_level = detect_header_level(text)
+            # Only apply heuristic emoji header detection if NOT a list item
+            # This prevents list items with emojis (e.g. ✅) from becoming headers
+            if not elem.get('is_list', False):
+                header_level = detect_header_level(text)
         if header_level > 0:
             prefix = "#" * header_level + " "
             lines.append(f"{prefix}{text}")
@@ -572,8 +576,6 @@ def get_docx_content(
                 num = get_docx_content._num_counters[indent_level]
                 lines.append(f"{indent}{num}. {text}")
             else:
-                # Reset numbered counters when switching to bullets
-                get_docx_content._num_counters = {}
                 lines.append(f"{indent}- {text}")
             i += 1
             continue
@@ -587,6 +589,9 @@ def get_docx_content(
             continue
 
         # Regular paragraph - add anchor tags for bookmarks first
+        # Reset list counters for any non-list paragraph
+        get_docx_content._num_counters = {}
+        
         bookmarks = elem.get('bookmarks', [])
         anchor_tags = ''.join([f'<a id="{bm}"></a>' for bm in bookmarks])
         if anchor_tags:

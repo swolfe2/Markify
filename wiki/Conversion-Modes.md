@@ -40,7 +40,12 @@ Convert formatted text without saving a Word document.
 - Headers and formatting
 - Tables
 - Hyperlinks
-- Code (with detection)
+- Code (auto-detected languages)
+- Word Online content (lists, code blocks, shell scripts)
+- Directory trees (auto-formatted as code blocks)
+
+### Diagnostics Mode
+Troubleshooting formatting issues? check **Enable Diagnostics** at the bottom of the window to capture the raw HTML input.
 
 > 💡 Great for quick snippets without creating a file!
 
