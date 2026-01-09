@@ -42,7 +42,7 @@ class HTMLToMarkdownConverter(HTMLParser):
                     level = int(attrs_dict.get('aria-level', '1'))
                 except ValueError:
                     level = 1
-            
+
             # Ensure we start on a new line
             if self.output and not self.output[-1].endswith('\n'):
                 self.output.append('\n')
@@ -78,11 +78,11 @@ class HTMLToMarkdownConverter(HTMLParser):
         elif tag == 'span':
             span_styles = []
             style = attrs_dict.get('style', '').lower()
-            
+
             # Detect gray line-number spans from Word Online code blocks
             # Pattern: color: rgb(112, 112, 112) with non-monospace font
             is_gray_line_number = (
-                'color: rgb(112, 112, 112)' in style and 
+                'color: rgb(112, 112, 112)' in style and
                 'consolas' not in style and
                 'courier' not in style and
                 'monospace' not in style
@@ -90,7 +90,7 @@ class HTMLToMarkdownConverter(HTMLParser):
             if is_gray_line_number:
                 span_styles.append('skip')
                 self.skip_content = True
-            
+
             if 'font-weight: bold' in style or 'font-weight:bold' in style:
                 span_styles.append('bold')
                 if self.in_cell:
@@ -140,7 +140,7 @@ class HTMLToMarkdownConverter(HTMLParser):
         elif tag == 'li':
             # Determine indentation level
             indent_level = len(self.list_stack) - 1
-            
+
             # Word Online uses data-aria-level/aria-level for flat lists
             # Check current li attributes first, then parent list attributes
             aria_level = attrs_dict.get('data-aria-level') or attrs_dict.get('aria-level')
@@ -164,18 +164,18 @@ class HTMLToMarkdownConverter(HTMLParser):
                     try:
                         val = float(match.group(1))
                         unit = match.group(2)
-                        
+
                         # Convert to px equivalent
                         px = val
                         if unit == 'pt':
                             px = val * 1.33
                         elif unit == 'em':
                             px = val * 16
-                            
+
                         # Estimate level: Word often uses ~36px or ~48px per level
                         # Level 1 usually has some margin too (e.g. 48px), so we might need a threshold
                         # Let's assume > 15px implies indentation
-                        if px >= 15: 
+                        if px >= 15:
                             # Divide by ~20 to get level (e.g. 20px = 1 level, 40px = 2 levels)
                             # This is more sensitive to smaller indents
                             indent_level = int(px / 20)
@@ -313,7 +313,7 @@ class HTMLToMarkdownConverter(HTMLParser):
         # Skip content inside gray line-number spans (Word Online code blocks)
         if self.skip_content:
             return
-        
+
         if self.current_link is not None:
             self.link_text.append(data)
             return

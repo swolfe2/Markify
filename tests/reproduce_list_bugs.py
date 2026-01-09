@@ -6,10 +6,10 @@ import xml.etree.ElementTree as ET
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
+from unittest.mock import MagicMock, patch
+
 from markify_core import get_docx_content
-from unittest.mock import patch, MagicMock
-import io
-import zipfile
+
 
 class TestListReproduction(unittest.TestCase):
     @patch('markify_core.zipfile.ZipFile')
@@ -18,34 +18,34 @@ class TestListReproduction(unittest.TestCase):
     def test_mixed_list_counter_reset(self, mock_open, mock_exists, mock_zip_cls):
         """Test that bullets do not reset numbered list counters."""
         mock_exists.return_value = True
-        
+
         xml_content = (
-            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
-            '<w:body>'
+            b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            b'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            b'<w:body>'
             # 1. First
-            '<w:p>'
-                '<w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr>'
-                '<w:r><w:t>First</w:t></w:r>'
-            '</w:p>'
+            b'<w:p>'
+                b'<w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr>'
+                b'<w:r><w:t>First</w:t></w:r>'
+            b'</w:p>'
             # 2. Second
-            '<w:p>'
-                '<w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr>'
-                '<w:r><w:t>Second</w:t></w:r>'
-            '</w:p>'
+            b'<w:p>'
+                b'<w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr>'
+                b'<w:r><w:t>Second</w:t></w:r>'
+            b'</w:p>'
             # - Bullet (Currently this resets the numbered counter)
-            '<w:p>'
-                '<w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="2"/></w:numPr></w:pPr>'
-                '<w:r><w:t>Bullet</w:t></w:r>'
-            '</w:p>'
+            b'<w:p>'
+                b'<w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="2"/></w:numPr></w:pPr>'
+                b'<w:r><w:t>Bullet</w:t></w:r>'
+            b'</w:p>'
             # 3. Third (Should be 3., but currently it's 1.)
-            '<w:p>'
-                '<w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr>'
-                '<w:r><w:t>Third</w:t></w:r>'
-            '</w:p>'
-            '</w:body>'
-            '</w:document>'
-        ).encode()
+            b'<w:p>'
+                b'<w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr>'
+                b'<w:r><w:t>Third</w:t></w:r>'
+            b'</w:p>'
+            b'</w:body>'
+            b'</w:document>'
+        )
 
         # Mock zip/file logic
         mock_file = MagicMock()
@@ -66,16 +66,17 @@ class TestListReproduction(unittest.TestCase):
         with patch('markify_core.get_list_type') as mock_list_type:
             def side_effect(para):
                 text = "".join(t.text for t in para.findall('.//w:t', {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}))
-                if 'Bullet' in text: return 'bullet'
+                if 'Bullet' in text:
+                    return 'bullet'
                 return 'number'
             mock_list_type.side_effect = side_effect
 
             result = get_docx_content("fake.docx")
             result_text = "\n".join(result)
-            
+
             print("\nResult of mixed list test:")
             print(result_text)
-            
+
             self.assertIn("1. First", result_text)
             self.assertIn("2. Second", result_text)
             self.assertIn("- Bullet", result_text)
@@ -86,11 +87,11 @@ class TestListReproduction(unittest.TestCase):
     def test_list_bullet_style_detection(self, mock_from_string):
         """Test that 'List Bullet' is detected as a bullet, not a number."""
         from core.docx.parser import get_list_type
-        
+
         # Mock a paragraph with "List Bullet" style
         xml = '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:pPr><w:pStyle w:val="ListBullet"/></w:pPr></w:p>'
         para = ET.fromstring(xml)
-        
+
         ltype = get_list_type(para)
         self.assertEqual(ltype, 'bullet', "ListBullet style should be detected as bullet, not number")
 

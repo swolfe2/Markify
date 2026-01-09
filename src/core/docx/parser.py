@@ -181,7 +181,7 @@ def get_list_type(para: ET.Element) -> str | None:
             # If numPr exists, it's often a numbered list unless styled otherwise
             # For now, we still default to bullet but we check for any 'number' hint in style
             return 'number' if pStyle is not None and 'Number' in style_val else 'bullet'
-            
+
     return None
 
 

@@ -549,7 +549,7 @@ def get_docx_content(
 
         # Check for header (style-based first, then text-pattern fallback)
         header_level = elem.get('style_heading_level', 0)
-        
+
         if header_level == 0:
             # Only apply heuristic emoji header detection if NOT a list item
             # This prevents list items with emojis (e.g. ✅) from becoming headers
@@ -591,7 +591,7 @@ def get_docx_content(
         # Regular paragraph - add anchor tags for bookmarks first
         # Reset list counters for any non-list paragraph
         get_docx_content._num_counters = {}
-        
+
         bookmarks = elem.get('bookmarks', [])
         anchor_tags = ''.join([f'<a id="{bm}"></a>' for bm in bookmarks])
         if anchor_tags:

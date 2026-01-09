@@ -7,13 +7,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from core.html_to_md import html_to_markdown
 
+
 class TestWordOnlineHTML(unittest.TestCase):
     def test_aria_headings(self):
         """Test that <p role='heading'> is converted to Markdown headers."""
         html = '<p role="heading" aria-level="1">Title</p>'
         md = html_to_markdown(html)
         self.assertEqual(md.strip(), "# Title")
-        
+
         html = '<p role="heading" aria-level="2">Sub Title</p>'
         md = html_to_markdown(html)
         self.assertEqual(md.strip(), "## Sub Title")
@@ -23,7 +24,7 @@ class TestWordOnlineHTML(unittest.TestCase):
         html = '<span style="font-weight: bold">Bold Text</span>'
         md = html_to_markdown(html)
         self.assertEqual(md.strip(), "**Bold Text**")
-        
+
         html = '<span style="font-style: italic">Italic Text</span>'
         md = html_to_markdown(html)
         self.assertEqual(md.strip(), "*Italic Text*")
