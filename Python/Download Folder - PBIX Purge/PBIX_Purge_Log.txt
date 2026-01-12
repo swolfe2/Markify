@@ -1,16 +1,6 @@
-PBIX Purge Run: 2026-01-02T15:09:09
+PBIX Purge Run: 2026-01-09T10:00:03
 Target folder: C:\Users\U15405\OneDrive - Kimberly-Clark\Downloads
 Mode: SAFE DELETE (Recycle Bin)
 
-Total .pbix files deleted: 10
-Deleted files:
-- Acompanhamento JBP.pbix
-- Adhoc Version - Category Walmart Selfservice Detail Example.pbix
-- Adhoc Version - Category Walmart Selfservice Detail.pbix
-- MIA-01-SALES_TRACKING.pbix
-- MIA-10-SOCIO.pbix
-- PBI Pro License Analysis.pbix
-- PBI Usage Report.pbix
-- Power BI Scheduled Refresh Analysis.pbix
-- Power BI Semantic Models Audit Report.pbix
-- Radar Sell Out.pbix
+Total .pbix files deleted: 0
+No .pbix files deleted.
