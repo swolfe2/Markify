@@ -73,7 +73,7 @@ def create_header(
     title_label.pack(side=tk.LEFT)
 
     # Version (to right of title)
-    ver_label = ttk.Label(header_frame, text="v1.1.0", style="Sub.TLabel")
+    ver_label = ttk.Label(header_frame, text="v1.2.0", style="Sub.TLabel")
     ver_label.pack(side=tk.LEFT, padx=(10, 0))
 
     # GitHub Link
@@ -96,7 +96,7 @@ def create_header(
     # What's New link (clickable text)
     whatsnew_link = tk.Label(
         parent,
-        text="📋 What's New in v1.1.0",
+        text="📋 What's New in v1.2.0",
         bg=colors["bg"],
         fg=colors["muted"],
         font=("Segoe UI", 9, "underline"),

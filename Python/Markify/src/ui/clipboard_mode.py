@@ -4,6 +4,10 @@ Two-pane interface: paste formatted text → see Markdown output.
 """
 from __future__ import annotations
 
+import os
+import re
+import subprocess  # nosec B404
+import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from typing import Any
@@ -223,13 +227,39 @@ class ClipboardModeDialog:
             padx=15, pady=8
         ).pack(side=tk.RIGHT)
 
-        # Status label
+        # === STATUS/DIAGNOSTIC BAR ===
+        meta_frame = tk.Frame(main, bg=c["bg"])
+        meta_frame.pack(fill=tk.X, pady=(10, 0))
+
+        # Reset counters label (hidden/internal)
         self.status_var = tk.StringVar(value="Paste formatted text to convert")
         tk.Label(
-            btn_frame, textvariable=self.status_var,
+            meta_frame, textvariable=self.status_var,
             bg=c["bg"], fg=c.get("fg_secondary", c["fg"]),
             font=("Segoe UI", 9)
-        ).pack(side=tk.RIGHT, padx=(0, 15))
+        ).pack(side=tk.LEFT)
+
+        # Debug Mode Checkbox
+        self.debug_var = tk.BooleanVar(value=self.prefs.get("clipboard_debug_mode", False) if self.prefs else False)
+        tk.Checkbutton(
+            meta_frame, text="Diagnostic Mode",
+            variable=self.debug_var,
+            bg=c["bg"], fg=c.get("fg_secondary", c["fg"]),
+            selectcolor=c["secondary_bg"],
+            activebackground=c["bg"],
+            font=("Segoe UI", 9),
+            command=self._toggle_debug
+        ).pack(side=tk.RIGHT)
+
+        # Open Folder Link (clickable label)
+        self.folder_link = tk.Label(
+            meta_frame, text="📁 Open Diagnostics",
+            bg=c["bg"], fg=c.get("accent", "#0078d4"),
+            font=("Segoe UI", 9, "underline"),
+            cursor="hand2"
+        )
+        self.folder_link.pack(side=tk.RIGHT, padx=(0, 15))
+        self.folder_link.bind("<Button-1>", lambda e: self._open_debug_folder())
 
     def _on_paste(self, event=None):
         """Handle paste event - try to get HTML from clipboard."""
@@ -244,6 +274,11 @@ class ClipboardModeDialog:
 
             if html_content:
                 logger.info("Got HTML from Windows clipboard")
+
+                # Diagnostic mode: save raw HTML
+                if self.debug_var.get():
+                    self._save_debug_html(html_content)
+
                 # Set flag to prevent _on_input_change from overwriting
                 self._html_converted = True
                 # Convert HTML and show in output
@@ -263,6 +298,52 @@ class ClipboardModeDialog:
         """Reset the HTML converted flag."""
         self._html_converted = False
 
+    def _toggle_debug(self):
+        """Save debug mode preference."""
+        if self.prefs:
+            self.prefs.set("clipboard_debug_mode", self.debug_var.get())
+
+    def _save_debug_html(self, html: str):
+        """Save raw HTML to the preferences directory for debugging."""
+        try:
+            import os
+
+            # Get preferences directory
+            if self.prefs and hasattr(self.prefs, "prefs_dir"):
+                debug_dir = self.prefs.prefs_dir
+            else:
+                # Fallback
+                debug_dir = os.path.join(os.environ.get("APPDATA", ""), "Markify")
+                if not os.path.exists(debug_dir):
+                    os.makedirs(debug_dir)
+
+            filepath = os.path.join(debug_dir, "clipboard_debug.html")
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(html)
+
+            logger.info(f"Saved diagnostic HTML to {filepath}")
+            self.status_var.set("✓ Diagnostic HTML saved to prefs folder")
+        except Exception as e:
+            logger.error(f"Failed to save diagnostic HTML: {e}")
+
+    def _open_debug_folder(self):
+        """Open the folder containing diagnostic files in File Explorer."""
+        try:
+
+            if self.prefs and hasattr(self.prefs, "prefs_dir"):
+                path = self.prefs.prefs_dir
+            else:
+                path = os.path.join(os.environ.get("APPDATA", ""), "Markify")
+
+            if os.path.exists(path):
+                if os.name == 'nt':
+                    os.startfile(path)  # nosec B606
+                else:
+                    # Fallback for non-windows (though Markify is mainly windows)
+                    subprocess.run(['open' if sys.platform == 'darwin' else 'xdg-open', path], check=False)  # nosec B603
+        except Exception as e:
+            logger.error(f"Failed to open diagnostic folder: {e}")
+
     def _on_input_change(self, event=None):
         """Handle changes in input text."""
         # Don't overwrite HTML conversion
@@ -274,14 +355,264 @@ class ClipboardModeDialog:
         """Convert HTML content to Markdown."""
         try:
             markdown = html_to_markdown(html)
-            # Apply code block detection
-            markdown = self._detect_and_wrap_code_blocks(markdown)
+
+            # Only apply aggressive code block detection for non-Word-Online sources
+            # Word Online HTML already has code formatting info and aggressive detection
+            # causes false positives on prose text
+            if not self._is_word_online_html(html):
+                markdown = self._detect_and_wrap_code_blocks(markdown)
+            else:
+                # For Word Online: just clean up excessive blank lines
+                markdown = self._clean_word_online_markdown(markdown)
+
             self._set_output(markdown)
             lines = markdown.count('\n') + 1
             self.status_var.set(f"✓ Converted from HTML ({lines} lines)")
         except Exception as e:
             logger.error(f"HTML conversion error: {e}")
             self.status_var.set("Error converting HTML")
+
+    def _is_word_online_html(self, html: str) -> bool:
+        """Detect if HTML content is from Word Online.
+
+        Word Online HTML has distinctive patterns:
+        - SCX/SCXW class names
+        - paraid/paraeid attributes
+        - data-ccp-* attributes
+        """
+        indicators = [
+            'class="SCXW',
+            'class="SCX',
+            'paraid="',
+            'paraeid="',
+            'data-ccp-',
+            'Aptos_EmbeddedFont',
+            'Aptos_MSFontService',
+        ]
+        return any(indicator in html for indicator in indicators)
+
+    def _clean_word_online_markdown(self, text: str) -> str:
+        """Clean up Word Online markdown output.
+
+        Word Online conversion creates excessive blank lines and doesn't
+        wrap code blocks properly. This function:
+        1. Reduces excessive blank lines
+        2. Detects shell/code content and wraps it in code fences, handling heredocs
+        """
+
+        # Reduce 3+ consecutive newlines to 2
+        text = re.sub(r'\n{3,}', '\n\n', text)
+
+        # Remove trailing whitespace from lines
+        lines = text.split('\n')
+        lines = [line.rstrip() for line in lines]
+
+        # Patterns that indicate shell/bash code
+        shell_patterns = [
+            r'^#!/bin/(bash|sh)',           # Shebang
+            r'^set\s+-[euxo]',              # set -e, set -x, etc.
+            r'^mkdir\s+',                    # mkdir command
+            r'^cd\s+',                       # cd command
+            r'^git\s+(init|add|commit|push)',  # git commands
+            r'^echo\s+["\']',               # echo with string
+            r'^cat\s+<<',                   # Here document start
+            r'^EOT$',                        # End of here doc
+            r'^chmod\s+',                    # chmod command
+            r'^\./[\w-]+',                   # Run script ./script.sh
+            r'^//\s+\w',                     # Comment like // Define
+        ]
+
+        def is_shell_code(line: str) -> bool:
+            """Check if a line looks like shell code."""
+            stripped = line.strip()
+            if not stripped:
+                return False
+            # Check shell patterns
+            for pattern in shell_patterns:
+                if re.match(pattern, stripped):
+                    return True
+            return False
+
+        def get_heredoc_delimiter(line: str) -> str | None:
+            """Extract heredoc delimiter from a line like 'cat <<EOT > file'."""
+            match = re.search(r'<<\s*([A-Za-z0-9_]+)', line)
+            if match:
+                return match.group(1)
+            return None
+
+        def is_code_context(line: str, in_here_doc: str | None) -> bool:
+            """Check if line is in a code-like context (after shell code started)."""
+            # If we are inside a heredoc, EVERYTHING is code
+            if in_here_doc:
+                return True
+
+            stripped = line.strip()
+            if not stripped:
+                return True  # Blank lines can be part of code
+            # Lines that look like they're continuing code
+            if stripped.startswith(('#', '//', 'echo', 'cat', 'EOT', '>', '>>')):
+                return True
+            return False
+
+        # Process lines, detecting and wrapping code blocks
+        result = []
+        code_buffer = []
+        in_shell_code = False
+        current_heredoc = None  # Track if we are inside a heredoc (e.g. "EOT")
+
+        for line in lines:
+            stripped = line.strip()
+
+            # Skip if already in a markdown code block (unless we're inside our own detection)
+            if stripped.startswith('```') and not in_shell_code:
+                result.append(line)
+                continue
+
+            # Check for heredoc start/end
+            if in_shell_code:
+                if current_heredoc:
+                    if stripped == current_heredoc:
+                        current_heredoc = None
+                else:
+                    delim = get_heredoc_delimiter(line)
+                    if delim:
+                        current_heredoc = delim
+
+            if is_shell_code(line):
+                if not in_shell_code:
+                    # Start new code block
+                    in_shell_code = True
+                    # Check if this start line initiates a heredoc
+                    delim = get_heredoc_delimiter(line)
+                    if delim:
+                        current_heredoc = delim
+                code_buffer.append(line)
+            elif in_shell_code and is_code_context(line, current_heredoc):
+                # Continue code block
+                code_buffer.append(line)
+            else:
+                if in_shell_code and code_buffer:
+                    # End code block - wrap in fence
+                    result.append('```bash')
+                    # Filter out excessive blank lines in code
+                    result.extend([line for line in code_buffer if line.strip()]) # Filter out blank lines to fix double-spacing
+                    result.append('```')
+                    code_buffer = []
+                    in_shell_code = False
+                    current_heredoc = None
+                result.append(line)
+
+        # Close any remaining code block
+        if in_shell_code and code_buffer:
+            result.append('```bash')
+            result.extend([line for line in code_buffer if line.strip()])
+            result.append('```')
+
+        # Now clean up list spacing
+        final_result = []
+        prev_was_list = False
+        prev_was_blank = False
+
+        for line in result:
+            # Check for standard list markers AND ASCII tree markers (|--) AND Path markers (/)
+            is_list = line.strip().startswith(('-', '*', '1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.', '9.', '|', '+', '`', '/'))
+            is_blank = not line.strip()
+            is_indented_list = (line.startswith('  ') or line.startswith('\t')) and (line.strip().startswith('-') or line.strip().startswith('|'))
+
+            if is_blank and prev_was_list:
+                prev_was_blank = True
+                continue
+
+            if prev_was_blank and (is_list or is_indented_list):
+                prev_was_blank = False
+            elif prev_was_blank:
+                final_result.append('')
+                prev_was_blank = False
+
+            final_result.append(line)
+            prev_was_list = is_list or is_indented_list
+
+        text = '\n'.join(final_result)
+        return self._wrap_ascii_trees(text)
+
+    def _wrap_ascii_trees(self, text: str) -> str:
+        """Detect and wrap ASCII directory trees in code blocks."""
+        lines = text.split('\n')
+        result = []
+        tree_buffer = []
+
+        def is_tree_line(line: str) -> bool:
+            s = line.strip()
+            if not s:
+                return False
+            # Strong indicators
+            if s.startswith(('|--', '├──', '└──', '│', '+--', r'\`--')):
+                return True
+            # Weak indicators (path context)
+            if s.startswith(('/', '|', '+', '\\')):
+                return True
+            return False
+
+        def has_strong_tree_indicator(buffer: list[str]) -> bool:
+            for line in buffer:
+                s = line.strip()
+                if s.startswith(('|--', '├──', '└──', '│', '+--', r'\`--')):
+                    return True
+            return False
+
+        for line in lines:
+            if line.strip().startswith('```'):
+                # Flush buffer if we hit a code block
+                if tree_buffer:
+                    if has_strong_tree_indicator(tree_buffer):
+                        result.append('```text')
+                        result.extend([line for line in tree_buffer if line.strip()])
+                        result.append('```')
+                    else:
+                        result.extend(tree_buffer)
+                    tree_buffer = []
+                result.append(line)
+                continue
+
+            if is_tree_line(line):
+                tree_buffer.append(line)
+            elif not line.strip() and tree_buffer:
+                 # Allow blank lines within a potential tree block
+                 tree_buffer.append(line)
+            else:
+                if tree_buffer:
+                    # Flush buffer
+                    # Only wrap if we saw Strong indicators OR if it looks like a definitive tree
+                    if has_strong_tree_indicator(tree_buffer):
+                        # Clean up blank lines before wrapping
+                        clean_buffer = [line for line in tree_buffer if line.strip()]
+                        if len(clean_buffer) > 1: # Single lines usually not a tree
+                            result.append('```text')
+                            result.extend(clean_buffer)
+                            result.append('```')
+                        else:
+                            result.extend(tree_buffer)
+                    else:
+                        result.extend(tree_buffer)
+                    tree_buffer = []
+
+                result.append(line)
+
+        # Flush remaining
+        if tree_buffer:
+            if has_strong_tree_indicator(tree_buffer):
+                clean_buffer = [line for line in tree_buffer if line.strip()]
+                if len(clean_buffer) > 1:
+                     result.append('```text')
+                     result.extend(clean_buffer)
+                     result.append('```')
+                else:
+                    result.extend(tree_buffer)
+            else:
+                result.extend(tree_buffer)
+
+        return '\n'.join(result)
+
 
     def _detect_and_wrap_code_blocks(self, text: str) -> str:
         """

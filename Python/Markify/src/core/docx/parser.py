@@ -169,12 +169,19 @@ def get_list_type(para: ET.Element) -> str | None:
             style_val = pStyle.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val', '')
             if 'ListNumber' in style_val:
                 return 'number'
-            if 'ListBullet' in style_val or 'List' in style_val:
+            if 'ListBullet' in style_val:
                 return 'bullet'
+            if 'List' in style_val:
+                # Ambiguous "List" style - check numPr for definitive answer
+                pass
+
         # Check numPr for explicit numbering (could be bullet or number based on numId)
         numPr = pPr.find('w:numPr', NS)
         if numPr is not None:
-            return 'bullet'  # Default to bullet if unsure
+            # If numPr exists, it's often a numbered list unless styled otherwise
+            # For now, we still default to bullet but we check for any 'number' hint in style
+            return 'number' if pStyle is not None and 'Number' in style_val else 'bullet'
+
     return None
 
 

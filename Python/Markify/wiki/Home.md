@@ -53,7 +53,7 @@ python src/markify_app.py
 
 ## 📋 Current Version
 
-**v1.1.0** – See [[Changelog|CHANGELOG]] for details.
+**v1.2.0** – See [[Changelog|CHANGELOG]] for details.
 
 ---
 
@@ -61,3 +61,5 @@ python src/markify_app.py
 
 - **Issues**: [GitHub Issues](https://github.com/swolfe2/Markify/issues)
 - **Email**: swolfe2@gmail.com
+
+_Last Updated: 2026-01-09_

@@ -11,6 +11,22 @@ Format based on Keep a Changelog (keepachangelog.com).
 - **[FIXED]** - Bug fix
 - **[REMOVED]** - Removed/deprecated
 
+## [1.2.0] - 2026-01-09
+
+### [NEW]
+- **Word Online Support** - Specialized handling for Word Online content (formatted text, lists, and code) to ensure perfect Markdown conversion.
+- **Clipboard Diagnostics** - New "Diagnostic Mode" checkbox to capture raw HTML for troubleshooting, with a direct link to open the diagnostics folder.
+- **ASCII Tree Detection** - Automatically detects and wraps repo structures (e.g. `|-- Model/`) in code blocks for proper spacing and font.
+- **Smart Indentation** - Improved list indentation detection supporting pixel, point, and em units for complex nested lists.
+
+### [FIXED]
+- **Emoji List Headers** - Fixed an issue where bullet points starting with emojis (e.g. ✅) were incorrectly converted as headers instead of list items.
+- **Shell Script Fence Detection** - Prevent `#` comments in shell scripts from being interpreted as Markdown headers.
+- **Code Block Spacing** - Automatic stripping of excessive blank lines in detected code blocks.
+- **Nested List Alignment** - Fixed issue where sub-bullets under numbered lists were not indenting correctly.
+
+---
+
 ## [1.1.1] - 2026-01-07
 
 ### [FIXED]

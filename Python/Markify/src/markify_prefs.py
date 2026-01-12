@@ -29,7 +29,8 @@ class Preferences:
             "extract_images": False,
             "theme": "VS Code Dark",
             "recent_files": [],
-            "show_preview": True  # Show preview before saving
+            "show_preview": True,  # Show preview before saving
+            "clipboard_debug_mode": False  # Save raw HTML for debugging
         }
 
         self.load()
