@@ -37,14 +37,17 @@ Add this to your MCP configuration file:
 > [!IMPORTANT]
 > The model review output should help developers verify items from the **K-C Power BI Development Checklist**.
 
+> [!CAUTION]
+> **AI Cross-Reference Requirement:** The AI cannot access SharePoint links. When performing a model review, the AI **MUST** read the local file `development_checklist.md` (in the same folder as this prompt) to cross-reference findings against K-C platform standards. The SharePoint links are provided for developers to access additional resources.
+
 ### Reference Documents
 
-| Document | Link | Usage |
-|----------|------|-------|
-| **Power BI Best Practices** | [SharePoint](https://kimberlyclark.sharepoint.com/Sites/H318/SitePages/Power-BI-Best-Practices.aspx) | Data modeling and visualization standards |
-| **Development Checklist** | [development_checklist.md](./development_checklist.md) | Pre-deployment verification checklist |
-| **External Tools Guide** | [SharePoint](https://kimberlyclark.sharepoint.com/Sites/H318/SitePages/Power-BI-External-Tools.aspx) | Tabular Editor, Measure Killer, DAX Studio |
-| **KC UX Templates** | [SharePoint](https://kimberlyclark.sharepoint.com/Sites/H318/SitePages/Power-BI-UX-Templates.aspx) | Brand-compliant report templates |
+| Document | Link | AI Access |
+|----------|------|-----------|
+| **Development Checklist** | [development_checklist.md](./development_checklist.md) | ✅ **Read this file** for cross-reference |
+| **Power BI Best Practices** | [SharePoint](https://kimberlyclark.sharepoint.com/Sites/H318/SitePages/Power-BI-Best-Practices.aspx) | ❌ Developer reference only |
+| **External Tools Guide** | [SharePoint](https://kimberlyclark.sharepoint.com/Sites/H318/SitePages/Power-BI-External-Tools.aspx) | ❌ Developer reference only |
+| **KC UX Templates** | [SharePoint](https://kimberlyclark.sharepoint.com/Sites/H318/SitePages/Power-BI-UX-Templates.aspx) | ❌ Developer reference only |
 
 ### Checklist Mapping
 
@@ -241,6 +244,10 @@ The output document **MUST** include:
 6. **Collapsible sections** using `<details>` for lengthy code samples
 7. **Mermaid diagrams** for relationship visualization
 8. **Developer-ready DAX examples** (see below)
+
+The output document **MUST NOT** use:
+
+- **Em-dashes (—)** — Use spaced hyphens ` - ` instead for compatibility
 
 ### DAX Code Example Requirements
 
