@@ -1,0 +1,99 @@
+/// Fact table with 50,000 sample sales transactions
+table Sales
+	lineageTag: f93ec7d8-d611-4d78-9ba2-dbf99282308e
+
+	column OrderID
+		dataType: int64
+		isKey
+		lineageTag: ae7af98c-bcdf-4ab5-be7c-592555e43ddb
+		summarizeBy: none
+		sourceColumn: OrderID
+
+	column OrderDate
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: 79560a0b-1e8a-434c-9602-660e65588d3d
+		summarizeBy: none
+		sourceColumn: OrderDate
+
+	column ProductID
+		dataType: int64
+		lineageTag: 6d630a7f-2008-411c-aa8d-e4abf9277f3f
+		summarizeBy: none
+		sourceColumn: ProductID
+
+	column CustomerID
+		dataType: int64
+		lineageTag: 0f59255f-19fb-41ea-9f2c-6617997c18e2
+		summarizeBy: none
+		sourceColumn: CustomerID
+
+	column Quantity
+		dataType: int64
+		lineageTag: 1e80125e-a52c-4fb6-8a0c-71136e827cc5
+		summarizeBy: sum
+		sourceColumn: Quantity
+
+	column UnitPrice
+		dataType: double
+		lineageTag: 1a077439-df2d-4499-8c33-f115081212f9
+		summarizeBy: sum
+		sourceColumn: UnitPrice
+
+	column DiscountPct
+		dataType: double
+		lineageTag: 5ac2355d-735e-4213-afd5-63a0a5227151
+		summarizeBy: average
+		sourceColumn: DiscountPct
+
+	column LineTotal
+		dataType: double
+		lineageTag: fdc97e31-9fd7-42ae-a2a9-f5025019d6ad
+		summarizeBy: sum
+		sourceColumn: LineTotal
+
+	partition Sales = m
+		mode: import
+		source = ```
+				let
+				    // Generate sample sales data
+				    OrderCount = 50000,
+				    
+				    // Create list of order IDs
+				    OrderIDs = List.Numbers(1, OrderCount, 1),
+				    
+				    // Generate random data for each order
+				    GenerateRow = (orderId) => [
+				        OrderID = orderId,
+				        OrderDate = Date.AddDays(#date(2023, 1, 1), Number.RoundDown(Number.RandomBetween(0, 729))),
+				        ProductID = Number.RoundDown(Number.RandomBetween(1, 51)),
+				        CustomerID = Number.RoundDown(Number.RandomBetween(1, 201)),
+				        Quantity = Number.RoundDown(Number.RandomBetween(1, 21)),
+				        UnitPrice = Number.Round(Number.RandomBetween(5, 500), 2),
+				        DiscountPct = if Number.RandomBetween(0, 1) > 0.7 then Number.Round(Number.RandomBetween(0.05, 0.25), 2) else 0
+				    ],
+				    
+				    // Apply to all orders
+				    RawData = List.Transform(OrderIDs, each GenerateRow(_)),
+				    
+				    // Convert to table
+				    ToTable = Table.FromRecords(RawData),
+				    
+				    // Add LineTotal calculation
+				    AddLineTotal = Table.AddColumn(ToTable, "LineTotal", each [Quantity] * [UnitPrice] * (1 - [DiscountPct]), type number),
+				    
+				    // Set column types
+				    TypedTable = Table.TransformColumnTypes(AddLineTotal, {
+				        {"OrderID", Int64.Type},
+				        {"OrderDate", type date},
+				        {"ProductID", Int64.Type},
+				        {"CustomerID", Int64.Type},
+				        {"Quantity", Int64.Type},
+				        {"UnitPrice", type number},
+				        {"DiscountPct", type number},
+				        {"LineTotal", type number}
+				    })
+				in
+				    TypedTable
+				```
+

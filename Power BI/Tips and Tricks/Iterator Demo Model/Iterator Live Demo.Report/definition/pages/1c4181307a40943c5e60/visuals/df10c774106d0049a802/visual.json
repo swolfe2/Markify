@@ -1,0 +1,201 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.4.0/schema.json",
+  "name": "df10c774106d0049a802",
+  "position": {
+    "x": 13.333333333333334,
+    "y": 405,
+    "z": 7005,
+    "height": 301.66666666666669,
+    "width": 1018.3333333333334,
+    "tabOrder": 7005
+  },
+  "visual": {
+    "visualType": "pivotTable",
+    "query": {
+      "queryState": {
+        "Rows": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Products"
+                    }
+                  },
+                  "Property": "Category"
+                }
+              },
+              "queryRef": "Products.Category",
+              "nativeQueryRef": "Category",
+              "active": true
+            }
+          ]
+        },
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Total Quantity (SUM)"
+                }
+              },
+              "queryRef": "_Measures.Total Quantity (SUM)",
+              "nativeQueryRef": "Total Quantity (SUM)"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Total Quantity (SUMX)"
+                }
+              },
+              "queryRef": "_Measures.Total Quantity (SUMX)",
+              "nativeQueryRef": "Total Quantity (SUMX)"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Total Sales (SUM)"
+                }
+              },
+              "queryRef": "_Measures.Total Sales (SUM)",
+              "nativeQueryRef": "Total Sales (SUM)"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Total Sales (SUMX)"
+                }
+              },
+              "queryRef": "_Measures.Total Sales (SUMX)",
+              "nativeQueryRef": "Total Sales (SUMX)"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Weighted Sales (SUMX + RELATED)"
+                }
+              },
+              "queryRef": "_Measures.Weighted Sales (SUMX + RELATED)",
+              "nativeQueryRef": "Weighted Sales (SUMX + RELATED)"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "5d6d9e50e70eb679c755",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Products"
+              }
+            },
+            "Property": "Category"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "35be1426da04ecd015c0",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Total Quantity (SUM)"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "34e566591ee668ca2661",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Total Quantity (SUMX)"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "7ac01f54ee303164e3c7",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Total Sales (SUM)"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "d9786c3276daaac0005b",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Total Sales (SUMX)"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "5d92e3b7b6c6779d7724",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Weighted Sales (SUMX + RELATED)"
+          }
+        },
+        "type": "Advanced"
+      }
+    ]
+  }
+}

@@ -44,13 +44,13 @@ Total Sales = SUM(Sales[LineTotal])
 
 #### Using SUMX (When You Need to Calculate Row-by-Row)
 
-If you need to calculate `Quantity �- UnitPrice` on the fly:
+If you need to calculate `Quantity  - UnitPrice` on the fly:
 
 ```dax
 Total Sales = SUMX(Sales, Sales[Quantity] * Sales[UnitPrice])
 ```
 
-**How it works:** DAX iterates through each row of the `Sales` table, calculates `Quantity �- UnitPrice`, stores the result in memory, then sums all those results.
+**How it works:** DAX iterates through each row of the `Sales` table, calculates `Quantity  - UnitPrice`, stores the result in memory, then sums all those results.
 
 ---
 
@@ -332,16 +332,16 @@ All measures are located in the `_Measures` table. Use ONLY these explicit measu
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│  [Text Box: "Iterator Functions Demo - The X Factor in DAX"]      │
+│  [Text Box: "Iterator Functions Demo - The X Factor in DAX"]       │
 │                                                                    │
 ├─────────────────┬─────────────────┬─────────────────┬──────────────┤
-│   💰 Card       │   📦 Card       │   📅 Card       │   📅 Card    │
+│   💰 Card      │   📦 Card       │   📅 Card       │   📅 Card   │
 │ Total Sales     │ Order Count     │ Earliest Order  │ Latest Order │
 │ (SUM)           │ (COUNTROWS)     │ Date (MIN)      │ Date (MAX)   │
 ├─────────────────┴─────────────────┴─────────────────┴──────────────┤
 │                                                                    │
 │   [Stacked Bar Chart]                                              │
-│   X-Axis: Products[Category]  |  Y-Axis: Total Sales by Category  │
+│   X-Axis: Products[Category]  |  Y-Axis: Total Sales by Category   │
 │                                                                    │
 ├────────────────────────────────────────────────────────────────────┤
 │   [Slicer: Year]        [Slicer: Region]        [Slicer: Type]     │
@@ -350,17 +350,17 @@ All measures are located in the `_Measures` table. Use ONLY these explicit measu
 
 #### Visuals to Create
 
-| Visual | Measure (Exact Name) | Position | Size (W�-H) |
+| Visual | Measure (Exact Name) | Position | Size (W-H) |
 |--------|---------------------|----------|------------|
-| Text Box | "Iterator Functions Demo - The X Factor in DAX" | Top center | 600�-50 |
-| Card | `Total Sales (SUM)` | Top left | 200�-100 |
-| Card | `Order Count (COUNTROWS)` | Top center-left | 200�-100 |
-| Card | `Earliest Order Date (MIN)` | Top center-right | 200�-100 |
-| Card | `Latest Order Date (MAX)` | Top right | 200�-100 |
-| Stacked Bar | X: `Products[Category]`, Y: `Total Sales by Category` | Center | 800�-300 |
-| Slicer | `Date[Year]` | Bottom left | 200�-80 |
-| Slicer | `Customers[Region]` | Bottom center | 200�-80 |
-| Slicer | `Customers[CustomerType]` | Bottom right | 200�-80 |
+| Text Box | "Iterator Functions Demo - The X Factor in DAX" | Top center | 600-50 |
+| Card | `Total Sales (SUM)` | Top left | 200-100 |
+| Card | `Order Count (COUNTROWS)` | Top center-left | 200-100 |
+| Card | `Earliest Order Date (MIN)` | Top center-right | 200-100 |
+| Card | `Latest Order Date (MAX)` | Top right | 200-100 |
+| Stacked Bar | X: `Products[Category]`, Y: `Total Sales by Category` | Center | 800-300 |
+| Slicer | `Date[Year]` | Bottom left | 200-80 |
+| Slicer | `Customers[Region]` | Bottom center | 200-80 |
+| Slicer | `Customers[CustomerType]` | Bottom right | 200-80 |
 
 > ⚠️ **Note:** Use the explicit measure `Total Sales by Category` for the bar chart—do NOT drag `Sales[LineTotal]` directly, as that creates an implicit measure.
 
@@ -377,7 +377,7 @@ All measures are located in the `_Measures` table. Use ONLY these explicit measu
 │  [Text Box: "SUM vs SUMX - When to Use Each"]                      │
 ├────────────────────────────────┬───────────────────────────────────┤
 │                                │                                   │
-│  ✅ OPTIMAL                    │  ⚠️ COMPARISON                    │
+│  ✅ OPTIMAL                    │  ⚠️ COMPARISON                   │
 │  [Card: Total Quantity (SUM)]  │  [Card: Total Quantity (SUMX)]    │
 │                                │                                   │
 │  [Card: Total Sales (SUM)]     │  [Card: Total Sales (SUMX)]       │
@@ -393,7 +393,7 @@ All measures are located in the `_Measures` table. Use ONLY these explicit measu
 │  [Text Box: Key Insight]                                           │
 │  "Total Quantity: SUM and SUMX return identical results.           │
 │   SUM is more efficient. Only use SUMX when calculating            │
-│   an expression (like Qty �- Price) that doesn't exist as           │
+│   an expression (like Qty- Price) that doesn't exist as            │
 │   a column."                                                       │
 └────────────────────────────────────────────────────────────────────┘
 ```
@@ -405,7 +405,7 @@ All measures are located in the `_Measures` table. Use ONLY these explicit measu
 | Card | `Total Quantity (SUM)` | ✅ Show optimal approach |
 | Card | `Total Quantity (SUMX)` | ❌ Show unnecessary iterator |
 | Card | `Total Sales (SUM)` | ✅ Uses pre-calculated LineTotal column |
-| Card | `Total Sales (SUMX)` | ✅ Calculates Qty �- Price �- Discount per row |
+| Card | `Total Sales (SUMX)` | ✅ Calculates Qty  - Price  - Discount per row |
 | Card | `Weighted Sales (SUMX + RELATED)` | ✅ Show when SUMX is **required** |
 | Table | Rows: `Products[Category]` | Compare all 5 measures by category |
 | | Columns: All 5 measures above | |
@@ -428,14 +428,14 @@ All measures are located in the `_Measures` table. Use ONLY these explicit measu
 ┌────────────────────────────────────────────────────────────────────┐
 │  [Text Box: "AVERAGE vs AVERAGEX"]                                 │
 ├────────────────────────────────┬───────────────────────────────────┤
-│  ✅ [Card: Avg Unit Price      │  ❌ [Card: Avg Unit Price         │
+│  ✅ [Card: Avg Unit Price      │  ❌ [Card: Avg Unit Price        │
 │      (AVERAGE)]                │      (AVERAGEX)]                  │
 ├────────────────────────────────┼───────────────────────────────────┤
 │  Values are IDENTICAL          │  But AVERAGEX iterates every row  │
 ├────────────────────────────────┴───────────────────────────────────┤
 │                                                                    │
 │  [Card: Avg Line Value (AVERAGEX)]                                 │
-│  ✅ This one IS necessary - calculates Qty �- Price per row         │
+│  ✅ This one IS necessary - calculates Qty  - Price per row        │
 │                                                                    │
 │  [Card: Avg Product Weight per Sale (AVERAGEX)]                    │
 │  ✅ Also necessary - uses RELATED function                         │
@@ -465,10 +465,10 @@ All measures are located in the `_Measures` table. Use ONLY these explicit measu
 ├───────────────────────┬────────────────────────────────────────────┤
 │  Basic Counting       │  Filtered Counting                         │
 ├───────────────────────┼────────────────────────────────────────────┤
-│  ✅ Order Count       │  ✅ Premium Orders (CALCULATE)             │
+│  ✅ Order Count       │  ✅ Premium Orders (CALCULATE)            │
 │  (COUNTROWS)          │  Uses CALCULATE + COUNTROWS                │
 │                       │                                            │
-│  ❌ Order Count       │  ❌ Premium Orders (COUNTX + FILTER)       │
+│  ❌ Order Count       │  ❌ Premium Orders (COUNTX + FILTER)      │
 │  (COUNTX)             │  Materializes filtered table first         │
 ├───────────────────────┴────────────────────────────────────────────┤
 │                                                                    │
@@ -521,7 +521,7 @@ COUNTX(
 │  [Text Box: "MIN/MAX vs MINX/MAXX"]                                │
 ├─────────────────┬─────────────────┬─────────────────┬──────────────┤
 │  Min Price      │  Max Price      │  Min Line Value │  Max Line    │
-│  (MIN) ✅        │  (MAX) ✅        │  (MINX) ✅       │  (MAXX) ✅    │
+│  (MIN) ✅       │  (MAX) ✅      │  (MINX) ✅      │  (MAXX) ✅  │
 │  $X.XX          │  $XXX.XX        │  $X.XX          │  $X,XXX.XX   │
 ├─────────────────┴─────────────────┴─────────────────┴──────────────┤
 │                                                                    │
@@ -555,12 +555,12 @@ COUNTX(
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│  [Text Box: "⚡ Performance Test - SUM vs SUMX"]                    │
+│  [Text Box: "⚡ Performance Test - SUM vs SUMX"]                   │
 ├────────────────────────────────┬───────────────────────────────────┤
 │                                │                                   │
 │  [Card: Perf Test - SUM Only]  │  [Card: Perf Test - SUMX Only]    │
 │                                │                                   │
-│  Uses 3�- SUM calls             │  Uses 3�- SUMX calls               │
+│  Uses 3 - SUM calls            │  Uses 3 - SUMX calls              │
 │                                │                                   │
 ├────────────────────────────────┴───────────────────────────────────┤
 │                                                                    │

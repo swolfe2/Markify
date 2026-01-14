@@ -1,0 +1,58 @@
+table Customers
+	lineageTag: c3d4e5f6-a7b8-9012-cdef-345678901234
+
+	column CustomerID
+		dataType: int64
+		isKey: true
+		formatString: 0
+		lineageTag: f1f1f1f1-f1f1-f1f1-f1f1-f1f1f1f1f1f1
+		summarizeBy: none
+		sourceColumn: CustomerID
+
+	column CustomerName
+		dataType: string
+		lineageTag: f2f2f2f2-f2f2-f2f2-f2f2-f2f2f2f2f2f2
+		summarizeBy: none
+		sourceColumn: CustomerName
+
+	column CustomerType
+		dataType: string
+		lineageTag: f3f3f3f3-f3f3-f3f3-f3f3-f3f3f3f3f3f3
+		summarizeBy: none
+		sourceColumn: CustomerType
+
+	column Region
+		dataType: string
+		lineageTag: f4f4f4f4-f4f4-f4f4-f4f4-f4f4f4f4f4f4
+		summarizeBy: none
+		sourceColumn: Region
+
+	partition Customers = m
+		mode: import
+		source = ```
+			let
+			    Regions = {"North", "South", "East", "West", "Central"},
+			    CustomerTypes = {"Regular", "Premium"},
+			    
+			    CustomerData = List.Transform(
+			        List.Numbers(1, 200, 1),
+			        each [
+			            CustomerID = _,
+			            CustomerName = "Customer " & Text.PadStart(Text.From(_), 4, "0"),
+			            CustomerType = if Number.Mod(_, 5) = 0 then "Premium" else "Regular",
+			            Region = Regions{Number.Mod(_ - 1, 5)}
+			        ]
+			    ),
+			    
+			    ToTable = Table.FromRecords(CustomerData),
+			    
+			    TypedTable = Table.TransformColumnTypes(ToTable, {
+			        {"CustomerID", Int64.Type},
+			        {"CustomerName", type text},
+			        {"CustomerType", type text},
+			        {"Region", type text}
+			    })
+			in
+			    TypedTable
+			```
+

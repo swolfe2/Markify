@@ -1,0 +1,262 @@
+/// Container table for all measures organized in display folders
+table _Measures
+	isHidden
+	lineageTag: 75e5415d-9e8a-4fab-84ce-dd25ecc7303e
+
+	/// ✅ OPTIMAL: Simple aggregation of existing column
+	measure 'Total Quantity (SUM)' =
+			
+			SUM ( Sales[Quantity] )
+		formatString: #,0
+		displayFolder: 1. SUM vs SUMX
+		lineageTag: 641d7bdc-3a38-4843-963e-cb8b1525aed3
+
+	/// ❌ UNNECESSARY: Using iterator when SUM would suffice
+	measure 'Total Quantity (SUMX)' =
+			
+			SUMX ( Sales, Sales[Quantity] )
+		formatString: #,0
+		displayFolder: 1. SUM vs SUMX
+		lineageTag: b232df4e-7256-4be2-9a12-f03f29d2d6cf
+
+	/// ✅ OPTIMAL: Uses pre-calculated column
+	measure 'Total Sales (SUM)' =
+			
+			SUM ( Sales[LineTotal] )
+		formatString: $#,0.00
+		displayFolder: 1. SUM vs SUMX
+		lineageTag: d4bf363a-1a9c-42e1-adb5-506194e77094
+
+	/// ✅ NECESSARY: Calculates row-by-row when no pre-calc column exists
+	measure 'Total Sales (SUMX)' =
+			
+			SUMX ( Sales, Sales[Quantity] * Sales[UnitPrice] * ( 1 - Sales[DiscountPct] ) )
+		formatString: $#,0.00
+		displayFolder: 1. SUM vs SUMX
+		lineageTag: cf78f22d-f05a-4faf-8c6a-84c0b3b93822
+
+	/// ✅ NECESSARY: Uses RELATED which requires row context
+	measure 'Weighted Sales (SUMX + RELATED)' =
+			
+			SUMX ( Sales, Sales[Quantity] * RELATED ( Products[Weight] ) )
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		displayFolder: 1. SUM vs SUMX
+		lineageTag: 972ab9a5-da99-4eb0-8619-5aa91a038cf1
+
+	/// ✅ OPTIMAL: Simple average of existing column
+	measure 'Avg Unit Price (AVERAGE)' =
+			
+			AVERAGE ( Sales[UnitPrice] )
+		formatString: $#,0.00
+		displayFolder: 2. AVERAGE vs AVERAGEX
+		lineageTag: 027de93f-3e9a-4adb-8a25-0e4e1fde7d71
+
+	/// ❌ UNNECESSARY: Using iterator when AVERAGE would suffice
+	measure 'Avg Unit Price (AVERAGEX)' =
+			
+			AVERAGEX ( Sales, Sales[UnitPrice] )
+		formatString: $#,0.00
+		displayFolder: 2. AVERAGE vs AVERAGEX
+		lineageTag: a7958b77-fd2c-4424-b80b-da2f33845545
+
+	/// ✅ NECESSARY: Calculates expression per row before averaging
+	measure 'Avg Line Value (AVERAGEX)' =
+			
+			AVERAGEX ( Sales, Sales[Quantity] * Sales[UnitPrice] )
+		formatString: $#,0.00
+		displayFolder: 2. AVERAGE vs AVERAGEX
+		lineageTag: 4b19088a-d469-4931-ab19-4a173bcbf2b2
+
+	/// ✅ NECESSARY: Uses RELATED which requires row context
+	measure 'Avg Product Weight per Sale (AVERAGEX)' =
+			
+			AVERAGEX ( Sales, RELATED ( Products[Weight] ) )
+		formatString: #,0.00
+		displayFolder: 2. AVERAGE vs AVERAGEX
+		lineageTag: 09d0f942-dcd8-47ac-b8ef-68c887cf8940
+
+	/// ✅ OPTIMAL: Simple row count
+	measure 'Order Count (COUNTROWS)' =
+			
+			COUNTROWS ( Sales )
+		formatString: #,0
+		displayFolder: 3. COUNT vs COUNTX
+		lineageTag: d39d0b30-2307-41e7-8a6d-d58187997f45
+
+	/// ❌ UNNECESSARY: Using iterator when COUNTROWS would suffice
+	measure 'Order Count (COUNTX)' =
+			
+			COUNTX ( Sales, Sales[OrderID] )
+		formatString: #,0
+		displayFolder: 3. COUNT vs COUNTX
+		lineageTag: 4c3c5f9f-f81c-47e8-b471-aea5d3a329e5
+
+	/// ✅ OPTIMAL: Uses CALCULATE for filtering
+	measure 'Premium Customer Orders (CALCULATE)' =
+			
+			CALCULATE ( COUNTROWS ( Sales ), Customers[CustomerType] = "Premium" )
+		formatString: #,0
+		displayFolder: 3. COUNT vs COUNTX
+		lineageTag: 6d64f25f-4fc0-4437-a062-c046b7da16cb
+
+	/// ❌ SUBOPTIMAL: CALCULATE with COUNTROWS is more efficient
+	measure 'Premium Customer Orders (COUNTX + FILTER)' =
+			
+			COUNTX (
+			    FILTER ( Sales, RELATED ( Customers[CustomerType] ) = "Premium" ),
+			    Sales[OrderID]
+			)
+		formatString: #,0
+		displayFolder: 3. COUNT vs COUNTX
+		lineageTag: 8495b7c6-ce9e-4f93-a098-1176add4a279
+
+	/// ✅ ACCEPTABLE: Complex filter logic may warrant COUNTX
+	measure 'High Value Orders (COUNTX)' =
+			
+			COUNTX ( FILTER ( Sales, Sales[LineTotal] > 500 ), Sales[OrderID] )
+		formatString: #,0
+		displayFolder: 3. COUNT vs COUNTX
+		lineageTag: e474de35-4490-49d8-a244-e01b61aadff0
+
+	/// ✅ OPTIMAL: Simple min of existing column
+	measure 'Min Unit Price (MIN)' =
+			
+			MIN ( Sales[UnitPrice] )
+		formatString: $#,0.00
+		displayFolder: 4. MIN-MAX vs MINX-MAXX
+		lineageTag: a8439bc8-2439-457c-8b03-131c9fdc59b3
+
+	/// ✅ OPTIMAL: Simple max of existing column
+	measure 'Max Unit Price (MAX)' =
+			
+			MAX ( Sales[UnitPrice] )
+		formatString: $#,0.00
+		displayFolder: 4. MIN-MAX vs MINX-MAXX
+		lineageTag: c2c98c72-d384-4517-8185-d4ef16fda877
+
+	/// ✅ NECESSARY: Finds minimum of calculated expression
+	measure 'Min Line Value (MINX)' =
+			
+			MINX ( Sales, Sales[Quantity] * Sales[UnitPrice] )
+		formatString: $#,0.00
+		displayFolder: 4. MIN-MAX vs MINX-MAXX
+		lineageTag: fe4f27b3-fb83-4e65-bb55-2302f7025d29
+
+	/// ✅ NECESSARY: Finds maximum of calculated expression
+	measure 'Max Line Value (MAXX)' =
+			
+			MAXX ( Sales, Sales[Quantity] * Sales[UnitPrice] )
+		formatString: $#,0.00
+		displayFolder: 4. MIN-MAX vs MINX-MAXX
+		lineageTag: 0b114ab8-89f4-4911-bbea-c44d3dcb78a7
+
+	/// ✅ OPTIMAL: Simple min of date column
+	measure 'Earliest Order Date (MIN)' =
+			
+			MIN ( Sales[OrderDate] )
+		formatString: Short Date
+		displayFolder: 4. MIN-MAX vs MINX-MAXX
+		lineageTag: e8ea7b60-6909-49af-a607-c315ce7b74be
+
+	/// ✅ OPTIMAL: Simple max of date column
+	measure 'Latest Order Date (MAX)' =
+			
+			MAX ( Sales[OrderDate] )
+		formatString: Short Date
+		displayFolder: 4. MIN-MAX vs MINX-MAXX
+		lineageTag: 769d566a-7ea6-4891-b0d0-39265b284f0b
+
+	/// CONCATENATEX: String iterator - always iterates, no simpler alternative
+	measure 'Product List (CONCATENATEX)' =
+			
+			CONCATENATEX (
+			    Products,
+			    Products[ProductName],
+			    ", ",
+			    Products[ProductName], ASC
+			)
+		displayFolder: 5. Bonus Iterators
+		lineageTag: 1470c69d-fa84-40df-b7db-24a9c36dde93
+
+	/// CONCATENATEX with VALUES: Gets distinct categories in filter context
+	measure 'Category List (CONCATENATEX Distinct)' =
+			
+			CONCATENATEX (
+			    VALUES ( Products[Category] ),
+			    Products[Category],
+			    " | ",
+			    Products[Category], ASC
+			)
+		displayFolder: 5. Bonus Iterators
+		lineageTag: 7d2866f0-0e4b-41e9-ab94-15ba72baa148
+
+	/// RANKX: Ranking iterator - always iterates, no simpler alternative
+	measure 'Product Rank by Revenue (RANKX)' =
+			
+			IF (
+			    HASONEVALUE ( Products[ProductName] ),
+			    RANKX ( ALL ( Products ), [Total Sales (SUM)],, DESC, DENSE )
+			)
+		formatString: 0
+		displayFolder: 5. Bonus Iterators
+		lineageTag: 818d8811-4c3f-4ac2-894f-415d9532522d
+
+	/// Use Performance Analyzer: Multiple SUM calls (baseline)
+	measure 'Perf Test - SUM Only' =
+			
+			SUM ( Sales[Quantity] ) + SUM ( Sales[UnitPrice] ) + SUM ( Sales[LineTotal] )
+		formatString: #,0.00
+		displayFolder: 6. Performance Testing
+		lineageTag: 6eb28bb9-c8cf-435f-8224-4c43ba2aa2aa
+
+	/// Use Performance Analyzer: Multiple unnecessary SUMX calls
+	measure 'Perf Test - SUMX Only' =
+			
+			SUMX ( Sales, Sales[Quantity] ) + SUMX ( Sales, Sales[UnitPrice] )
+			    + SUMX ( Sales, Sales[LineTotal] )
+		formatString: #,0.00
+		displayFolder: 6. Performance Testing
+		lineageTag: 0600200a-9378-4600-b762-c05bd2b2df09
+
+	/// For bar chart: Total Sales using SUM, sliced by Category
+	measure 'Total Sales by Category' = SUM(Sales[LineTotal])
+		formatString: $#,0.00
+		displayFolder: 0. Overview KPIs
+		lineageTag: 44cb597d-80b0-4e1e-b03c-050e714b63bd
+
+	/// Distinct count of product categories in context
+	measure 'Category Count' = DISTINCTCOUNT(Products[Category])
+		formatString: #,0
+		displayFolder: 0. Overview KPIs
+		lineageTag: d4fe88a1-dc60-4c5b-8b92-863bbaf254fe
+
+	/// Distinct count of customers in context
+	measure 'Customer Count' = DISTINCTCOUNT(Sales[CustomerID])
+		formatString: #,0
+		displayFolder: 0. Overview KPIs
+		lineageTag: f2080469-f3e7-4a24-9162-21baa5a439e2
+
+	/// Distinct count of products sold in context
+	measure 'Product Count' = DISTINCTCOUNT(Sales[ProductID])
+		formatString: #,0
+		displayFolder: 0. Overview KPIs
+		lineageTag: 0965f163-061a-4852-8456-b28352070785
+
+	column Placeholder
+		dataType: string
+		isHidden
+		lineageTag: 9121661b-082f-4e3f-9264-843e39cc7ea1
+		summarizeBy: none
+		sourceColumn: Placeholder
+
+	partition _Measures = m
+		mode: import
+		source =
+				let
+				    Source = #table(
+				        type table [Placeholder = text],
+				        {{"Measures Table"}}
+				    )
+				in
+				    Source
+

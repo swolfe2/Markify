@@ -1,0 +1,70 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.4.0/schema.json",
+  "name": "f5f063dcbb2b6664925a",
+  "position": {
+    "x": 560.96852300242131,
+    "y": 79.0314769975787,
+    "z": 2000,
+    "height": 280.48426150121065,
+    "width": 474.18886198547222,
+    "tabOrder": 2000
+  },
+  "visual": {
+    "visualType": "cardVisual",
+    "query": {
+      "queryState": {
+        "Data": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Earliest Order Date (MIN)"
+                }
+              },
+              "queryRef": "_Measures.Earliest Order Date (MIN)",
+              "nativeQueryRef": "Earliest Order Date (MIN)"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Latest Order Date (MAX)"
+                }
+              },
+              "queryRef": "_Measures.Latest Order Date (MAX)",
+              "nativeQueryRef": "Latest Order Date (MAX)"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Measure": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "_Measures"
+                  }
+                },
+                "Property": "Earliest Order Date (MIN)"
+              }
+            },
+            "direction": "Ascending"
+          }
+        ],
+        "isDefaultSort": true
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

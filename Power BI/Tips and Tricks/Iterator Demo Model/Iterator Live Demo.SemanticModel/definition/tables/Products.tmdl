@@ -1,0 +1,65 @@
+/// Product dimension with 50 products across 5 categories
+table Products
+	lineageTag: 820f36af-2187-4eb3-8f84-8561cb956668
+
+	column ProductID
+		dataType: int64
+		isKey
+		lineageTag: ce1da1c0-411e-41f6-af7d-44c222e0686f
+		summarizeBy: none
+		sourceColumn: ProductID
+
+	column ProductName
+		dataType: string
+		lineageTag: 883f44cc-fc46-4741-a03a-b9dc40e428c9
+		summarizeBy: none
+		sourceColumn: ProductName
+
+	column Category
+		dataType: string
+		lineageTag: ad54fcd9-f631-423b-a8e4-9c93f155d663
+		summarizeBy: none
+		sourceColumn: Category
+
+	column Weight
+		dataType: double
+		lineageTag: 0497d925-726e-4459-bea1-f462fc2fc5ef
+		summarizeBy: sum
+		sourceColumn: Weight
+
+	column StandardCost
+		dataType: double
+		lineageTag: a9b5e2e7-5a1b-44ab-8ce1-674ceb60ee58
+		summarizeBy: sum
+		sourceColumn: StandardCost
+
+	partition Products = m
+		mode: import
+		source = ```
+				let
+				    Categories = {"Electronics", "Clothing", "Home & Garden", "Sports", "Books"},
+				    
+				    ProductData = List.Transform(
+				        List.Numbers(1, 50, 1),
+				        each [
+				            ProductID = _,
+				            ProductName = "Product " & Text.PadStart(Text.From(_), 3, "0"),
+				            Category = Categories{Number.Mod(_ - 1, 5)},
+				            Weight = Number.Round(Number.RandomBetween(0.1, 50), 2),
+				            StandardCost = Number.Round(Number.RandomBetween(2, 200), 2)
+				        ]
+				    ),
+				    
+				    ToTable = Table.FromRecords(ProductData),
+				    
+				    TypedTable = Table.TransformColumnTypes(ToTable, {
+				        {"ProductID", Int64.Type},
+				        {"ProductName", type text},
+				        {"Category", type text},
+				        {"Weight", type number},
+				        {"StandardCost", type number}
+				    })
+				in
+				    TypedTable
+				```
+

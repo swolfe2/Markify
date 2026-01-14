@@ -1,0 +1,58 @@
+/// Date dimension spanning 2023-2024
+table Date
+	lineageTag: 516ad6bb-76b1-4fa3-96e6-7474d9e70071
+	dataCategory: Time
+
+	column Date
+		dataType: dateTime
+		isKey
+		formatString: Short Date
+		lineageTag: e9b9f619-85a8-4704-8dcb-8faa6b2f181f
+		summarizeBy: none
+		sourceColumn: Date
+
+	column Year
+		dataType: int64
+		lineageTag: e8f004fe-4f46-4e17-942a-de702e505775
+		summarizeBy: none
+		sourceColumn: Year
+
+	column Month
+		dataType: int64
+		lineageTag: b6914073-8d79-4940-8d32-ad34bcd34bcc
+		summarizeBy: none
+		sourceColumn: Month
+
+	column MonthName
+		dataType: string
+		lineageTag: 2381d986-7224-485f-a05e-f287cda98d6d
+		summarizeBy: none
+		sourceColumn: MonthName
+
+	column Quarter
+		dataType: string
+		lineageTag: 8945fdcd-53f5-452f-9e87-43d278ac6a0d
+		summarizeBy: none
+		sourceColumn: Quarter
+
+	partition Date = m
+		mode: import
+		source = ```
+				let
+				    StartDate = #date(2023, 1, 1),
+				    EndDate = #date(2024, 12, 31),
+				    
+				    DateList = List.Dates(StartDate, Duration.Days(EndDate - StartDate) + 1, #duration(1, 0, 0, 0)),
+				    
+				    ToTable = Table.FromList(DateList, Splitter.SplitByNothing(), {"Date"}, null, ExtraValues.Error),
+				    
+				    AddYear = Table.AddColumn(ToTable, "Year", each Date.Year([Date]), Int64.Type),
+				    AddMonth = Table.AddColumn(AddYear, "Month", each Date.Month([Date]), Int64.Type),
+				    AddMonthName = Table.AddColumn(AddMonth, "MonthName", each Date.MonthName([Date]), type text),
+				    AddQuarter = Table.AddColumn(AddMonthName, "Quarter", each "Q" & Text.From(Date.QuarterOfYear([Date])), type text),
+				    
+				    TypedTable = Table.TransformColumnTypes(AddQuarter, {{"Date", type date}})
+				in
+				    TypedTable
+				```
+

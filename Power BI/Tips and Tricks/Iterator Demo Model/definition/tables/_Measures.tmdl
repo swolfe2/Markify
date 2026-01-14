@@ -1,0 +1,246 @@
+table _Measures
+	lineageTag: e5f6a7b8-c9d0-1234-ef56-789012345678
+	isPrivate: false
+	isHidden: false
+
+	/// =============================================
+	/// SUM vs SUMX Comparisons
+	/// =============================================
+
+	measure 'Total Quantity (SUM)' = 
+		SUM(Sales[Quantity])
+		displayFolder: "1. SUM vs SUMX"
+		formatString: #,0
+		lineageTag: m1111111-1111-1111-1111-111111111111
+		description: "✅ OPTIMAL: Simple aggregation of existing column"
+
+	measure 'Total Quantity (SUMX)' = 
+		SUMX(Sales, Sales[Quantity])
+		displayFolder: "1. SUM vs SUMX"
+		formatString: #,0
+		lineageTag: m1111111-1111-1111-1111-111111111112
+		description: "❌ UNNECESSARY: Using iterator when SUM would suffice"
+
+	measure 'Total Sales (SUM)' = 
+		SUM(Sales[LineTotal])
+		displayFolder: "1. SUM vs SUMX"
+		formatString: \$#,0.00
+		lineageTag: m1111111-1111-1111-1111-111111111113
+		description: "✅ OPTIMAL: Uses pre-calculated column"
+
+	measure 'Total Sales (SUMX)' = 
+		SUMX(Sales, Sales[Quantity] * Sales[UnitPrice] * (1 - Sales[DiscountPct]))
+		displayFolder: "1. SUM vs SUMX"
+		formatString: \$#,0.00
+		lineageTag: m1111111-1111-1111-1111-111111111114
+		description: "✅ NECESSARY: Calculates row-by-row when no pre-calc column exists"
+
+	measure 'Weighted Sales (SUMX + RELATED)' = 
+		SUMX(Sales, Sales[Quantity] * RELATED(Products[Weight]))
+		displayFolder: "1. SUM vs SUMX"
+		formatString: #,0.00
+		lineageTag: m1111111-1111-1111-1111-111111111115
+		description: "✅ NECESSARY: Uses RELATED which requires row context"
+
+	/// =============================================
+	/// AVERAGE vs AVERAGEX Comparisons
+	/// =============================================
+
+	measure 'Avg Unit Price (AVERAGE)' = 
+		AVERAGE(Sales[UnitPrice])
+		displayFolder: "2. AVERAGE vs AVERAGEX"
+		formatString: \$#,0.00
+		lineageTag: m2222222-2222-2222-2222-222222222221
+		description: "✅ OPTIMAL: Simple average of existing column"
+
+	measure 'Avg Unit Price (AVERAGEX)' = 
+		AVERAGEX(Sales, Sales[UnitPrice])
+		displayFolder: "2. AVERAGE vs AVERAGEX"
+		formatString: \$#,0.00
+		lineageTag: m2222222-2222-2222-2222-222222222222
+		description: "❌ UNNECESSARY: Using iterator when AVERAGE would suffice"
+
+	measure 'Avg Line Value (AVERAGEX)' = 
+		AVERAGEX(Sales, Sales[Quantity] * Sales[UnitPrice])
+		displayFolder: "2. AVERAGE vs AVERAGEX"
+		formatString: \$#,0.00
+		lineageTag: m2222222-2222-2222-2222-222222222223
+		description: "✅ NECESSARY: Calculates expression per row before averaging"
+
+	measure 'Avg Product Weight per Sale (AVERAGEX)' = 
+		AVERAGEX(Sales, RELATED(Products[Weight]))
+		displayFolder: "2. AVERAGE vs AVERAGEX"
+		formatString: #,0.00
+		lineageTag: m2222222-2222-2222-2222-222222222224
+		description: "✅ NECESSARY: Uses RELATED which requires row context"
+
+	/// =============================================
+	/// COUNT vs COUNTX Comparisons
+	/// =============================================
+
+	measure 'Order Count (COUNTROWS)' = 
+		COUNTROWS(Sales)
+		displayFolder: "3. COUNT vs COUNTX"
+		formatString: #,0
+		lineageTag: m3333333-3333-3333-3333-333333333331
+		description: "✅ OPTIMAL: Simple row count"
+
+	measure 'Order Count (COUNTX)' = 
+		COUNTX(Sales, Sales[OrderID])
+		displayFolder: "3. COUNT vs COUNTX"
+		formatString: #,0
+		lineageTag: m3333333-3333-3333-3333-333333333332
+		description: "❌ UNNECESSARY: Using iterator when COUNTROWS would suffice"
+
+	measure 'Premium Customer Orders (CALCULATE)' = 
+		CALCULATE(
+		    COUNTROWS(Sales),
+		    Customers[CustomerType] = "Premium"
+		)
+		displayFolder: "3. COUNT vs COUNTX"
+		formatString: #,0
+		lineageTag: m3333333-3333-3333-3333-333333333333
+		description: "✅ OPTIMAL: Uses CALCULATE for filtering"
+
+	measure 'Premium Customer Orders (COUNTX + FILTER)' = 
+		COUNTX(
+		    FILTER(Sales, RELATED(Customers[CustomerType]) = "Premium"),
+		    Sales[OrderID]
+		)
+		displayFolder: "3. COUNT vs COUNTX"
+		formatString: #,0
+		lineageTag: m3333333-3333-3333-3333-333333333334
+		description: "❌ SUBOPTIMAL: CALCULATE with COUNTROWS is more efficient"
+
+	measure 'High Value Orders (COUNTX)' = 
+		COUNTX(
+		    FILTER(Sales, Sales[LineTotal] > 500),
+		    Sales[OrderID]
+		)
+		displayFolder: "3. COUNT vs COUNTX"
+		formatString: #,0
+		lineageTag: m3333333-3333-3333-3333-333333333335
+		description: "✅ ACCEPTABLE: Complex filter logic may warrant COUNTX"
+
+	/// =============================================
+	/// MIN/MAX vs MINX/MAXX Comparisons
+	/// =============================================
+
+	measure 'Min Unit Price (MIN)' = 
+		MIN(Sales[UnitPrice])
+		displayFolder: "4. MIN-MAX vs MINX-MAXX"
+		formatString: \$#,0.00
+		lineageTag: m4444444-4444-4444-4444-444444444441
+		description: "✅ OPTIMAL: Simple min of existing column"
+
+	measure 'Max Unit Price (MAX)' = 
+		MAX(Sales[UnitPrice])
+		displayFolder: "4. MIN-MAX vs MINX-MAXX"
+		formatString: \$#,0.00
+		lineageTag: m4444444-4444-4444-4444-444444444442
+		description: "✅ OPTIMAL: Simple max of existing column"
+
+	measure 'Min Line Value (MINX)' = 
+		MINX(Sales, Sales[Quantity] * Sales[UnitPrice])
+		displayFolder: "4. MIN-MAX vs MINX-MAXX"
+		formatString: \$#,0.00
+		lineageTag: m4444444-4444-4444-4444-444444444443
+		description: "✅ NECESSARY: Finds minimum of calculated expression"
+
+	measure 'Max Line Value (MAXX)' = 
+		MAXX(Sales, Sales[Quantity] * Sales[UnitPrice])
+		displayFolder: "4. MIN-MAX vs MINX-MAXX"
+		formatString: \$#,0.00
+		lineageTag: m4444444-4444-4444-4444-444444444444
+		description: "✅ NECESSARY: Finds maximum of calculated expression"
+
+	measure 'Earliest Order Date (MIN)' = 
+		MIN(Sales[OrderDate])
+		displayFolder: "4. MIN-MAX vs MINX-MAXX"
+		formatString: Short Date
+		lineageTag: m4444444-4444-4444-4444-444444444445
+		description: "✅ OPTIMAL: Simple min of date column"
+
+	measure 'Latest Order Date (MAX)' = 
+		MAX(Sales[OrderDate])
+		displayFolder: "4. MIN-MAX vs MINX-MAXX"
+		formatString: Short Date
+		lineageTag: m4444444-4444-4444-4444-444444444446
+		description: "✅ OPTIMAL: Simple max of date column"
+
+	/// =============================================
+	/// Bonus: Other Iterator Functions
+	/// =============================================
+
+	measure 'Product List (CONCATENATEX)' = 
+		CONCATENATEX(
+		    Products,
+		    Products[ProductName],
+		    ", ",
+		    Products[ProductName], ASC
+		)
+		displayFolder: "5. Bonus Iterators"
+		lineageTag: m5555555-5555-5555-5555-555555555551
+		description: "CONCATENATEX: String iterator - always iterates, no simpler alternative"
+
+	measure 'Category List (CONCATENATEX Distinct)' = 
+		CONCATENATEX(
+		    VALUES(Products[Category]),
+		    Products[Category],
+		    " | ",
+		    Products[Category], ASC
+		)
+		displayFolder: "5. Bonus Iterators"
+		lineageTag: m5555555-5555-5555-5555-555555555552
+		description: "CONCATENATEX with VALUES: Gets distinct categories in filter context"
+
+	measure 'Product Rank by Revenue (RANKX)' = 
+		IF(
+		    HASONEVALUE(Products[ProductName]),
+		    RANKX(
+		        ALL(Products),
+		        [Total Sales (SUM)],
+		        ,
+		        DESC,
+		        Dense
+		    )
+		)
+		displayFolder: "5. Bonus Iterators"
+		formatString: 0
+		lineageTag: m5555555-5555-5555-5555-555555555553
+		description: "RANKX: Ranking iterator - always iterates, no simpler alternative"
+
+	/// =============================================
+	/// Performance Test Measures
+	/// =============================================
+
+	measure 'Perf Test - SUM Only' = 
+		SUM(Sales[Quantity]) + 
+		SUM(Sales[UnitPrice]) + 
+		SUM(Sales[LineTotal])
+		displayFolder: "6. Performance Testing"
+		formatString: #,0.00
+		lineageTag: m6666666-6666-6666-6666-666666666661
+		description: "Use Performance Analyzer: Multiple SUM calls (baseline)"
+
+	measure 'Perf Test - SUMX Only' = 
+		SUMX(Sales, Sales[Quantity]) + 
+		SUMX(Sales, Sales[UnitPrice]) + 
+		SUMX(Sales, Sales[LineTotal])
+		displayFolder: "6. Performance Testing"
+		formatString: #,0.00
+		lineageTag: m6666666-6666-6666-6666-666666666662
+		description: "Use Performance Analyzer: Multiple unnecessary SUMX calls"
+
+	partition _Measures = m
+		mode: import
+		source = ```
+			let
+			    Source = #table(
+			        type table [Placeholder = text],
+			        {{"Measures Table"}}
+			    )
+			in
+			    Source
+			```
+

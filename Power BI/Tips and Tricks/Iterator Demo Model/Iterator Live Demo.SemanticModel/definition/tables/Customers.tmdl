@@ -1,0 +1,57 @@
+/// Customer dimension with 200 customers (20% Premium type)
+table Customers
+	lineageTag: edeaadab-e6eb-49ec-9970-cf9a5482a581
+
+	column CustomerID
+		dataType: int64
+		isKey
+		lineageTag: 51d411e2-e202-46cf-ae23-6b6556f0e870
+		summarizeBy: none
+		sourceColumn: CustomerID
+
+	column CustomerName
+		dataType: string
+		lineageTag: 1cdbda97-5249-4101-b875-e79c56dcbb2d
+		summarizeBy: none
+		sourceColumn: CustomerName
+
+	column CustomerType
+		dataType: string
+		lineageTag: 3b8f3b07-2430-4cfb-aafb-defb2c4c5755
+		summarizeBy: none
+		sourceColumn: CustomerType
+
+	column Region
+		dataType: string
+		lineageTag: 1616047a-700b-41f7-851b-a15cfcbd869a
+		summarizeBy: none
+		sourceColumn: Region
+
+	partition Customers = m
+		mode: import
+		source = ```
+				let
+				    Regions = {"North", "South", "East", "West", "Central"},
+				    
+				    CustomerData = List.Transform(
+				        List.Numbers(1, 200, 1),
+				        each [
+				            CustomerID = _,
+				            CustomerName = "Customer " & Text.PadStart(Text.From(_), 4, "0"),
+				            CustomerType = if Number.Mod(_, 5) = 0 then "Premium" else "Regular",
+				            Region = Regions{Number.Mod(_ - 1, 5)}
+				        ]
+				    ),
+				    
+				    ToTable = Table.FromRecords(CustomerData),
+				    
+				    TypedTable = Table.TransformColumnTypes(ToTable, {
+				        {"CustomerID", Int64.Type},
+				        {"CustomerName", type text},
+				        {"CustomerType", type text},
+				        {"Region", type text}
+				    })
+				in
+				    TypedTable
+				```
+
