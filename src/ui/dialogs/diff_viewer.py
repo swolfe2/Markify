@@ -20,7 +20,8 @@ class DiffViewerDialog:
         colors: dict,
         file1_path: str | None = None,
         file2_path: str | None = None,
-        icon_path: str = None
+        icon_path: str = None,
+        icon_photo: tk.PhotoImage = None,
     ):
         """
         Create a diff viewer dialog.
@@ -31,6 +32,7 @@ class DiffViewerDialog:
             file1_path: Optional path to first file
             file2_path: Optional path to second file
             icon_path: Path to application icon
+            icon_photo: PhotoImage for application icon
         """
         self.parent = parent
         self.colors = colors
@@ -45,11 +47,14 @@ class DiffViewerDialog:
         self.dialog.transient(parent)
 
         # Set icon if provided
-        if icon_path:
-            try:
+        try:
+            if icon_photo:
+                self.dialog.iconphoto(True, icon_photo)
+            if icon_path:
                 self.dialog.iconbitmap(icon_path)
-            except Exception:  # nosec B110 - Safe: icon loading is optional, gracefully degrade
-                pass
+                self.dialog.wm_iconbitmap(icon_path)
+        except Exception:  # nosec B110 - Safe: icon loading is optional, gracefully degrade
+            pass
 
         self._create_widgets()
 
@@ -311,9 +316,14 @@ class DiffViewerDialog:
         )
 
 
-def show_diff_viewer(parent: tk.Tk, colors: dict, icon_path: str = None):
+def show_diff_viewer(
+    parent: tk.Tk,
+    colors: dict,
+    icon_path: str = None,
+    icon_photo: tk.PhotoImage = None,
+):
     """Show the diff viewer dialog."""
-    DiffViewerDialog(parent, colors, icon_path=icon_path)
+    DiffViewerDialog(parent, colors, icon_path=icon_path, icon_photo=icon_photo)
 
 
 # Utility functions for programmatic comparison

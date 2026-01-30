@@ -4,7 +4,7 @@ from tkinter import ttk
 
 
 class MarkdownViewer:
-    def __init__(self, parent, filepath, colors, icon_path=None):
+    def __init__(self, parent, filepath, colors, icon_path=None, icon_photo=None):
         self.colors = colors
         self.filepath = filepath
         self.raw_content = ""
@@ -15,11 +15,14 @@ class MarkdownViewer:
         self.top.title("Documentation")
 
         # Set icon if provided
-        if icon_path:
-            try:
+        try:
+            if icon_photo:
+                self.top.iconphoto(True, icon_photo)
+            if icon_path:
                 self.top.iconbitmap(icon_path)
-            except Exception:  # nosec B110 - Safe: icon loading is optional, gracefully degrade
-                pass
+                self.top.wm_iconbitmap(icon_path)
+        except Exception:  # nosec B110 - Safe: icon loading is optional, gracefully degrade
+            pass
 
         # Center on parent window, but ensure it stays on screen
         w, h = 1000, 700

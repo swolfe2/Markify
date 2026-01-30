@@ -12,7 +12,8 @@ def show_error_dialog(
     message: str = "An error occurred",
     details: str = "",
     hint: str = "",
-    icon_path: str = None
+    icon_path: str = None,
+    icon_photo: tk.PhotoImage = None,
 ) -> None:
     """
     Show a modern styled error dialog.
@@ -25,6 +26,7 @@ def show_error_dialog(
         details: Optional detailed error information.
         hint: Optional hint for resolution.
         icon_path: Path to application icon.
+        icon_photo: PhotoImage for application icon.
     """
     c = colors
     dialog = tk.Toplevel(parent)
@@ -34,7 +36,9 @@ def show_error_dialog(
     dialog.resizable(False, False)
 
     # Set icon if provided
-    if icon_path:
+    if icon_photo:
+        dialog.iconphoto(True, icon_photo)
+    elif icon_path:
         try:
             dialog.iconbitmap(icon_path)
         except Exception:  # nosec B110 - Safe: icon loading is optional, gracefully degrade

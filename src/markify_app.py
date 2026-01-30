@@ -141,16 +141,32 @@ class ConverterApp:
         self.root.configure(bg=self.colors["bg"])
 
         # Set App Icon (load .ico from resources folder for Windows taskbar)
+        # Note: The ICO file should contain multiple sizes (16, 32, 48, 256)
+        # for consistent display across different Windows DPI settings
         self.icon_path = None
+        self.icon_photo = None
         try:
             # Use resource_path to handle both dev and PyInstaller modes
             icon_path = resource_path("resources/markify_icon.ico")
+            icon_png_path = resource_path("resources/markify_icon.png")
 
             if os.path.exists(icon_path):
                 self.icon_path = icon_path
-                # Set icon for window and taskbar (Windows uses .ico files)
+
+                # Ensure window is fully initialized before setting icons
+                # This prevents race conditions with Windows icon caching
+                self.root.update_idletasks()
+
+                # Set icon for window and taskbar
                 self.root.iconbitmap(icon_path)
+                self.root.wm_iconbitmap(icon_path)
                 logger.debug(f"App icon loaded from: {icon_path}")
+
+                # Also set PhotoImage for better consistency
+                if os.path.exists(icon_png_path):
+                    self.icon_photo = tk.PhotoImage(file=icon_png_path)
+                    self.root.iconphoto(True, self.icon_photo)
+
             else:
                 logger.warning(f"Icon file not found at: {icon_path}")
         except Exception as e:  # nosec B110
@@ -339,7 +355,11 @@ class ConverterApp:
             "on_browse": self.browse_output_folder,
         }
         self.options_dialog = OptionsDialog(
-            self.root, self.colors, config, icon_path=self.icon_path
+            self.root,
+            self.colors,
+            config,
+            icon_path=self.icon_path,
+            icon_photo=self.icon_photo,
         )
 
     def on_output_mode_change(self, *args):
@@ -445,7 +465,11 @@ class ConverterApp:
         readme_path = resource_path("README.md")
         if os.path.exists(readme_path):
             MarkdownViewer(
-                self.root, readme_path, self.colors, icon_path=self.icon_path
+                self.root,
+                readme_path,
+                self.colors,
+                icon_path=self.icon_path,
+                icon_photo=self.icon_photo,
             )
         else:
             messagebox.showwarning("Help", f"README.md not found at {readme_path}")
@@ -455,7 +479,11 @@ class ConverterApp:
         changelog_path = resource_path("CHANGELOG.md")
         if os.path.exists(changelog_path):
             MarkdownViewer(
-                self.root, changelog_path, self.colors, icon_path=self.icon_path
+                self.root,
+                changelog_path,
+                self.colors,
+                icon_path=self.icon_path,
+                icon_photo=self.icon_photo,
             )
         else:
             messagebox.showwarning(
@@ -464,7 +492,9 @@ class ConverterApp:
 
     def open_shortcuts(self):
         """Open the Keyboard Shortcuts dialog."""
-        show_shortcuts_dialog(self.root, self.colors, icon_path=self.icon_path)
+        show_shortcuts_dialog(
+            self.root, self.colors, icon_path=self.icon_path, icon_photo=self.icon_photo
+        )
 
     def open_clipboard_mode(self):
         """Open the Clipboard Mode dialog."""
@@ -474,6 +504,7 @@ class ConverterApp:
             self.prefs,
             on_close=self.refresh_recents,
             icon_path=self.icon_path,
+            icon_photo=self.icon_photo,
         )
 
     def open_watch_mode(self):
@@ -532,7 +563,9 @@ class ConverterApp:
 
     def open_diff_viewer(self):
         """Open the Diff View dialog to compare two files."""
-        show_diff_viewer(self.root, self.colors, icon_path=self.icon_path)
+        show_diff_viewer(
+            self.root, self.colors, icon_path=self.icon_path, icon_photo=self.icon_photo
+        )
 
     def select_file(self):
         initial_dir = self.prefs.get("last_directory", "")
@@ -737,7 +770,15 @@ class ConverterApp:
 
     def _on_xlsx_complete(self, result, source_path):
         """Callback when Excel file conversion finishes."""
-        success, output_file, error_info = result
+        success, output_data, error_info = result
+
+        # Handle preview mode tuple: (content, output_file_path)
+        # vs non-preview mode: just output_file_path
+        if success and isinstance(output_data, tuple):
+            content, output_file_path = output_data
+        else:
+            content = None
+            output_file_path = output_data
 
         # Stop progress
         self.progress.stop()
@@ -751,8 +792,6 @@ class ConverterApp:
 
         if success:
             if self.show_preview_var.get():
-                content, output_file_path = output_file
-
                 user_approved = show_preview_dialog(
                     self.root,
                     self.colors,
@@ -761,6 +800,7 @@ class ConverterApp:
                     content,
                     on_open_options=self.toggle_options,
                     icon_path=self.icon_path,
+                    icon_photo=self.icon_photo,
                 )
 
                 if user_approved:
@@ -786,25 +826,27 @@ class ConverterApp:
                             title="Save Error",
                             message="Failed to save file",
                             details=str(e),
+                            icon_photo=self.icon_photo,
                         )
                 else:
                     self.status_var.set("Conversion cancelled.")
             else:
                 self.status_var.set("Excel Conversion Successful!")
-                self.prefs.add_recent_file(source_path, output_file)
+                self.prefs.add_recent_file(source_path, output_file_path)
                 self.refresh_recents()
                 show_success_dialog(
                     self.root,
                     self.colors,
-                    output_file,
+                    output_file_path,
                     single_mode=True,
                     on_run_cmd=self._run_cmd,
                     icon_path=self.icon_path,
                 )
         else:
-            self.status_var.set("Excel Conversion Failed.")
             if error_info:
-                show_error_dialog(self.root, self.colors, **error_info)
+                show_error_dialog(
+                    self.root, self.colors, icon_photo=self.icon_photo, **error_info
+                )
 
     def _on_single_complete(self, result, source_path):
         """Callback when single file async conversion finishes."""
@@ -836,6 +878,7 @@ class ConverterApp:
                     content,
                     on_open_options=self.toggle_options,
                     icon_path=self.icon_path,
+                    icon_photo=self.icon_photo,
                 )
 
                 if user_approved:
@@ -862,6 +905,7 @@ class ConverterApp:
                             title="Save Error",
                             message="Failed to save file",
                             details=str(e),
+                            icon_photo=self.icon_photo,
                         )
                 else:
                     self.status_var.set("Conversion cancelled.")
@@ -881,7 +925,9 @@ class ConverterApp:
         else:
             self.status_var.set("Conversion Failed.")
             if error_info:
-                show_error_dialog(self.root, self.colors, **error_info)
+                show_error_dialog(
+                    self.root, self.colors, icon_photo=self.icon_photo, **error_info
+                )
 
     def _perform_conversion(self, source_path):
         """Core conversion logic, returns (success, output_path, error_dict). Safe for threads."""
@@ -976,7 +1022,9 @@ class ConverterApp:
         # Wrapper for synchronous batch mode
         success, _, error_info = self._perform_conversion(source_path)
         if not success and error_info:
-            show_error_dialog(self.root, self.colors, **error_info)
+            show_error_dialog(
+                self.root, self.colors, icon_photo=self.icon_photo, **error_info
+            )
         return success
 
     def _run_cmd(self, cmd):
@@ -995,7 +1043,29 @@ class ConverterApp:
 def main() -> None:
     try:
         root = tk.Tk()
-        ConverterApp(root)
+
+        # CRITICAL: Withdraw window BEFORE it becomes visible to Windows
+        # This allows us to set the icon before the taskbar entry is created
+        root.withdraw()
+
+        # Set icon immediately after Tk() but before window is shown
+        # This is crucial for Windows taskbar icon to work correctly
+        try:
+            icon_path = resource_path("resources/markify_icon.ico")
+            if os.path.exists(icon_path):
+                root.iconbitmap(default=icon_path)
+                root.wm_iconbitmap(icon_path)
+        except Exception:  # nosec B110
+            pass  # Icon loading failure is non-critical
+
+        # Now create the app (which will configure the window)
+        _app = ConverterApp(root)  # noqa: F841
+
+        # Show the window now that icon is properly set
+        root.deiconify()
+        root.lift()
+        root.focus_force()
+
         root.mainloop()
     except Exception:  # nosec B110
         # Catch-all for init errors

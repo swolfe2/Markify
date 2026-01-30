@@ -33,7 +33,15 @@ class ClipboardModeDialog:
     Right pane: Markdown output (auto-updates)
     """
 
-    def __init__(self, parent: tk.Tk, colors: dict[str, str], prefs: Any | None = None, on_close: Any | None = None, icon_path: str = None):
+    def __init__(
+        self,
+        parent: tk.Tk,
+        colors: dict[str, str],
+        prefs: Any | None = None,
+        on_close: Any | None = None,
+        icon_path: str = None,
+        icon_photo: tk.PhotoImage = None,
+    ):
         self.parent = parent
         self.colors = colors
         self.prefs = prefs
@@ -45,7 +53,9 @@ class ClipboardModeDialog:
         self.dialog.configure(bg=colors["bg"])
 
         # Set icon if provided
-        if icon_path:
+        if icon_photo:
+            self.dialog.iconphoto(True, icon_photo)
+        elif icon_path:
             try:
                 self.dialog.iconbitmap(icon_path)
             except Exception:  # nosec B110 - Safe: icon loading is optional, gracefully degrade
@@ -765,6 +775,15 @@ class ClipboardModeDialog:
         self.dialog.destroy()
 
 
-def show_clipboard_mode(parent: tk.Tk, colors: dict[str, str], prefs: Any | None = None, on_close: Any | None = None, icon_path: str = None) -> ClipboardModeDialog:
+def show_clipboard_mode(
+    parent: tk.Tk,
+    colors: dict[str, str],
+    prefs: Any | None = None,
+    on_close: Any | None = None,
+    icon_path: str = None,
+    icon_photo: tk.PhotoImage = None,
+) -> ClipboardModeDialog:
     """Show the Clipboard Mode dialog."""
-    return ClipboardModeDialog(parent, colors, prefs, on_close, icon_path=icon_path)
+    return ClipboardModeDialog(
+        parent, colors, prefs, on_close, icon_path=icon_path, icon_photo=icon_photo
+    )

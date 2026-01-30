@@ -37,6 +37,7 @@ class PreviewDialog:
         on_save: Callable[[], None] | None = None,
         on_open_options: Callable[[], None] | None = None,
         icon_path: str = None,
+        icon_photo: tk.PhotoImage = None,
     ):
         self.parent = parent
         self.colors = colors
@@ -54,7 +55,9 @@ class PreviewDialog:
         self.dialog.resizable(True, True)
 
         # Set icon if provided
-        if icon_path:
+        if icon_photo:
+            self.dialog.iconphoto(True, icon_photo)
+        elif icon_path:
             try:
                 self.dialog.iconbitmap(icon_path)
             except (
@@ -377,6 +380,7 @@ def show_preview_dialog(
     content: str,
     on_open_options: Callable[[], None] | None = None,
     icon_path: str = None,
+    icon_photo: tk.PhotoImage = None,
 ) -> bool:
     """
     Show preview dialog and return True if user clicked Save.
@@ -389,6 +393,7 @@ def show_preview_dialog(
         content: Markdown content to preview.
         on_open_options: Callback to open options dialog.
         icon_path: Path to application icon.
+        icon_photo: PhotoImage for application icon.
 
     Returns:
         True if user clicked Save, False if cancelled.
@@ -401,5 +406,6 @@ def show_preview_dialog(
         content,
         on_open_options=on_open_options,
         icon_path=icon_path,
+        icon_photo=icon_photo,
     )
     return dialog.result

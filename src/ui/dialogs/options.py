@@ -32,7 +32,14 @@ class OptionsDialog:
             - on_mode_change: Callback for output mode change
     """
 
-    def __init__(self, parent: tk.Tk, colors: dict[str, str], config: dict[str, Any], icon_path: str = None):
+    def __init__(
+        self,
+        parent: tk.Tk,
+        colors: dict[str, str],
+        config: dict[str, Any],
+        icon_path: str = None,
+        icon_photo: tk.PhotoImage = None,
+    ):
         self.parent = parent
         self.colors = colors
         self.config = config
@@ -43,11 +50,14 @@ class OptionsDialog:
         self.dialog.resizable(False, False)
 
         # Set icon if provided
-        if icon_path:
-            try:
+        try:
+            if icon_photo:
+                self.dialog.iconphoto(True, icon_photo)
+            if icon_path:
                 self.dialog.iconbitmap(icon_path)
-            except Exception:  # nosec B110 - Safe: icon loading is optional, gracefully degrade
-                pass
+                self.dialog.wm_iconbitmap(icon_path)
+        except Exception:  # nosec B110 - Safe: icon loading is optional, gracefully degrade
+            pass
 
         # Size and position (centered on parent)
         w, h = 450, 610

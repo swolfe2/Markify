@@ -47,7 +47,13 @@ class ShortcutsDialog:
     Dialog showing all available keyboard shortcuts.
     """
 
-    def __init__(self, parent: tk.Tk, colors: dict[str, str], icon_path: str = None):
+    def __init__(
+        self,
+        parent: tk.Tk,
+        colors: dict[str, str],
+        icon_path: str = None,
+        icon_photo: tk.PhotoImage = None,
+    ):
         self.parent = parent
         self.colors = colors
 
@@ -57,7 +63,9 @@ class ShortcutsDialog:
         self.dialog.resizable(True, True)
 
         # Set icon if provided
-        if icon_path:
+        if icon_photo:
+            self.dialog.iconphoto(True, icon_photo)
+        elif icon_path:
             try:
                 self.dialog.iconbitmap(icon_path)
             except Exception:  # nosec B110 - Safe: icon loading is optional, gracefully degrade
@@ -161,6 +169,11 @@ class ShortcutsDialog:
         self.dialog.protocol("WM_DELETE_WINDOW", on_close)
 
 
-def show_shortcuts_dialog(parent: tk.Tk, colors: dict[str, str], icon_path: str = None):
+def show_shortcuts_dialog(
+    parent: tk.Tk,
+    colors: dict[str, str],
+    icon_path: str = None,
+    icon_photo: tk.PhotoImage = None,
+):
     """Show the keyboard shortcuts dialog."""
-    ShortcutsDialog(parent, colors, icon_path=icon_path)
+    ShortcutsDialog(parent, colors, icon_path=icon_path, icon_photo=icon_photo)
