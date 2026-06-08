@@ -172,6 +172,16 @@ class OptionsDialog:
                 font=("Segoe UI", 10), relief=tk.FLAT
             ).pack(anchor=tk.W)
 
+        # Git Auto-commit checkbox (only show if variable is provided)
+        if "auto_commit_var" in cfg:
+            tk.Checkbutton(
+                main, text="Auto-commit to Git after conversion",
+                variable=cfg["auto_commit_var"],
+                bg=c["bg"], fg=c["fg"], selectcolor=c["bg"],
+                activebackground=c["bg"], activeforeground=c["fg"],
+                font=("Segoe UI", 10), relief=tk.FLAT
+            ).pack(anchor=tk.W)
+
         # TOC generation checkbox (only show if variable is provided)
         if "add_toc_var" in cfg:
             tk.Checkbutton(

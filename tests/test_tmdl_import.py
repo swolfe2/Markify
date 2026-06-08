@@ -54,13 +54,13 @@ class TestTmdlImport(unittest.TestCase):
                 ]
             }
         }
-        
+
         filepath = os.path.join(self.test_dir.name, "model.bim")
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(bim_data, f)
-            
+
         md = convert_tmdl_or_bim(filepath)
-        
+
         self.assertIn("# Tabular Model Metadata: model.bim", md)
         self.assertIn("## Table: Sales", md)
         self.assertIn("| SalesID | int64 |", md)
@@ -89,7 +89,7 @@ table Sales
 		formatString: $#,##0
 		lineageTag: ghi
 
-	measure 'Complex Measure' = 
+	measure 'Complex Measure' =
 			CALCULATE(
 				[Total Revenue],
 				Sales[SalesID] > 100
@@ -113,9 +113,9 @@ relationship Rel1
         filepath = os.path.join(self.test_dir.name, "sales.tmdl")
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(tmdl_content)
-            
+
         md = convert_tmdl_or_bim(filepath)
-        
+
         self.assertIn("# Tabular Model Metadata: sales.tmdl", md)
         self.assertIn("## Table: Sales", md)
         self.assertIn("| SalesID | int64 |", md)

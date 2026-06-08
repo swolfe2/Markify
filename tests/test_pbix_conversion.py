@@ -71,7 +71,7 @@ class TestPbixMetadataParser(unittest.TestCase):
                 ]
             }
         }
-        
+
         layout_data = {
             "sections": [
                 {"displayName": "Dashboard"},

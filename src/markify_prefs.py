@@ -34,7 +34,9 @@ class Preferences:
             "export_format": "markdown",
             "recent_files": [],
             "show_preview": True,  # Show preview before saving
-            "clipboard_debug_mode": False  # Save raw HTML for debugging
+            "clipboard_debug_mode": False,  # Save raw HTML for debugging
+            "auto_commit": False,  # Auto-commit to Git after conversion
+            "add_front_matter": False
         }
 
         self.load()

@@ -7,10 +7,10 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from core.update_checker import (
-    parse_version,
-    is_newer_version,
-    get_latest_release,
     check_for_updates_async,
+    get_latest_release,
+    is_newer_version,
+    parse_version,
 )
 
 
@@ -69,8 +69,8 @@ class TestUpdateChecker(unittest.TestCase):
     def test_check_for_updates_async(self, mock_get_latest):
         """Test check_for_updates_async runs callback with remote version."""
         mock_get_latest.return_value = "v1.3.0"
-        
-        callback_called = threading_event = MagicMock()
+
+        callback_called = MagicMock()
         results = []
 
         def callback(val):
@@ -79,16 +79,16 @@ class TestUpdateChecker(unittest.TestCase):
 
         import threading
         event = threading.Event()
-        
+
         # We wrapper callback to set the event when called
         def on_callback(val):
             results.append(val)
             event.set()
 
         check_for_updates_async(on_callback)
-        
+
         # Wait up to 2 seconds for background thread to execute
         event.wait(timeout=2)
-        
+
         self.assertTrue(event.is_set())
         self.assertEqual(results, ["v1.3.0"])

@@ -18,7 +18,8 @@ def show_success_dialog(
     single_mode: bool = True,
     count: int = 0,
     on_run_cmd: Callable[[list[str]], None] = None,
-    icon_path: str = None
+    icon_path: str = None,
+    git_commit_msg: str | None = None
 ) -> None:
     """
     Show a success dialog after conversion.
@@ -31,11 +32,13 @@ def show_success_dialog(
         count: Number of files converted in batch mode.
         on_run_cmd: Callback to run external commands (e.g., open in VS Code).
         icon_path: Path to application icon.
+        git_commit_msg: Optional Git commit status message.
     """
     c = colors
     dialog = tk.Toplevel(parent)
     dialog.title("Success")
-    dialog.geometry("650x300")
+    height = 330 if git_commit_msg else 300
+    dialog.geometry(f"650x{height}")
     dialog.configure(bg=c["bg"])
 
     # Set icon if provided
@@ -47,7 +50,7 @@ def show_success_dialog(
 
     # Center
     x = parent.winfo_x() + (parent.winfo_width() // 2) - 325
-    y = parent.winfo_y() + (parent.winfo_height() // 2) - 150
+    y = parent.winfo_y() + (parent.winfo_height() // 2) - (height // 2)
     dialog.geometry(f"+{x}+{y}")
 
     if single_mode:
@@ -93,6 +96,18 @@ def show_success_dialog(
     # Tooltip
     tk.Label(dialog, text="(Click path to open folder)", bg=c["bg"], fg=c["muted"],
              font=("Segoe UI", 8)).pack(pady=(0, 15))
+
+    # Git commit status message
+    if git_commit_msg:
+        tk.Label(
+            dialog,
+            text=f"Git: {git_commit_msg}",
+            bg=c["bg"],
+            fg=c.get("success", "#4caf50"),
+            font=("Segoe UI", 9, "italic"),
+            wraplength=600,
+            justify="center"
+        ).pack(pady=(0, 10))
 
     # Buttons
     btn_frame = tk.Frame(dialog, bg=c["bg"])

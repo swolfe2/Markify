@@ -69,13 +69,13 @@ class TestMarkdownLinter(unittest.TestCase):
                 f.write("exists")
 
             # Valid: File exists
-            valid_md = f"[link](target.md)"
+            valid_md = "[link](target.md)"
             issues = lint_markdown(valid_md, base_dir=tmpdir)
             link_issues = [i for i in issues if i.rule_id == "MD051"]
             self.assertEqual(len(link_issues), 0)
 
             # Invalid: File does not exist
-            invalid_md = f"[broken link](nonexistent.md)"
+            invalid_md = "[broken link](nonexistent.md)"
             issues = lint_markdown(invalid_md, base_dir=tmpdir)
             link_issues = [i for i in issues if i.rule_id == "MD051"]
             self.assertEqual(len(link_issues), 1)

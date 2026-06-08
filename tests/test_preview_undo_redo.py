@@ -8,11 +8,9 @@ without needing to spin up a full Tk window.
 
 from __future__ import annotations
 
-import importlib
 import sys
 import types
 import unittest
-
 
 # ---------------------------------------------------------------------------
 # Minimal tkinter stub so tests run without a display

@@ -6,9 +6,9 @@ from __future__ import annotations
 import unittest
 
 from core.ado_wiki import (
-    convert_toc,
-    convert_mermaid_blocks,
     convert_attachment_links,
+    convert_mermaid_blocks,
+    convert_toc,
     full_convert,
 )
 

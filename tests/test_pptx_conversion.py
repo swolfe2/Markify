@@ -31,14 +31,14 @@ class TestPptxConversion(unittest.TestCase):
         with zipfile.ZipFile(self.pptx_path, "w") as z:
             z.writestr("ppt/presentation.xml", presentation_xml.strip())
             z.writestr("ppt/_rels/presentation.xml.rels", presentation_rels.strip())
-            
+
             for path, xml_content in slides_dict.items():
                 z.writestr(path, xml_content.strip())
-                
+
             if notes_dict:
                 for path, xml_content in notes_dict.items():
                     z.writestr(path, xml_content.strip())
-                    
+
             if slide_rels_dict:
                 for path, xml_content in slide_rels_dict.items():
                     z.writestr(path, xml_content.strip())
@@ -115,7 +115,7 @@ class TestPptxConversion(unittest.TestCase):
     <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide" Target="../notesSlides/notesSlide1.xml"/>
 </Relationships>
 """
-        
+
         self.create_mock_pptx(
             presentation_xml,
             presentation_rels,

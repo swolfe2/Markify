@@ -4,11 +4,10 @@ Tests for syntax highlighting features (Feature #2).
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock
-import tkinter as tk
 
-from themes import SYNTAX_THEMES, get_syntax_theme, get_syntax_theme_names
+from themes import get_syntax_theme, get_syntax_theme_names
 from ui.syntax_highlighter import apply_syntax_highlighting, highlight_line_content
+
 
 class MockTextWidget:
     """Mock Tkinter Text widget to record tag applications for testing."""
@@ -54,9 +53,9 @@ class TestSyntaxHighlighting(unittest.TestCase):
         """Test markdown header detection in apply_syntax_highlighting."""
         widget = MockTextWidget()
         content = "# Main Header\nSome regular text\n## Sub Heading"
-        
+
         apply_syntax_highlighting(widget, content, "One Dark")
-        
+
         # We expect markdown_header tag to be added
         header_tags = [t for t in widget.tags if t[0] == "markdown_header"]
         self.assertEqual(len(header_tags), 2)
@@ -67,18 +66,18 @@ class TestSyntaxHighlighting(unittest.TestCase):
         """Test code fence block identification."""
         widget = MockTextWidget()
         content = "```python\nx = 42\n```"
-        
+
         apply_syntax_highlighting(widget, content, "One Dark")
-        
+
         # code fence lines and content lines get syntax_bg tag
         bg_tags = [t for t in widget.tags if t[0] == "syntax_bg"]
         self.assertEqual(len(bg_tags), 3) # lines 1, 2, 3
-        
+
         # Python keyword detect on line 2
         content_kw = "```python\nimport sys\n```"
         widget = MockTextWidget()
         apply_syntax_highlighting(widget, content_kw, "One Dark")
-        
+
         kw_tags = [t for t in widget.tags if t[0] == "syntax_keyword"]
         self.assertEqual(len(kw_tags), 1)
         self.assertEqual(kw_tags[0][1], "2.0")
@@ -92,7 +91,7 @@ class TestSyntaxHighlighting(unittest.TestCase):
             "python_builtins": ["print"]
         }
         highlight_line_content(widget, 1, "def test(): # comment", "python", patterns, True)
-        
+
         comments = [t for t in widget.tags if t[0] == "syntax_comment"]
         keywords = [t for t in widget.tags if t[0] == "syntax_keyword"]
         self.assertEqual(len(comments), 1)
@@ -110,7 +109,7 @@ class TestSyntaxHighlighting(unittest.TestCase):
         comments = [t for t in widget.tags if t[0] == "syntax_comment"]
         keywords = [t for t in widget.tags if t[0] == "syntax_keyword"]
         builtins = [t for t in widget.tags if t[0] == "syntax_builtin"]
-        
+
         self.assertEqual(len(comments), 1)
         self.assertEqual(comments[0][1], "2.16")
         self.assertEqual(len(keywords), 1)

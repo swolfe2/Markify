@@ -301,6 +301,11 @@ class ConverterApp:
         )
         self.check_for_updates_var.trace_add("write", self.on_pref_change)
 
+        self.auto_commit_var = tk.BooleanVar(
+            value=self.prefs.get("auto_commit", False)
+        )
+        self.auto_commit_var.trace_add("write", self.on_pref_change)
+
         # Map internal export format key to UI drop-down labels
         pref_format = self.prefs.get("export_format", "markdown")
         ui_format = "Standard Markdown"
@@ -367,6 +372,7 @@ class ConverterApp:
         self.prefs.set("add_toc", self.add_toc_var.get())
         self.prefs.set("enable_linter", self.enable_linter_var.get())
         self.prefs.set("check_for_updates", self.check_for_updates_var.get())
+        self.prefs.set("auto_commit", self.auto_commit_var.get())
 
         # Save export format preference
         ui_format = self.export_format_var.get()
@@ -401,6 +407,7 @@ class ConverterApp:
             "code_theme_names": get_syntax_theme_names(),
             "enable_linter_var": self.enable_linter_var,
             "check_for_updates_var": self.check_for_updates_var,
+            "auto_commit_var": self.auto_commit_var,
             "export_format_var": self.export_format_var,
             "on_browse": self.browse_output_folder,
         }
@@ -812,6 +819,7 @@ class ConverterApp:
             return
 
         success_count = 0
+        git_msgs = []
 
         # Setup Progress Bar
         self.progress.pack(fill=tk.X, pady=(20, 0))
@@ -850,12 +858,18 @@ class ConverterApp:
                         with open(path, "w", encoding="utf-8") as f:
                             f.write(content)
                         self.prefs.add_recent_file(source_path, path)
+                        git_msg = self._maybe_git_commit(path, source_path)
+                        if git_msg:
+                            git_msgs.append(git_msg)
                     except (
                         Exception
                     ):  # nosec B110 - Safe: recent files tracking is optional
                         pass
                 else:
                     self.prefs.add_recent_file(source_path, output_file)
+                    git_msg = self._maybe_git_commit(output_file, source_path)
+                    if git_msg:
+                        git_msgs.append(git_msg)
 
             self.progress["value"] = i
             self.root.update()
@@ -872,6 +886,14 @@ class ConverterApp:
         )
 
         if success_count > 0:
+            git_summary = None
+            if git_msgs:
+                success_commits = [m for m in git_msgs if not m.startswith("Git commit failed") and not m.startswith("Git add failed")]
+                if len(success_commits) == len(git_msgs):
+                    git_summary = f"Successfully committed {len(git_msgs)} files to Git."
+                else:
+                    git_summary = f"Committed {len(success_commits)} of {len(git_msgs)} files to Git (some failed)."
+
             # Batch behavior: Show summary
             show_success_dialog(
                 self.root,
@@ -881,6 +903,7 @@ class ConverterApp:
                 count=success_count,
                 on_run_cmd=self._run_cmd,
                 icon_path=self.icon_path,
+                git_commit_msg=git_summary,
             )
 
     def _process_single_async(self, source_path):
@@ -1060,6 +1083,7 @@ class ConverterApp:
                         self.status_var.set("DAX Conversion Successful!")
                         self.prefs.add_recent_file(source_path, output_file_path)
                         self.refresh_recents()
+                        git_msg = self._maybe_git_commit(output_file_path, source_path)
                         show_success_dialog(
                             self.root,
                             self.colors,
@@ -1067,6 +1091,7 @@ class ConverterApp:
                             single_mode=True,
                             on_run_cmd=self._run_cmd,
                             icon_path=self.icon_path,
+                            git_commit_msg=git_msg,
                         )
                     except Exception as e:
                         self.status_var.set("Save Failed.")
@@ -1099,6 +1124,7 @@ class ConverterApp:
                 self.status_var.set("DAX Conversion Successful!")
                 self.prefs.add_recent_file(source_path, output_file_path)
                 self.refresh_recents()
+                git_msg = self._maybe_git_commit(output_file_path, source_path)
                 show_success_dialog(
                     self.root,
                     self.colors,
@@ -1106,6 +1132,7 @@ class ConverterApp:
                     single_mode=True,
                     on_run_cmd=self._run_cmd,
                     icon_path=self.icon_path,
+                    git_commit_msg=git_msg,
                 )
         else:
             if error_info:
@@ -1235,6 +1262,7 @@ class ConverterApp:
                         self.status_var.set("Metadata Extraction Successful!")
                         self.prefs.add_recent_file(source_path, output_file_path)
                         self.refresh_recents()
+                        git_msg = self._maybe_git_commit(output_file_path, source_path)
                         show_success_dialog(
                             self.root,
                             self.colors,
@@ -1242,6 +1270,7 @@ class ConverterApp:
                             single_mode=True,
                             on_run_cmd=self._run_cmd,
                             icon_path=self.icon_path,
+                            git_commit_msg=git_msg,
                         )
                     except Exception as e:
                         self.status_var.set("Save Failed.")
@@ -1274,6 +1303,7 @@ class ConverterApp:
                 self.status_var.set("Metadata Extraction Successful!")
                 self.prefs.add_recent_file(source_path, output_file_path)
                 self.refresh_recents()
+                git_msg = self._maybe_git_commit(output_file_path, source_path)
                 show_success_dialog(
                     self.root,
                     self.colors,
@@ -1281,6 +1311,7 @@ class ConverterApp:
                     single_mode=True,
                     on_run_cmd=self._run_cmd,
                     icon_path=self.icon_path,
+                    git_commit_msg=git_msg,
                 )
             if error_info:
                 show_error_dialog(
@@ -1409,6 +1440,7 @@ class ConverterApp:
                         self.status_var.set("Metadata Extraction Successful!")
                         self.prefs.add_recent_file(source_path, output_file_path)
                         self.refresh_recents()
+                        git_msg = self._maybe_git_commit(output_file_path, source_path)
                         show_success_dialog(
                             self.root,
                             self.colors,
@@ -1416,6 +1448,7 @@ class ConverterApp:
                             single_mode=True,
                             on_run_cmd=self._run_cmd,
                             icon_path=self.icon_path,
+                            git_commit_msg=git_msg,
                         )
                     except Exception as e:
                         self.status_var.set("Save Failed.")
@@ -1448,6 +1481,7 @@ class ConverterApp:
                 self.status_var.set("Metadata Extraction Successful!")
                 self.prefs.add_recent_file(source_path, output_file_path)
                 self.refresh_recents()
+                git_msg = self._maybe_git_commit(output_file_path, source_path)
                 show_success_dialog(
                     self.root,
                     self.colors,
@@ -1455,6 +1489,7 @@ class ConverterApp:
                     single_mode=True,
                     on_run_cmd=self._run_cmd,
                     icon_path=self.icon_path,
+                    git_commit_msg=git_msg,
                 )
             if error_info:
                 show_error_dialog(
@@ -1583,6 +1618,7 @@ class ConverterApp:
                         self.status_var.set("Conversion Successful!")
                         self.prefs.add_recent_file(source_path, output_file_path)
                         self.refresh_recents()
+                        git_msg = self._maybe_git_commit(output_file_path, source_path)
                         show_success_dialog(
                             self.root,
                             self.colors,
@@ -1590,6 +1626,7 @@ class ConverterApp:
                             single_mode=True,
                             on_run_cmd=self._run_cmd,
                             icon_path=self.icon_path,
+                            git_commit_msg=git_msg,
                         )
                     except Exception as e:
                         self.status_var.set("Save Failed.")
@@ -1622,6 +1659,7 @@ class ConverterApp:
                 self.status_var.set("Conversion Successful!")
                 self.prefs.add_recent_file(source_path, output_file_path)
                 self.refresh_recents()
+                git_msg = self._maybe_git_commit(output_file_path, source_path)
                 show_success_dialog(
                     self.root,
                     self.colors,
@@ -1629,6 +1667,7 @@ class ConverterApp:
                     single_mode=True,
                     on_run_cmd=self._run_cmd,
                     icon_path=self.icon_path,
+                    git_commit_msg=git_msg,
                 )
         else:
             if error_info:
@@ -1724,6 +1763,7 @@ class ConverterApp:
                         self.status_var.set("Excel Conversion Successful!")
                         self.prefs.add_recent_file(source_path, output_file_path)
                         self.refresh_recents()
+                        git_msg = self._maybe_git_commit(output_file_path, source_path)
                         show_success_dialog(
                             self.root,
                             self.colors,
@@ -1731,6 +1771,7 @@ class ConverterApp:
                             single_mode=True,
                             on_run_cmd=self._run_cmd,
                             icon_path=self.icon_path,
+                            git_commit_msg=git_msg,
                         )
                     except Exception as e:
                         self.status_var.set("Save Failed.")
@@ -1763,6 +1804,7 @@ class ConverterApp:
                 self.status_var.set("Excel Conversion Successful!")
                 self.prefs.add_recent_file(source_path, output_file_path)
                 self.refresh_recents()
+                git_msg = self._maybe_git_commit(output_file_path, source_path)
                 show_success_dialog(
                     self.root,
                     self.colors,
@@ -1770,6 +1812,7 @@ class ConverterApp:
                     single_mode=True,
                     on_run_cmd=self._run_cmd,
                     icon_path=self.icon_path,
+                    git_commit_msg=git_msg,
                 )
         else:
             if error_info:
@@ -1805,6 +1848,7 @@ class ConverterApp:
                         self.status_var.set("Conversion Successful!")
                         self.prefs.add_recent_file(source_path, output_file_path)
                         self.refresh_recents()
+                        git_msg = self._maybe_git_commit(output_file_path, source_path)
                         show_success_dialog(
                             self.root,
                             self.colors,
@@ -1812,6 +1856,7 @@ class ConverterApp:
                             single_mode=True,
                             on_run_cmd=self._run_cmd,
                             icon_path=self.icon_path,
+                            git_commit_msg=git_msg,
                         )
                     except Exception as e:
                         self.status_var.set("Save Failed.")
@@ -1845,6 +1890,7 @@ class ConverterApp:
                 self.status_var.set("Conversion Successful!")
                 self.prefs.add_recent_file(source_path, output_file)
                 self.refresh_recents()
+                git_msg = self._maybe_git_commit(output_file, source_path)
                 show_success_dialog(
                     self.root,
                     self.colors,
@@ -1852,6 +1898,7 @@ class ConverterApp:
                     single_mode=True,
                     on_run_cmd=self._run_cmd,
                     icon_path=self.icon_path,
+                    git_commit_msg=git_msg,
                 )
         else:
             self.status_var.set("Conversion Failed.")
@@ -1966,6 +2013,20 @@ class ConverterApp:
                 self.root, self.colors, icon_photo=self.icon_photo, **error_info
             )
         return success
+
+    def _maybe_git_commit(self, output_path: str, source_path: str) -> str | None:
+        """Commit the file if Git auto-commit is enabled and the file is in a repository."""
+        if not self.prefs.get("auto_commit", False):
+            return None
+
+        try:
+            from core.git_integration import commit_file, is_git_repository
+            if is_git_repository(output_path):
+                success, msg = commit_file(output_path, os.path.basename(source_path))
+                return msg
+        except Exception as e:
+            logger.warning(f"Git auto-commit failed: {e}")
+        return None
 
     def _run_cmd(self, cmd):
         # Use Popen with DETACHED_PROCESS to fully separate subprocess lifecycle
