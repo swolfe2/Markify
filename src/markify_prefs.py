@@ -28,6 +28,10 @@ class Preferences:
             "custom_output_dir": "",
             "extract_images": False,
             "theme": "VS Code Dark",
+            "code_theme": "One Dark",
+            "enable_linter": True,
+            "check_for_updates": True,
+            "export_format": "markdown",
             "recent_files": [],
             "show_preview": True,  # Show preview before saving
             "clipboard_debug_mode": False  # Save raw HTML for debugging

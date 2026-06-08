@@ -22,6 +22,7 @@ class DiffViewerDialog:
         file2_path: str | None = None,
         icon_path: str = None,
         icon_photo: tk.PhotoImage = None,
+        code_theme_var: tk.StringVar | None = None,
     ):
         """
         Create a diff viewer dialog.
@@ -38,6 +39,21 @@ class DiffViewerDialog:
         self.colors = colors
         self.file1_path = file1_path
         self.file2_path = file2_path
+        self.code_theme_var = code_theme_var
+        self.code_theme_trace_id = None
+        if self.code_theme_var:
+            self.code_theme_trace_id = self.code_theme_var.trace_add(
+                "write", lambda *_: self._on_code_theme_changed()
+            )
+
+        # Clean up code theme trace when window is destroyed
+        def on_destroy(event):
+            if event.widget == self.dialog and self.code_theme_var and self.code_theme_trace_id:
+                try:
+                    self.code_theme_var.trace_remove("write", self.code_theme_trace_id)
+                except Exception:  # nosec B110
+                    pass
+        self.dialog.bind("<Destroy>", on_destroy)
 
         # Create dialog window
         self.dialog = tk.Toplevel(parent)
@@ -197,18 +213,60 @@ class DiffViewerDialog:
         ).pack(pady=5)
 
     def _configure_tags(self):
-        """Configure text tags for diff highlighting."""
-        # Addition (green)
-        self.left_text.tag_configure("add", background="#2d5a2d", foreground="#90ee90")
-        self.right_text.tag_configure("add", background="#2d5a2d", foreground="#90ee90")
+        """Configure text tags for diff highlighting based on code theme."""
+        from themes import SYNTAX_THEMES
+        theme_name = "One Dark"
+        if self.code_theme_var:
+            theme_name = self.code_theme_var.get()
+        theme = SYNTAX_THEMES.get(theme_name, SYNTAX_THEMES["One Dark"])
 
-        # Deletion (red)
-        self.left_text.tag_configure("del", background="#5a2d2d", foreground="#ff9090")
-        self.right_text.tag_configure("del", background="#5a2d2d", foreground="#ff9090")
+        # Base background and foreground update
+        self.left_text.configure(bg=theme["bg"], fg=theme["fg"], insertbackground=theme["fg"])
+        self.right_text.configure(bg=theme["bg"], fg=theme["fg"], insertbackground=theme["fg"])
 
-        # Changed (yellow)
-        self.left_text.tag_configure("change", background="#5a5a2d", foreground="#eeee90")
-        self.right_text.tag_configure("change", background="#5a5a2d", foreground="#eeee90")
+        # Determine light or dark contrast adjustments
+        is_dark = theme.get("is_dark", True)
+        if is_dark:
+            add_bg, add_fg = "#1e3a1e", "#90ee90"
+            del_bg, del_fg = "#3a1e1e", "#ff9090"
+            chg_bg, chg_fg = "#3a3a1e", "#eeee90"
+        else:
+            # Light theme colors
+            add_bg, add_fg = "#e6ffed", "#22863a"
+            del_bg, del_fg = "#ffeef0", "#cb2431"
+            chg_bg, chg_fg = "#fffdef", "#b58900"
+
+        # Apply tag colors
+        for widget in [self.left_text, self.right_text]:
+            widget.tag_configure("add", background=add_bg, foreground=add_fg)
+            widget.tag_configure("del", background=del_bg, foreground=del_fg)
+            widget.tag_configure("change", background=chg_bg, foreground=chg_fg)
+
+            # Ensure diff tags are above syntax_bg
+            try:
+                widget.tag_raise("add", "syntax_bg")
+                widget.tag_raise("del", "syntax_bg")
+                widget.tag_raise("change", "syntax_bg")
+            except Exception:  # nosec B110
+                pass
+
+    def _on_code_theme_changed(self):
+        """Called dynamically when the code theme preference changes."""
+        self._configure_tags()
+        self._reapply_syntax_highlighting()
+
+    def _reapply_syntax_highlighting(self):
+        """Re-apply syntax highlighting to both text editors."""
+        from ui.syntax_highlighter import apply_syntax_highlighting
+        theme_name = "One Dark"
+        if self.code_theme_var:
+            theme_name = self.code_theme_var.get()
+
+        for text_widget in [self.left_text, self.right_text]:
+            content = text_widget.get("1.0", tk.END)
+            if content.endswith("\n"):
+                content = content[:-1]
+            apply_syntax_highlighting(text_widget, content, theme_name)
 
     def _setup_scroll_sync(self):
         """Setup synchronized scrolling between the two text widgets."""
@@ -315,15 +373,24 @@ class DiffViewerDialog:
             f"Comparison complete: {additions} additions, {deletions} deletions"
         )
 
+        self._reapply_syntax_highlighting()
+
 
 def show_diff_viewer(
     parent: tk.Tk,
     colors: dict,
     icon_path: str = None,
     icon_photo: tk.PhotoImage = None,
+    code_theme_var: tk.StringVar | None = None,
 ):
     """Show the diff viewer dialog."""
-    DiffViewerDialog(parent, colors, icon_path=icon_path, icon_photo=icon_photo)
+    DiffViewerDialog(
+        parent,
+        colors,
+        icon_path=icon_path,
+        icon_photo=icon_photo,
+        code_theme_var=code_theme_var,
+    )
 
 
 # Utility functions for programmatic comparison

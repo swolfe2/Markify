@@ -60,7 +60,7 @@ class OptionsDialog:
             pass
 
         # Size and position (centered on parent)
-        w, h = 450, 610
+        w, h = 450, 700
         parent.update_idletasks()
         screen_w = parent.winfo_screenwidth()
         screen_h = parent.winfo_screenheight()
@@ -124,6 +124,43 @@ class OptionsDialog:
             activebackground=c["bg"], activeforeground=c["fg"],
             font=("Segoe UI", 10), relief=tk.FLAT
         ).pack(anchor=tk.W)
+
+        # Linter checkbox (only show if variable is provided)
+        if "enable_linter_var" in cfg:
+            tk.Checkbutton(
+                main, text="Enable Markdown Linter",
+                variable=cfg["enable_linter_var"],
+                bg=c["bg"], fg=c["fg"], selectcolor=c["bg"],
+                activebackground=c["bg"], activeforeground=c["fg"],
+                font=("Segoe UI", 10), relief=tk.FLAT
+            ).pack(anchor=tk.W)
+
+        # Auto-update checkbox (only show if variable is provided)
+        if "check_for_updates_var" in cfg:
+            tk.Checkbutton(
+                main, text="Automatically check for updates",
+                variable=cfg["check_for_updates_var"],
+                bg=c["bg"], fg=c["fg"], selectcolor=c["bg"],
+                activebackground=c["bg"], activeforeground=c["fg"],
+                font=("Segoe UI", 10), relief=tk.FLAT
+            ).pack(anchor=tk.W)
+
+        # Export Format combobox
+        if "export_format_var" in cfg:
+            format_row = tk.Frame(main, bg=c["bg"])
+            format_row.pack(fill=tk.X, pady=(5, 5))
+
+            tk.Label(
+                format_row, text="Export Format:", bg=c["bg"], fg=c["fg"],
+                font=("Segoe UI", 10), width=12, anchor=tk.W
+            ).pack(side=tk.LEFT)
+
+            format_combo = ttk.Combobox(
+                format_row, textvariable=cfg["export_format_var"],
+                values=["Standard Markdown", "Confluence Wiki Syntax", "Azure DevOps Wiki"],
+                state="readonly", width=22
+            )
+            format_combo.pack(side=tk.LEFT)
 
         # Front matter checkbox (only show if variable is provided)
         if "add_front_matter_var" in cfg:
@@ -198,14 +235,26 @@ class OptionsDialog:
         theme_row = tk.Frame(main, bg=c["bg"])
         theme_row.pack(fill=tk.X)
 
-        tk.Label(theme_row, text="Theme:", bg=c["bg"], fg=c["fg"],
-                 font=("Segoe UI", 10)).pack(side=tk.LEFT)
+        tk.Label(theme_row, text="UI Theme:", bg=c["bg"], fg=c["fg"],
+                 font=("Segoe UI", 10), width=12, anchor=tk.W).pack(side=tk.LEFT)
 
         theme_combo = ttk.Combobox(
             theme_row, textvariable=cfg["theme_var"],
             values=cfg.get("theme_names", []), state="readonly", width=18
         )
-        theme_combo.pack(side=tk.LEFT, padx=(10, 0))
+        theme_combo.pack(side=tk.LEFT)
+
+        code_theme_row = tk.Frame(main, bg=c["bg"])
+        code_theme_row.pack(fill=tk.X, pady=(5, 0))
+
+        tk.Label(code_theme_row, text="Code Theme:", bg=c["bg"], fg=c["fg"],
+                 font=("Segoe UI", 10), width=12, anchor=tk.W).pack(side=tk.LEFT)
+
+        code_theme_combo = ttk.Combobox(
+            code_theme_row, textvariable=cfg["code_theme_var"],
+            values=cfg.get("code_theme_names", []), state="readonly", width=18
+        )
+        code_theme_combo.pack(side=tk.LEFT)
 
         # Separator
         ttk.Separator(main, orient='horizontal').pack(fill='x', pady=15)

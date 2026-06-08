@@ -65,3 +65,4 @@ ignore = ["E501"]  # Line length handled separately
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
+pythonpath = ["src"]

@@ -140,3 +140,65 @@ def get_theme_names() -> list[str]:
 def get_default_theme() -> str:
     """Get the default theme name."""
     return DEFAULT_THEME
+
+
+# --- Syntax Highlighting Themes ---
+SYNTAX_THEMES: dict[str, dict[str, str | bool]] = {
+    "One Dark": {
+        "bg": "#282c34",
+        "fg": "#abb2bf",
+        "keyword": "#c678dd",
+        "string": "#98c379",
+        "comment": "#5c6370",
+        "number": "#d19a66",
+        "builtin": "#56b6c2",
+        "is_dark": True,
+    },
+    "Monokai": {
+        "bg": "#272822",
+        "fg": "#f8f8f2",
+        "keyword": "#f92672",
+        "string": "#e6db74",
+        "comment": "#75715e",
+        "number": "#ae81ff",
+        "builtin": "#66d9ef",
+        "is_dark": True,
+    },
+    "Dracula": {
+        "bg": "#282a36",
+        "fg": "#f8f8f2",
+        "keyword": "#ff79c6",
+        "string": "#f1fa8c",
+        "comment": "#6272a4",
+        "number": "#bd93f9",
+        "builtin": "#8be9fd",
+        "is_dark": True,
+    },
+    "GitHub Light": {
+        "bg": "#ffffff",
+        "fg": "#24292e",
+        "keyword": "#d73a49",
+        "string": "#032f62",
+        "comment": "#6a737d",
+        "number": "#005cc5",
+        "builtin": "#e36209",
+        "is_dark": False,
+    },
+}
+
+DEFAULT_SYNTAX_THEME = "One Dark"
+
+
+def get_syntax_theme(name: str) -> dict[str, str | bool]:
+    """
+    Get a syntax theme by name.
+    """
+    return SYNTAX_THEMES.get(name, SYNTAX_THEMES[DEFAULT_SYNTAX_THEME])
+
+
+def get_syntax_theme_names() -> list[str]:
+    """
+    Get list of available syntax theme names.
+    """
+    return list(SYNTAX_THEMES.keys())
+

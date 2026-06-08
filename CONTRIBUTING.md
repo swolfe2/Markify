@@ -30,9 +30,11 @@ python src/markify_app.py
 ```
 
 ### Running Tests
+You can run tests directly from the repository root:
 ```bash
-python -m pytest tests/ -v
+pytest
 ```
+*(Or `python -m pytest` if you don't have the pytest executable in your path)*
 
 **Test Coverage includes:**
 - `test_helpers.py` - Core conversion logic and code detection
@@ -90,7 +92,7 @@ bandit -r . -x ./dist,./build
 
 1. **Run tests** before submitting:
    ```bash
-   python -m pytest tests/
+   pytest
    ```
 2. **Commit** with a clear message:
    ```bash

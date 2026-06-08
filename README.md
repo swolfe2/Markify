@@ -70,6 +70,13 @@ Get-ChildItem *.docx | ForEach-Object { python src/markify_core.py $_.FullName }
 
 ## Features & Capabilities
 
+*   **Comprehensive File Format Converters**:
+    *   📄 **Word Documents (`.docx`)** -> Full document layout, headers, tables, footnotes, and images.
+    *   📊 **Excel Spreadsheets (`.xlsx`)** -> Converts sheet tables to Markdown tables.
+    *   📊 **Power BI Reports (`.pbix`)** -> Zero-dependency parser extracting pages, tables, columns, measures, and relationships.
+    *   🛠 **Tabular Editor (`.bim`/`.tmdl`)** -> Extracts model tables, columns, DAX measures, hierarchies, and relationships.
+    *   🖥 **DAX Studio (`.dax`/`.msdax`)** -> Direct import and auto-formatting of query scripts.
+    *   slide **PowerPoint Slides (`.pptx`)** -> Extracts slide text, layout headers, bullets, tables, and speaker notes.
 *   **Code Block Detection & Auto-Formatting**:
     *   Automatically detects Power Query (M) code patterns (e.g., `let ... in`).
     *   Automatically detects DAX code (measures, CALCULATE, SUMX, etc.).
@@ -81,9 +88,14 @@ Get-ChildItem *.docx | ForEach-Object { python src/markify_core.py $_.FullName }
     *   **Customizable patterns** via JSON config file (Options → Edit Patterns).
 *   **Multiple Conversion Modes**:
     *   📋 **Clipboard Mode**: Paste text directly from Word → instant Markdown conversion.
-    *   👁 **Watch Mode**: Auto-convert all `.docx` files dropped into a watched folder.
+    *   👁 **Watch Mode**: Auto-convert all `.docx`/`.xlsx` files dropped into a watched folder.
     *   📝 **MD → DOCX**: Reverse conversion from Markdown back to Word documents.
     *   🔍 **Diff View**: Side-by-side comparison of two Markdown files with highlighting.
+*   **Interactive Preview & Quality Control**:
+    *   ✏️ **Editable Preview with Undo/Redo**: Edit Markdown in preview with Ctrl+Z / Ctrl+Y.
+    *   🎨 **Code Highlight Themes**: Dracula, Monokai, One Dark, and GitHub Light.
+    *   🔍 **Markdown Linter**: Instant checks for heading hierarchy, empty alt tags, malformed tables, consecutive empty lines, and broken relative links.
+    *   🔔 **Auto-Update Check**: Asynchronous release checking via GitHub API.
 *   **Source/Destination Flexibility**:
     *   **Folder Drag & Drop**: Drop entire folders to recursively convert all documents.
     *   **YAML Front Matter**: Auto-generate Hugo/Jekyll-compatible metadata headers.
@@ -91,10 +103,7 @@ Get-ChildItem *.docx | ForEach-Object { python src/markify_core.py $_.FullName }
 *   **Export Options**:
     *   **Template System**: User-defined templates with variables (`{{filename}}`, `{{date}}`).
     *   **Confluence/Jira Syntax**: Export Markdown as Confluence wiki markup.
-*   **Preview Before Save**:
-    *   View converted Markdown before saving.
-    *   Syntax highlighting for headers.
-    *   Line/character count display.
+    *   **Azure DevOps Wiki Format**: Native export to ADO Wiki format (`[[_TOC_]]`, `::: mermaid`).
 *   **Recent Files List**:
     *   Quick access to last 5 conversions.
     *   Clickable links to source and output files.
@@ -172,7 +181,9 @@ Several excellent Python packages convert DOCX to Markdown. Here's how Markify c
 | SQL code detection | ✅ | ❌ | ❌ | ❌ |
 | Auto-format DAX/M code (API) | ✅ | ❌ | ❌ | ❌ |
 | Image extraction | ✅ | ❌ | ❌ | ❌ |
-| Multi-format (PDF, PPTX, etc.) | ❌ | ✅ | ❌ | ✅ |
+| PowerPoint (.pptx) conversion | ✅ | ✅ | ❌ | ✅ |
+| Excel (.xlsx) table import | ✅ | ✅ | ❌ | ✅ |
+| Power BI / Tabular Editor (.pbix/.bim/.tmdl) | ✅ | ❌ | ❌ | ❌ |
 
 **Choose Markify if you:**
 - Work with **Power BI / Power Query documentation** containing M or DAX code
@@ -181,5 +192,5 @@ Several excellent Python packages convert DOCX to Markdown. Here's how Markify c
 - Are in a **locked-down corporate environment** where installing packages is difficult
 
 **Choose alternatives if you:**
-- Need to convert **PDFs, PowerPoints, or images** (use MarkItDown)
+- Need to convert **PDFs or images** (use MarkItDown)
 - Want **maximum compatibility** with complex Word formatting (use pypandoc/Pandoc)

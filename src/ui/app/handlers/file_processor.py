@@ -91,6 +91,15 @@ class FileProcessor:
 
                 content = insert_toc(content, position="after_title")
 
+            # Apply export format conversion
+            export_format = self.prefs.get("export_format", "markdown")
+            if export_format == "confluence":
+                from core.confluence import full_convert
+                content = full_convert(content)
+            elif export_format == "ado_wiki":
+                from core.ado_wiki import full_convert as ado_full_convert
+                content = ado_full_convert(content)
+
             # Write output
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write(content)

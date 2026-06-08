@@ -21,6 +21,15 @@ SHORTCUTS = {
         ("Ctrl+V", "Paste from clipboard"),
         ("Ctrl+A", "Select all text"),
         ("Ctrl+Z", "Undo (in editable fields)"),
+        ("Ctrl+Y", "Redo (in editable fields)"),
+    ],
+    "Preview Dialog": [
+        ("Ctrl+Z", "Undo last edit"),
+        ("Ctrl+Y", "Redo last undone edit"),
+        ("Ctrl+A", "Select all Markdown text"),
+        ("Ctrl+S", "Save (same as Save button)"),
+        ("↺ Reset btn", "Restore original Markify output"),
+        ("Escape", "Cancel (prompts if edits exist)"),
     ],
     "View": [
         ("Ctrl+Shift+V", "Toggle Raw/Formatted view"),

@@ -11,6 +11,21 @@ Format based on Keep a Changelog (keepachangelog.com).
 - **[FIXED]** - Bug fix
 - **[REMOVED]** - Removed/deprecated
 
+## [1.3.0] - 2026-06-08
+
+### [NEW]
+- **Preview Undo/Redo** - Adds editable text editing inside the Markdown preview window with full Undo/Redo stack support (hotkeys: Ctrl+Z / Ctrl+Y) and cancel-dirty warning.
+- **Syntax Highlighting Themes** - Integrated One Dark, Dracula, Monokai, and GitHub Light themes for the preview and diff viewers.
+- **Markdown Linter** - Automated linting checks for heading hierarchy, empty alt tags, malformed tables, broken relative links, and excessive empty lines, featuring a GUI status notifier.
+- **Auto-Update Check** - Non-blocking async check against the GitHub Releases API to notify when a newer version is available.
+- **Azure DevOps Wiki Format** - Exporter for ADO Wiki formatting conventions, including `[[_TOC_]]` macro, `::: mermaid` fences, and attachment path resolution.
+- **DAX Studio Integration** - Direct import of `.dax` / `.msdax` files with automatic code fence wrapping and DAX formatting.
+- **Power BI Report Metadata (.pbix)** - Zero-dependency metadata reader that parses `.pbix` zip structures (`DataModelSchema` and `Report/Layout`) to generate structured documentation for pages, tables, columns, measures, and relationships.
+- **Tabular Editor Integration (.bim/.tmdl)** - Document Tabular Editor model formats (`.bim` / `.tmdl`) into Markdown, parsing TOM hierarchies, tables, columns, relationships, and multi-line DAX measures.
+- **PowerPoint to Markdown (.pptx)** - Convert PowerPoint slide decks to structured Markdown, preserving headers, lists, tables, bold/italic formatting, and speaker notes.
+
+---
+
 ## [1.2.0] - 2026-01-09
 
 ### [NEW]

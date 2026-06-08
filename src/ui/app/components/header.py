@@ -10,6 +10,8 @@ import sys
 import tkinter as tk
 from tkinter import ttk
 
+from config import __version__
+
 
 def get_resource_path(relative_path: str) -> str:
     """Get absolute path to resource, works for dev and for PyInstaller."""
@@ -73,7 +75,7 @@ def create_header(
     title_label.pack(side=tk.LEFT)
 
     # Version (to right of title)
-    ver_label = ttk.Label(header_frame, text="v1.2.0", style="Sub.TLabel")
+    ver_label = ttk.Label(header_frame, text=f"v{__version__}", style="Sub.TLabel")
     ver_label.pack(side=tk.LEFT, padx=(10, 0))
 
     # GitHub Link
@@ -96,7 +98,7 @@ def create_header(
     # What's New link (clickable text)
     whatsnew_link = tk.Label(
         parent,
-        text="📋 What's New in v1.2.0",
+        text=f"📋 What's New in v{__version__}",
         bg=colors["bg"],
         fg=colors["muted"],
         font=("Segoe UI", 9, "underline"),

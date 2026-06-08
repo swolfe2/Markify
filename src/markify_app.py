@@ -94,7 +94,7 @@ except ImportError:
 
 # Error classification for user-friendly messages
 from core.error_types import classify_docx_error, classify_xlsx_error  # noqa: E402
-from themes import get_default_theme, get_theme, get_theme_names  # noqa: E402
+from themes import get_default_theme, get_syntax_theme_names, get_theme, get_theme_names  # noqa: E402
 
 try:
     import win_dnd  # noqa: E402
@@ -190,6 +190,10 @@ class ConverterApp:
         # Header component (icon, title, version, links)
         create_header(self.main_frame, self.colors, self.open_changelog)
 
+        # Notification area (for update messages, etc.)
+        self.notification_container = tk.Frame(self.main_frame, bg=self.colors["bg"])
+        self.notification_container.pack(fill=tk.X, pady=0)
+
         # Action buttons component (Convert, Options, Help)
         self.convert_btn, self.options_btn, self.help_btn = create_action_buttons(
             self.main_frame,
@@ -269,6 +273,11 @@ class ConverterApp:
         )
         self.theme_var.trace_add("write", self.on_theme_change)
 
+        self.code_theme_var = tk.StringVar(
+            value=self.prefs.get("code_theme", "One Dark")
+        )
+        self.code_theme_var.trace_add("write", self.on_code_theme_change)
+
         self.show_preview_var = tk.BooleanVar(
             value=self.prefs.get("show_preview", True)
         )
@@ -281,6 +290,27 @@ class ConverterApp:
 
         self.add_toc_var = tk.BooleanVar(value=self.prefs.get("add_toc", False))
         self.add_toc_var.trace_add("write", self.on_pref_change)
+
+        self.enable_linter_var = tk.BooleanVar(
+            value=self.prefs.get("enable_linter", True)
+        )
+        self.enable_linter_var.trace_add("write", self.on_pref_change)
+
+        self.check_for_updates_var = tk.BooleanVar(
+            value=self.prefs.get("check_for_updates", True)
+        )
+        self.check_for_updates_var.trace_add("write", self.on_pref_change)
+
+        # Map internal export format key to UI drop-down labels
+        pref_format = self.prefs.get("export_format", "markdown")
+        ui_format = "Standard Markdown"
+        if pref_format == "confluence":
+            ui_format = "Confluence Wiki Syntax"
+        elif pref_format == "ado_wiki":
+            ui_format = "Azure DevOps Wiki"
+
+        self.export_format_var = tk.StringVar(value=ui_format)
+        self.export_format_var.trace_add("write", self.on_pref_change)
 
         # Options dialog will be created on-demand
         self.options_dialog = None
@@ -318,6 +348,10 @@ class ConverterApp:
             except Exception as e:
                 logger.warning(f"Failed to initialize Drag & Drop: {e}")
 
+        # Check for updates on startup if preference is enabled
+        if self.prefs.get("check_for_updates", True):
+            self.root.after(2000, self.check_for_updates_auto)
+
     def refresh_recents(self):
         """Refresh the Recent Files list UI using component."""
         recents = self.prefs.get("recent_files", [])
@@ -331,6 +365,17 @@ class ConverterApp:
         self.prefs.set("show_preview", self.show_preview_var.get())
         self.prefs.set("add_front_matter", self.add_front_matter_var.get())
         self.prefs.set("add_toc", self.add_toc_var.get())
+        self.prefs.set("enable_linter", self.enable_linter_var.get())
+        self.prefs.set("check_for_updates", self.check_for_updates_var.get())
+
+        # Save export format preference
+        ui_format = self.export_format_var.get()
+        internal_format = "markdown"
+        if ui_format == "Confluence Wiki Syntax":
+            internal_format = "confluence"
+        elif ui_format == "Azure DevOps Wiki":
+            internal_format = "ado_wiki"
+        self.prefs.set("export_format", internal_format)
 
     def toggle_options(self, event=None):
         """Open the Options dialog."""
@@ -352,6 +397,11 @@ class ConverterApp:
             "custom_path_var": self.custom_path_var,
             "theme_var": self.theme_var,
             "theme_names": get_theme_names(),
+            "code_theme_var": self.code_theme_var,
+            "code_theme_names": get_syntax_theme_names(),
+            "enable_linter_var": self.enable_linter_var,
+            "check_for_updates_var": self.check_for_updates_var,
+            "export_format_var": self.export_format_var,
             "on_browse": self.browse_output_folder,
         }
         self.options_dialog = OptionsDialog(
@@ -366,6 +416,10 @@ class ConverterApp:
         mode = self.output_mode_var.get()
         self.prefs.set("output_mode", mode)
         self.update_custom_ui_state()
+
+    def on_code_theme_change(self, *args):
+        """Save code theme preference."""
+        self.prefs.set("code_theme", self.code_theme_var.get())
 
     def on_theme_change(self, *args):
         """Save theme preference and apply changes immediately."""
@@ -461,7 +515,8 @@ class ConverterApp:
         """Wrapper for configure_styles utility."""
         configure_styles(self.colors)
 
-    def open_help(self):
+    def open_readme(self):
+        """Open the README documentation viewer."""
         readme_path = resource_path("README.md")
         if os.path.exists(readme_path):
             MarkdownViewer(
@@ -473,6 +528,147 @@ class ConverterApp:
             )
         else:
             messagebox.showwarning("Help", f"README.md not found at {readme_path}")
+
+    def open_help(self):
+        """Post a popup/dropdown menu below the Help button."""
+        menu = tk.Menu(self.root, tearoff=0)
+        c = self.colors
+
+        menu.configure(
+            bg=c["secondary_bg"],
+            fg=c["fg"],
+            activebackground=c["accent"],
+            activeforeground=c.get("accent_fg", "#ffffff"),
+            font=("Segoe UI", 10)
+        )
+
+        menu.add_command(label="📖  Documentation (README)", command=self.open_readme)
+        menu.add_command(label="⌨️  Keyboard Shortcuts (F1)", command=self.open_shortcuts)
+        menu.add_command(label="📋  What's New (Changelog)", command=self.open_changelog)
+        menu.add_separator()
+        menu.add_command(label="🔄  Check for Updates...", command=self.check_for_updates_manual)
+
+        try:
+            x = self.help_btn.winfo_rootx()
+            y = self.help_btn.winfo_rooty() + self.help_btn.winfo_height()
+            menu.post(x, y)
+        except Exception as e:
+            logger.warning(f"Failed to post Help menu: {e}")
+
+    def show_update_notification(self, remote_version: str):
+        """Display a non-blocking banner at the top of the main window."""
+        self.dismiss_update_notification()
+
+        c = self.colors
+        self.notification_container.pack_configure(pady=(5, 15))
+
+        card = tk.Frame(
+            self.notification_container,
+            bg=c["secondary_bg"],
+            highlightbackground=c["accent"],
+            highlightthickness=1,
+            padx=10,
+            pady=8,
+        )
+        card.pack(fill=tk.X)
+
+        label = ttk.Label(
+            card,
+            text=f"🚀 A new version (v{remote_version}) is available!",
+            style="Body.TLabel",
+            background=c["secondary_bg"],
+        )
+        label.pack(side=tk.LEFT, padx=(5, 10))
+
+        download_btn = tk.Button(
+            card,
+            text="Download",
+            font=("Segoe UI", 9, "bold"),
+            bg=c["accent"],
+            fg=c.get("accent_fg", "#ffffff"),
+            activebackground=c["accent_hover"],
+            activeforeground=c.get("accent_fg", "#ffffff"),
+            relief=tk.FLAT,
+            cursor="hand2",
+            padx=10,
+            pady=2,
+            command=lambda: subprocess.Popen(  # nosec B602 B607 - Safe: fixed GitHub releases URL
+                ["start", f"https://github.com/swolfe2/Markify/releases/tag/{remote_version}"],
+                shell=True,
+            ),
+        )
+        download_btn.pack(side=tk.RIGHT, padx=(5, 0))
+
+        dismiss_btn = tk.Button(
+            card,
+            text="✕",
+            font=("Segoe UI", 10),
+            bg=c["secondary_bg"],
+            fg=c["muted"],
+            activebackground=c["border"],
+            activeforeground=c["fg"],
+            relief=tk.FLAT,
+            cursor="hand2",
+            padx=5,
+            pady=2,
+            command=self.dismiss_update_notification,
+        )
+        dismiss_btn.pack(side=tk.RIGHT)
+
+    def dismiss_update_notification(self):
+        """Dismiss the update banner and reset container spacing."""
+        for widget in self.notification_container.winfo_children():
+            widget.destroy()
+        self.notification_container.pack_configure(pady=0)
+
+    def check_for_updates_auto(self):
+        """Silently check for updates in the background on startup."""
+        from config import __version__
+        from core.update_checker import check_for_updates_async
+
+        def on_check_complete(remote_version: str | None):
+            if remote_version:
+                from core.update_checker import is_newer_version
+                if is_newer_version(remote_version, __version__):
+                    self.show_update_notification(remote_version)
+
+        check_for_updates_async(
+            lambda res: self.root.after(0, lambda: on_check_complete(res))
+        )
+
+    def check_for_updates_manual(self):
+        """Perform a user-triggered manual update check with feedback."""
+        self.status_var.set("Checking for updates...")
+        from config import __version__
+        from core.update_checker import check_for_updates_async
+
+        def on_complete(remote_version: str | None):
+            self.status_var.set("Ready")
+            if remote_version:
+                from core.update_checker import is_newer_version
+                if is_newer_version(remote_version, __version__):
+                    self.show_update_notification(remote_version)
+                    messagebox.showinfo(
+                        "Check for Updates",
+                        f"A new version (v{remote_version}) is available!\n\nClick the Download button in the notification banner to get it.",
+                        parent=self.root,
+                    )
+                else:
+                    messagebox.showinfo(
+                        "Check for Updates",
+                        f"Markify is up to date (v{__version__}).",
+                        parent=self.root,
+                    )
+            else:
+                messagebox.showerror(
+                    "Check for Updates",
+                    "Could not check for updates. Please check your internet connection.",
+                    parent=self.root,
+                )
+
+        check_for_updates_async(
+            lambda res: self.root.after(0, lambda: on_complete(res))
+        )
 
     def open_changelog(self):
         """Open the Changelog viewer."""
@@ -564,7 +760,11 @@ class ConverterApp:
     def open_diff_viewer(self):
         """Open the Diff View dialog to compare two files."""
         show_diff_viewer(
-            self.root, self.colors, icon_path=self.icon_path, icon_photo=self.icon_photo
+            self.root,
+            self.colors,
+            icon_path=self.icon_path,
+            icon_photo=self.icon_photo,
+            code_theme_var=self.code_theme_var,
         )
 
     def select_file(self):
@@ -576,9 +776,13 @@ class ConverterApp:
             title="Select Documents",
             initialdir=initial_dir,
             filetypes=[
-                ("Supported Files", "*.docx *.xlsx"),
+                ("Supported Files", "*.docx *.xlsx *.dax *.msdax *.pbix *.bim *.tmdl *.pptx"),
                 ("Word Documents", "*.docx"),
                 ("Excel Spreadsheets", "*.xlsx"),
+                ("PowerPoint Presentations", "*.pptx"),
+                ("DAX Studio Files", "*.dax *.msdax"),
+                ("Power BI Reports", "*.pbix"),
+                ("Tabular Editor Files", "*.bim *.tmdl"),
                 ("All Files", "*.*"),
             ],
         )
@@ -595,6 +799,14 @@ class ConverterApp:
             source_path = source_paths[0]
             if source_path.lower().endswith(".xlsx"):
                 self._process_xlsx_async(source_path)
+            elif source_path.lower().endswith((".dax", ".msdax")):
+                self._process_dax_async(source_path)
+            elif source_path.lower().endswith(".pbix"):
+                self._process_pbix_async(source_path)
+            elif source_path.lower().endswith((".bim", ".tmdl")):
+                self._process_tmdl_async(source_path)
+            elif source_path.lower().endswith(".pptx"):
+                self._process_pptx_async(source_path)
             else:
                 self._process_single_async(source_path)
             return
@@ -616,6 +828,14 @@ class ConverterApp:
             # Route to appropriate converter based on file type
             if source_path.lower().endswith(".xlsx"):
                 success, output_file, _ = self._perform_xlsx_conversion(source_path)
+            elif source_path.lower().endswith((".dax", ".msdax")):
+                success, output_file, _ = self._perform_dax_conversion(source_path)
+            elif source_path.lower().endswith(".pbix"):
+                success, output_file, _ = self._perform_pbix_conversion(source_path)
+            elif source_path.lower().endswith((".bim", ".tmdl")):
+                success, output_file, _ = self._perform_tmdl_conversion(source_path)
+            elif source_path.lower().endswith(".pptx"):
+                success, output_file, _ = self._perform_pptx_conversion(source_path)
             else:
                 success, output_file, _ = self._perform_conversion(source_path)
 
@@ -715,6 +935,707 @@ class ConverterApp:
         t = threading.Thread(target=run_thread, daemon=True)
         t.start()
 
+    def _process_dax_async(self, source_path):
+        """Handle single DAX file conversion in a separate thread."""
+        self.status_var.set(f"Converting DAX: {os.path.basename(source_path)}...")
+
+        # Indeterminate progress
+        self.progress.pack(fill=tk.X, pady=(20, 0))
+        self.progress.configure(mode="indeterminate")
+        self.progress.start(10)
+        self.root.update()
+
+        # Disable inputs
+        self.convert_btn.configure(state="disabled")
+        if hasattr(self, "options_btn"):
+            self.options_btn.configure(state="disabled")
+
+        def run_thread():
+            result = self._perform_dax_conversion(source_path)
+            self.root.after(0, lambda: self._on_dax_complete(result, source_path))
+
+        import threading
+
+        t = threading.Thread(target=run_thread, daemon=True)
+        t.start()
+
+    def _perform_dax_conversion(self, source_path):
+        """Convert DAX file to Markdown. Returns (success, output_path_or_content, error_dict)."""
+        try:
+            # Determine output path
+            base_name_only = os.path.splitext(os.path.basename(source_path))[0]
+            output_mode = self.prefs.get("output_mode", "same")
+            custom_dir = self.prefs.get("custom_output_dir", "")
+
+            if output_mode == "custom" and custom_dir and os.path.exists(custom_dir):
+                output_file = os.path.join(custom_dir, f"{base_name_only}.md")
+            else:
+                output_file = os.path.join(
+                    os.path.dirname(source_path), f"{base_name_only}.md"
+                )
+
+            # Convert using dax_import
+            from core.dax_import import convert_dax_file
+            content = convert_dax_file(
+                source_path,
+                format_code=self.prefs.get("format_dax", True)
+            )
+
+            if content:
+                # Add YAML front matter for static site generators
+                if add_front_matter_to_markdown and self.prefs.get(
+                    "add_front_matter", False
+                ):
+                    content = add_front_matter_to_markdown(
+                        content, filename=os.path.basename(source_path)
+                    )
+
+                # Apply export format conversion
+                export_format = self.prefs.get("export_format", "markdown")
+                if export_format == "confluence":
+                    from core.confluence import full_convert
+                    content = full_convert(content)
+                elif export_format == "ado_wiki":
+                    from core.ado_wiki import full_convert as ado_full_convert
+                    content = ado_full_convert(content)
+
+                # Check if preview mode
+                if self.prefs.get("show_preview", True):
+                    return True, (content, output_file), None
+                else:
+                    with open(output_file, "w", encoding="utf-8") as f:
+                        f.write(content)
+                    return True, output_file, None
+            else:
+                return (
+                    False,
+                    None,
+                    {
+                        "title": "Conversion Error",
+                        "message": f"Failed to convert {os.path.basename(source_path)}",
+                        "details": "No content extracted from DAX file.",
+                    },
+                )
+        except Exception as e:
+            logger.error(f"DAX conversion failed: {e}")
+            return (
+                False,
+                None,
+                {
+                    "title": "Conversion Error",
+                    "message": f"Failed to convert {os.path.basename(source_path)}",
+                    "details": str(e),
+                },
+            )
+
+    def _on_dax_complete(self, result, source_path):
+        """Callback when DAX file conversion finishes."""
+        success, output_data, error_info = result
+
+        if success and isinstance(output_data, tuple):
+            content, output_file_path = output_data
+        else:
+            content = None
+            output_file_path = output_data
+
+        # Stop progress
+        self.progress.stop()
+        self.progress.configure(mode="determinate")
+        self.progress.pack_forget()
+
+        # Re-enable inputs
+        self.convert_btn.configure(state="normal")
+        if hasattr(self, "options_btn"):
+            self.options_btn.configure(state="normal")
+
+        if success:
+            if self.show_preview_var.get():
+                _saved_content = [content]
+
+                def _on_dax_preview_save(final_content: str):
+                    try:
+                        with open(output_file_path, "w", encoding="utf-8") as f:
+                            f.write(final_content)
+                        _saved_content[0] = final_content
+                        self.status_var.set("DAX Conversion Successful!")
+                        self.prefs.add_recent_file(source_path, output_file_path)
+                        self.refresh_recents()
+                        show_success_dialog(
+                            self.root,
+                            self.colors,
+                            output_file_path,
+                            single_mode=True,
+                            on_run_cmd=self._run_cmd,
+                            icon_path=self.icon_path,
+                        )
+                    except Exception as e:
+                        self.status_var.set("Save Failed.")
+                        show_error_dialog(
+                            self.root,
+                            self.colors,
+                            title="Save Error",
+                            message="Failed to save file",
+                            details=str(e),
+                            icon_photo=self.icon_photo,
+                        )
+
+                user_approved = show_preview_dialog(
+                    self.root,
+                    self.colors,
+                    source_path,
+                    output_file_path,
+                    content,
+                    on_save=_on_dax_preview_save,
+                    on_open_options=self.toggle_options,
+                    icon_path=self.icon_path,
+                    icon_photo=self.icon_photo,
+                    code_theme_var=self.code_theme_var,
+                    enable_linter_var=self.enable_linter_var,
+                )
+
+                if not user_approved:
+                    self.status_var.set("Conversion cancelled.")
+            else:
+                self.status_var.set("DAX Conversion Successful!")
+                self.prefs.add_recent_file(source_path, output_file_path)
+                self.refresh_recents()
+                show_success_dialog(
+                    self.root,
+                    self.colors,
+                    output_file_path,
+                    single_mode=True,
+                    on_run_cmd=self._run_cmd,
+                    icon_path=self.icon_path,
+                )
+        else:
+            if error_info:
+                show_error_dialog(
+                    self.root, self.colors, icon_photo=self.icon_photo, **error_info
+                )
+
+    def _process_pbix_async(self, source_path):
+        """Handle single Power BI file conversion in a separate thread."""
+        self.status_var.set(f"Extracting PBIX Metadata: {os.path.basename(source_path)}...")
+
+        # Indeterminate progress
+        self.progress.pack(fill=tk.X, pady=(20, 0))
+        self.progress.configure(mode="indeterminate")
+        self.progress.start(10)
+        self.root.update()
+
+        # Disable inputs
+        self.convert_btn.configure(state="disabled")
+        if hasattr(self, "options_btn"):
+            self.options_btn.configure(state="disabled")
+
+        def run_thread():
+            result = self._perform_pbix_conversion(source_path)
+            self.root.after(0, lambda: self._on_pbix_complete(result, source_path))
+
+        import threading
+
+        t = threading.Thread(target=run_thread, daemon=True)
+        t.start()
+
+    def _perform_pbix_conversion(self, source_path):
+        """Extract PBIX metadata to Markdown. Returns (success, output_path_or_content, error_dict)."""
+        try:
+            # Determine output path
+            base_name_only = os.path.splitext(os.path.basename(source_path))[0]
+            output_mode = self.prefs.get("output_mode", "same")
+            custom_dir = self.prefs.get("custom_output_dir", "")
+
+            if output_mode == "custom" and custom_dir and os.path.exists(custom_dir):
+                output_file = os.path.join(custom_dir, f"{base_name_only}.md")
+            else:
+                output_file = os.path.join(
+                    os.path.dirname(source_path), f"{base_name_only}.md"
+                )
+
+            # Convert using pbix_core
+            from pbix_core import get_pbix_metadata
+            content = get_pbix_metadata(source_path)
+
+            if content:
+                # Add YAML front matter if enabled
+                if add_front_matter_to_markdown and self.prefs.get(
+                    "add_front_matter", False
+                ):
+                    content = add_front_matter_to_markdown(
+                        content, filename=os.path.basename(source_path)
+                    )
+
+                # Apply export format conversion
+                export_format = self.prefs.get("export_format", "markdown")
+                if export_format == "confluence":
+                    from core.confluence import full_convert
+                    content = full_convert(content)
+                elif export_format == "ado_wiki":
+                    from core.ado_wiki import full_convert as ado_full_convert
+                    content = ado_full_convert(content)
+
+                # Check if preview mode
+                if self.prefs.get("show_preview", True):
+                    return True, (content, output_file), None
+                else:
+                    with open(output_file, "w", encoding="utf-8") as f:
+                        f.write(content)
+                    return True, output_file, None
+            else:
+                return (
+                    False,
+                    None,
+                    {
+                        "title": "Extraction Error",
+                        "message": f"Failed to extract metadata from {os.path.basename(source_path)}",
+                        "details": "No metadata content extracted.",
+                    },
+                )
+        except Exception as e:
+            logger.error(f"PBIX extraction failed: {e}")
+            return (
+                False,
+                None,
+                {
+                    "title": "Extraction Error",
+                    "message": f"Failed to extract metadata from {os.path.basename(source_path)}",
+                    "details": str(e),
+                },
+            )
+
+    def _on_pbix_complete(self, result, source_path):
+        """Callback when PBIX metadata extraction finishes."""
+        success, output_data, error_info = result
+
+        if success and isinstance(output_data, tuple):
+            content, output_file_path = output_data
+        else:
+            content = None
+            output_file_path = output_data
+
+        # Stop progress
+        self.progress.stop()
+        self.progress.configure(mode="determinate")
+        self.progress.pack_forget()
+
+        # Re-enable inputs
+        self.convert_btn.configure(state="normal")
+        if hasattr(self, "options_btn"):
+            self.options_btn.configure(state="normal")
+
+        if success:
+            if self.show_preview_var.get():
+                _saved_content = [content]
+
+                def _on_pbix_preview_save(final_content: str):
+                    try:
+                        with open(output_file_path, "w", encoding="utf-8") as f:
+                            f.write(final_content)
+                        _saved_content[0] = final_content
+                        self.status_var.set("Metadata Extraction Successful!")
+                        self.prefs.add_recent_file(source_path, output_file_path)
+                        self.refresh_recents()
+                        show_success_dialog(
+                            self.root,
+                            self.colors,
+                            output_file_path,
+                            single_mode=True,
+                            on_run_cmd=self._run_cmd,
+                            icon_path=self.icon_path,
+                        )
+                    except Exception as e:
+                        self.status_var.set("Save Failed.")
+                        show_error_dialog(
+                            self.root,
+                            self.colors,
+                            title="Save Error",
+                            message="Failed to save file",
+                            details=str(e),
+                            icon_photo=self.icon_photo,
+                        )
+
+                user_approved = show_preview_dialog(
+                    self.root,
+                    self.colors,
+                    source_path,
+                    output_file_path,
+                    content,
+                    on_save=_on_pbix_preview_save,
+                    on_open_options=self.toggle_options,
+                    icon_path=self.icon_path,
+                    icon_photo=self.icon_photo,
+                    code_theme_var=self.code_theme_var,
+                    enable_linter_var=self.enable_linter_var,
+                )
+
+                if not user_approved:
+                    self.status_var.set("Conversion cancelled.")
+            else:
+                self.status_var.set("Metadata Extraction Successful!")
+                self.prefs.add_recent_file(source_path, output_file_path)
+                self.refresh_recents()
+                show_success_dialog(
+                    self.root,
+                    self.colors,
+                    output_file_path,
+                    single_mode=True,
+                    on_run_cmd=self._run_cmd,
+                    icon_path=self.icon_path,
+                )
+            if error_info:
+                show_error_dialog(
+                    self.root, self.colors, icon_photo=self.icon_photo, **error_info
+                )
+
+    def _process_tmdl_async(self, source_path):
+        """Handle single TMDL/BIM file conversion in a separate thread."""
+        self.status_var.set(f"Extracting TMDL/BIM Metadata: {os.path.basename(source_path)}...")
+
+        # Indeterminate progress
+        self.progress.pack(fill=tk.X, pady=(20, 0))
+        self.progress.configure(mode="indeterminate")
+        self.progress.start(10)
+        self.root.update()
+
+        # Disable inputs
+        self.convert_btn.configure(state="disabled")
+        if hasattr(self, "options_btn"):
+            self.options_btn.configure(state="disabled")
+
+        def run_thread():
+            result = self._perform_tmdl_conversion(source_path)
+            self.root.after(0, lambda: self._on_tmdl_complete(result, source_path))
+
+        import threading
+
+        t = threading.Thread(target=run_thread, daemon=True)
+        t.start()
+
+    def _perform_tmdl_conversion(self, source_path):
+        """Extract TMDL/BIM metadata to Markdown. Returns (success, output_path_or_content, error_dict)."""
+        try:
+            # Determine output path
+            base_name_only = os.path.splitext(os.path.basename(source_path))[0]
+            output_mode = self.prefs.get("output_mode", "same")
+            custom_dir = self.prefs.get("custom_output_dir", "")
+
+            if output_mode == "custom" and custom_dir and os.path.exists(custom_dir):
+                output_file = os.path.join(custom_dir, f"{base_name_only}.md")
+            else:
+                output_file = os.path.join(
+                    os.path.dirname(source_path), f"{base_name_only}.md"
+                )
+
+            # Convert using tmdl_import
+            from core.tmdl_import import convert_tmdl_or_bim
+            content = convert_tmdl_or_bim(source_path)
+
+            if content:
+                # Add YAML front matter if enabled
+                if add_front_matter_to_markdown and self.prefs.get(
+                    "add_front_matter", False
+                ):
+                    content = add_front_matter_to_markdown(
+                        content, filename=os.path.basename(source_path)
+                    )
+
+                # Apply export format conversion
+                export_format = self.prefs.get("export_format", "markdown")
+                if export_format == "confluence":
+                    from core.confluence import full_convert
+                    content = full_convert(content)
+                elif export_format == "ado_wiki":
+                    from core.ado_wiki import full_convert as ado_full_convert
+                    content = ado_full_convert(content)
+
+                # Check if preview mode
+                if self.prefs.get("show_preview", True):
+                    return True, (content, output_file), None
+                else:
+                    with open(output_file, "w", encoding="utf-8") as f:
+                        f.write(content)
+                    return True, output_file, None
+            else:
+                return (
+                    False,
+                    None,
+                    {
+                        "title": "Extraction Error",
+                        "message": f"Failed to extract metadata from {os.path.basename(source_path)}",
+                        "details": "No metadata content extracted.",
+                    },
+                )
+        except Exception as e:
+            logger.error(f"TMDL/BIM extraction failed: {e}")
+            return (
+                False,
+                None,
+                {
+                    "title": "Extraction Error",
+                    "message": f"Failed to extract metadata from {os.path.basename(source_path)}",
+                    "details": str(e),
+                },
+            )
+
+    def _on_tmdl_complete(self, result, source_path):
+        """Callback when TMDL/BIM metadata extraction finishes."""
+        success, output_data, error_info = result
+
+        if success and isinstance(output_data, tuple):
+            content, output_file_path = output_data
+        else:
+            content = None
+            output_file_path = output_data
+
+        # Stop progress
+        self.progress.stop()
+        self.progress.configure(mode="determinate")
+        self.progress.pack_forget()
+
+        # Re-enable inputs
+        self.convert_btn.configure(state="normal")
+        if hasattr(self, "options_btn"):
+            self.options_btn.configure(state="normal")
+
+        if success:
+            if self.show_preview_var.get():
+                _saved_content = [content]
+
+                def _on_tmdl_preview_save(final_content: str):
+                    try:
+                        with open(output_file_path, "w", encoding="utf-8") as f:
+                            f.write(final_content)
+                        _saved_content[0] = final_content
+                        self.status_var.set("Metadata Extraction Successful!")
+                        self.prefs.add_recent_file(source_path, output_file_path)
+                        self.refresh_recents()
+                        show_success_dialog(
+                            self.root,
+                            self.colors,
+                            output_file_path,
+                            single_mode=True,
+                            on_run_cmd=self._run_cmd,
+                            icon_path=self.icon_path,
+                        )
+                    except Exception as e:
+                        self.status_var.set("Save Failed.")
+                        show_error_dialog(
+                            self.root,
+                            self.colors,
+                            title="Save Error",
+                            message="Failed to save file",
+                            details=str(e),
+                            icon_photo=self.icon_photo,
+                        )
+
+                user_approved = show_preview_dialog(
+                    self.root,
+                    self.colors,
+                    source_path,
+                    output_file_path,
+                    content,
+                    on_save=_on_tmdl_preview_save,
+                    on_open_options=self.toggle_options,
+                    icon_path=self.icon_path,
+                    icon_photo=self.icon_photo,
+                    code_theme_var=self.code_theme_var,
+                    enable_linter_var=self.enable_linter_var,
+                )
+
+                if not user_approved:
+                    self.status_var.set("Conversion cancelled.")
+            else:
+                self.status_var.set("Metadata Extraction Successful!")
+                self.prefs.add_recent_file(source_path, output_file_path)
+                self.refresh_recents()
+                show_success_dialog(
+                    self.root,
+                    self.colors,
+                    output_file_path,
+                    single_mode=True,
+                    on_run_cmd=self._run_cmd,
+                    icon_path=self.icon_path,
+                )
+            if error_info:
+                show_error_dialog(
+                    self.root, self.colors, icon_photo=self.icon_photo, **error_info
+                )
+
+    def _process_pptx_async(self, source_path):
+        """Handle single PowerPoint file conversion in a separate thread."""
+        self.status_var.set(f"Converting PowerPoint: {os.path.basename(source_path)}...")
+
+        # Indeterminate progress
+        self.progress.pack(fill=tk.X, pady=(20, 0))
+        self.progress.configure(mode="indeterminate")
+        self.progress.start(10)
+        self.root.update()
+
+        # Disable inputs
+        self.convert_btn.configure(state="disabled")
+        if hasattr(self, "options_btn"):
+            self.options_btn.configure(state="disabled")
+
+        def run_thread():
+            result = self._perform_pptx_conversion(source_path)
+            self.root.after(0, lambda: self._on_pptx_complete(result, source_path))
+
+        import threading
+
+        t = threading.Thread(target=run_thread, daemon=True)
+        t.start()
+
+    def _perform_pptx_conversion(self, source_path):
+        """Convert PowerPoint file to Markdown. Returns (success, output_path_or_content, error_dict)."""
+        try:
+            # Determine output path
+            base_name_only = os.path.splitext(os.path.basename(source_path))[0]
+            output_mode = self.prefs.get("output_mode", "same")
+            custom_dir = self.prefs.get("custom_output_dir", "")
+
+            if output_mode == "custom" and custom_dir and os.path.exists(custom_dir):
+                output_file = os.path.join(custom_dir, f"{base_name_only}.md")
+            else:
+                output_file = os.path.join(
+                    os.path.dirname(source_path), f"{base_name_only}.md"
+                )
+
+            # Convert using pptx_core
+            from pptx_core import convert_pptx_to_markdown
+            content = convert_pptx_to_markdown(source_path)
+
+            if content:
+                # Add YAML front matter if enabled
+                if add_front_matter_to_markdown and self.prefs.get(
+                    "add_front_matter", False
+                ):
+                    content = add_front_matter_to_markdown(
+                        content, filename=os.path.basename(source_path)
+                    )
+
+                # Apply export format conversion
+                export_format = self.prefs.get("export_format", "markdown")
+                if export_format == "confluence":
+                    from core.confluence import full_convert
+                    content = full_convert(content)
+                elif export_format == "ado_wiki":
+                    from core.ado_wiki import full_convert as ado_full_convert
+                    content = ado_full_convert(content)
+
+                # Check if preview mode
+                if self.prefs.get("show_preview", True):
+                    return True, (content, output_file), None
+                else:
+                    with open(output_file, "w", encoding="utf-8") as f:
+                        f.write(content)
+                    return True, output_file, None
+            else:
+                return (
+                    False,
+                    None,
+                    {
+                        "title": "Conversion Error",
+                        "message": f"Failed to convert {os.path.basename(source_path)}",
+                        "details": "No content was generated.",
+                    },
+                )
+        except Exception as e:
+            logger.error(f"PowerPoint conversion failed: {e}")
+            return (
+                False,
+                None,
+                {
+                    "title": "Conversion Error",
+                    "message": f"Failed to convert {os.path.basename(source_path)}",
+                    "details": str(e),
+                },
+            )
+
+    def _on_pptx_complete(self, result, source_path):
+        """Callback when PowerPoint conversion finishes."""
+        success, output_data, error_info = result
+
+        if success and isinstance(output_data, tuple):
+            content, output_file_path = output_data
+        else:
+            content = None
+            output_file_path = output_data
+
+        # Stop progress
+        self.progress.stop()
+        self.progress.configure(mode="determinate")
+        self.progress.pack_forget()
+
+        # Re-enable inputs
+        self.convert_btn.configure(state="normal")
+        if hasattr(self, "options_btn"):
+            self.options_btn.configure(state="normal")
+
+        if success:
+            if self.show_preview_var.get():
+                _saved_content = [content]
+
+                def _on_pptx_preview_save(final_content: str):
+                    try:
+                        with open(output_file_path, "w", encoding="utf-8") as f:
+                            f.write(final_content)
+                        _saved_content[0] = final_content
+                        self.status_var.set("Conversion Successful!")
+                        self.prefs.add_recent_file(source_path, output_file_path)
+                        self.refresh_recents()
+                        show_success_dialog(
+                            self.root,
+                            self.colors,
+                            output_file_path,
+                            single_mode=True,
+                            on_run_cmd=self._run_cmd,
+                            icon_path=self.icon_path,
+                        )
+                    except Exception as e:
+                        self.status_var.set("Save Failed.")
+                        show_error_dialog(
+                            self.root,
+                            self.colors,
+                            title="Save Error",
+                            message="Failed to save file",
+                            details=str(e),
+                            icon_photo=self.icon_photo,
+                        )
+
+                user_approved = show_preview_dialog(
+                    self.root,
+                    self.colors,
+                    source_path,
+                    output_file_path,
+                    content,
+                    on_save=_on_pptx_preview_save,
+                    on_open_options=self.toggle_options,
+                    icon_path=self.icon_path,
+                    icon_photo=self.icon_photo,
+                    code_theme_var=self.code_theme_var,
+                    enable_linter_var=self.enable_linter_var,
+                )
+
+                if not user_approved:
+                    self.status_var.set("Conversion cancelled.")
+            else:
+                self.status_var.set("Conversion Successful!")
+                self.prefs.add_recent_file(source_path, output_file_path)
+                self.refresh_recents()
+                show_success_dialog(
+                    self.root,
+                    self.colors,
+                    output_file_path,
+                    single_mode=True,
+                    on_run_cmd=self._run_cmd,
+                    icon_path=self.icon_path,
+                )
+        else:
+            if error_info:
+                show_error_dialog(
+                    self.root, self.colors, icon_photo=self.icon_photo, **error_info
+                )
+
     def _perform_xlsx_conversion(self, source_path):
         """Convert Excel file to Markdown. Returns (success, output_path_or_content, error_dict)."""
         try:
@@ -792,21 +1713,14 @@ class ConverterApp:
 
         if success:
             if self.show_preview_var.get():
-                user_approved = show_preview_dialog(
-                    self.root,
-                    self.colors,
-                    source_path,
-                    output_file_path,
-                    content,
-                    on_open_options=self.toggle_options,
-                    icon_path=self.icon_path,
-                    icon_photo=self.icon_photo,
-                )
+                # on_save receives the (possibly edited) content from the preview dialog
+                _saved_content = [content]  # mutable container for closure
 
-                if user_approved:
+                def _on_xlsx_preview_save(final_content: str):
                     try:
                         with open(output_file_path, "w", encoding="utf-8") as f:
-                            f.write(content)
+                            f.write(final_content)
+                        _saved_content[0] = final_content
                         self.status_var.set("Excel Conversion Successful!")
                         self.prefs.add_recent_file(source_path, output_file_path)
                         self.refresh_recents()
@@ -828,7 +1742,22 @@ class ConverterApp:
                             details=str(e),
                             icon_photo=self.icon_photo,
                         )
-                else:
+
+                user_approved = show_preview_dialog(
+                    self.root,
+                    self.colors,
+                    source_path,
+                    output_file_path,
+                    content,
+                    on_save=_on_xlsx_preview_save,
+                    on_open_options=self.toggle_options,
+                    icon_path=self.icon_path,
+                    icon_photo=self.icon_photo,
+                    code_theme_var=self.code_theme_var,
+                    enable_linter_var=self.enable_linter_var,
+                )
+
+                if not user_approved:
                     self.status_var.set("Conversion cancelled.")
             else:
                 self.status_var.set("Excel Conversion Successful!")
@@ -865,27 +1794,14 @@ class ConverterApp:
         if success:
             # Check if preview is enabled
             if self.show_preview_var.get():
-                # Show preview dialog with content
-                content, output_file_path = (
-                    output_file  # output_file is (content, path) tuple in preview mode
-                )
+                # output_file is (content, path) tuple in preview mode
+                content, output_file_path = output_file
 
-                user_approved = show_preview_dialog(
-                    self.root,
-                    self.colors,
-                    source_path,
-                    output_file_path,
-                    content,
-                    on_open_options=self.toggle_options,
-                    icon_path=self.icon_path,
-                    icon_photo=self.icon_photo,
-                )
-
-                if user_approved:
-                    # Write the file now
+                # on_save receives the (possibly edited) content from the preview dialog
+                def _on_docx_preview_save(final_content: str):
                     try:
                         with open(output_file_path, "w", encoding="utf-8") as f:
-                            f.write(content)
+                            f.write(final_content)
                         self.status_var.set("Conversion Successful!")
                         self.prefs.add_recent_file(source_path, output_file_path)
                         self.refresh_recents()
@@ -907,7 +1823,22 @@ class ConverterApp:
                             details=str(e),
                             icon_photo=self.icon_photo,
                         )
-                else:
+
+                user_approved = show_preview_dialog(
+                    self.root,
+                    self.colors,
+                    source_path,
+                    output_file_path,
+                    content,
+                    on_save=_on_docx_preview_save,
+                    on_open_options=self.toggle_options,
+                    icon_path=self.icon_path,
+                    icon_photo=self.icon_photo,
+                    code_theme_var=self.code_theme_var,
+                    enable_linter_var=self.enable_linter_var,
+                )
+
+                if not user_approved:
                     self.status_var.set("Conversion cancelled.")
             else:
                 # No preview - file already written
@@ -992,6 +1923,15 @@ class ConverterApp:
                 # Add Table of Contents if enabled
                 if insert_toc and self.prefs.get("add_toc", False):
                     content = insert_toc(content, position="after_title", max_depth=3)
+
+                # Apply export format conversion
+                export_format = self.prefs.get("export_format", "markdown")
+                if export_format == "confluence":
+                    from core.confluence import full_convert
+                    content = full_convert(content)
+                elif export_format == "ado_wiki":
+                    from core.ado_wiki import full_convert as ado_full_convert
+                    content = ado_full_convert(content)
 
                 # Check if preview mode - return content without writing
                 if self.prefs.get("show_preview", True):

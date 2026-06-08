@@ -12,6 +12,8 @@ from logging_config import get_logger
 
 logger = get_logger("config")
 
+__version__ = "1.2.0"
+
 # Default patterns - these match current hardcoded values in detectors.py
 DEFAULT_PATTERNS: dict[str, list[str]] = {
     "dax_keywords": [
